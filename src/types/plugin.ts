@@ -1,4 +1,3 @@
-import type { LspServerConfig } from '../services/lsp/types.js'
 import type { McpServerConfig } from '../services/mcp/types.js'
 import type { BundledSkillDefinition } from '../skills/bundledSkills.js'
 import type {
@@ -28,8 +27,6 @@ export type BuiltinPluginDefinition = {
   hooks?: HooksSettings
   /** MCP servers provided by this plugin */
   mcpServers?: Record<string, McpServerConfig>
-  /** LSP servers provided by this plugin */
-  lspServers?: Record<string, LspServerConfig>
   /** Whether this plugin is available (e.g. based on system capabilities). Unavailable plugins are hidden entirely. */
   isAvailable?: () => boolean
   /** Default enabled state before the user sets a preference (defaults to true) */
@@ -67,7 +64,6 @@ export type LoadedPlugin = {
   outputStylesPaths?: string[] // Additional output style paths from manifest
   hooksConfig?: HooksSettings
   mcpServers?: Record<string, McpServerConfig>
-  lspServers?: Record<string, LspServerConfig>
   settings?: Record<string, unknown>
 }
 
@@ -176,13 +172,6 @@ export type PluginError =
       duplicateOf: string
     }
   | {
-      type: 'lsp-config-invalid'
-      source: string
-      plugin: string
-      serverName: string
-      validationError: string
-    }
-  | {
       type: 'hook-load-failed'
       source: string
       plugin: string
@@ -217,44 +206,6 @@ export type PluginError =
       plugin: string
       mcpbPath: string
       validationError: string
-    }
-  | {
-      type: 'lsp-config-invalid'
-      source: string
-      plugin: string
-      serverName: string
-      validationError: string
-    }
-  | {
-      type: 'lsp-server-start-failed'
-      source: string
-      plugin: string
-      serverName: string
-      reason: string
-    }
-  | {
-      type: 'lsp-server-crashed'
-      source: string
-      plugin: string
-      serverName: string
-      exitCode: number | null
-      signal?: string
-    }
-  | {
-      type: 'lsp-request-timeout'
-      source: string
-      plugin: string
-      serverName: string
-      method: string
-      timeoutMs: number
-    }
-  | {
-      type: 'lsp-request-failed'
-      source: string
-      plugin: string
-      serverName: string
-      method: string
-      error: string
     }
   | {
       type: 'marketplace-blocked-by-policy'
@@ -334,19 +285,6 @@ export function getPluginErrorMessage(error: PluginError): string {
       return `Failed to extract MCPB ${error.mcpbPath}: ${error.reason}`
     case 'mcpb-invalid-manifest':
       return `MCPB manifest invalid at ${error.mcpbPath}: ${error.validationError}`
-    case 'lsp-config-invalid':
-      return `Plugin "${error.plugin}" has invalid LSP server config for "${error.serverName}": ${error.validationError}`
-    case 'lsp-server-start-failed':
-      return `Plugin "${error.plugin}" failed to start LSP server "${error.serverName}": ${error.reason}`
-    case 'lsp-server-crashed':
-      if (error.signal) {
-        return `Plugin "${error.plugin}" LSP server "${error.serverName}" crashed with signal ${error.signal}`
-      }
-      return `Plugin "${error.plugin}" LSP server "${error.serverName}" crashed with exit code ${error.exitCode ?? 'unknown'}`
-    case 'lsp-request-timeout':
-      return `Plugin "${error.plugin}" LSP server "${error.serverName}" timed out on ${error.method} request after ${error.timeoutMs}ms`
-    case 'lsp-request-failed':
-      return `Plugin "${error.plugin}" LSP server "${error.serverName}" ${error.method} request failed: ${error.error}`
     case 'marketplace-blocked-by-policy':
       if (error.blockedByBlocklist) {
         return `Marketplace '${error.marketplace}' is blocked by enterprise policy`

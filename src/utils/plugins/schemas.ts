@@ -523,17 +523,6 @@ const PluginManifestOutputStylesSchema = lazySchema(() =>
   }),
 )
 
-// Helper validators for LSP config
-const nonEmptyString = lazySchema(() => z.string().min(1))
-const fileExtension = lazySchema(() =>
-  z
-    .string()
-    .min(2)
-    .refine(ext => ext.startsWith('.'), {
-      message: 'File extensions must start with dot (e.g., ".ts", not "ts")',
-    }),
-)
-
 /**
  * Schema for MCP server configurations in plugin manifest
  *
@@ -626,7 +615,7 @@ const PluginUserConfigOptionSchema = lazySchema(() =>
  * Declares user-configurable values the plugin needs. Users are prompted at
  * enable time. Non-sensitive values go to settings.json
  * pluginConfigs[pluginId].options; sensitive values go to secure storage.
- * Values are available as ${user_config.KEY} in MCP/LSP server config, hook
+ * Values are available as ${user_config.KEY} in MCP server config, hook
  * commands, and (non-sensitive only) skill/agent content.
  */
 const PluginManifestUserConfigSchema = lazySchema(() =>
@@ -646,7 +635,7 @@ const PluginManifestUserConfigSchema = lazySchema(() =>
         'User-configurable values this plugin needs. Prompted at enable time. ' +
           'Non-sensitive values saved to settings.json; sensitive values to secure storage ' +
           '(macOS keychain or .credentials.json). Available as ${user_config.KEY} in ' +
-          'MCP/LSP server config, hook commands, and (non-sensitive only) skill/agent content. ' +
+          'MCP server config, hook commands, and (non-sensitive only) skill/agent content. ' +
           'Note: sensitive values share a single keychain entry with OAuth tokens — keep ' +
           'secret counts small to stay under the ~2KB stdin-safe limit (see INC-3028).',
       ),
@@ -699,127 +688,6 @@ const PluginManifestChannelsSchema = lazySchema(() =>
         'Channels this plugin provides. Each entry declares an MCP server as a message channel ' +
           'and optionally specifies user configuration to prompt for at enable time.',
       ),
-  }),
-)
-
-/**
- * Schema for individual LSP server configuration.
- */
-export const LspServerConfigSchema = lazySchema(() =>
-  z.strictObject({
-    command: z
-      .string()
-      .min(1)
-      .refine(
-        cmd => {
-          // Commands with spaces should use args array instead
-          if (cmd.includes(' ') && !cmd.startsWith('/')) {
-            return false
-          }
-          return true
-        },
-        {
-          message:
-            'Command should not contain spaces. Use args array for arguments.',
-        },
-      )
-      .describe(
-        'Command to execute the LSP server (e.g., "typescript-language-server")',
-      ),
-    args: z
-      .array(nonEmptyString())
-      .optional()
-      .describe('Command-line arguments to pass to the server'),
-    extensionToLanguage: z
-      .record(fileExtension(), nonEmptyString())
-      .refine(record => Object.keys(record).length > 0, {
-        message: 'extensionToLanguage must have at least one mapping',
-      })
-      .describe(
-        'Mapping from file extension to LSP language ID. File extensions and languages are derived from this mapping.',
-      ),
-    transport: z
-      .enum(['stdio', 'socket'])
-      .default('stdio')
-      .describe('Communication transport mechanism'),
-    env: z
-      .record(z.string(), z.string())
-      .optional()
-      .describe('Environment variables to set when starting the server'),
-    initializationOptions: z
-      .unknown()
-      .optional()
-      .describe(
-        'Initialization options passed to the server during initialization',
-      ),
-    settings: z
-      .unknown()
-      .optional()
-      .describe(
-        'Settings passed to the server via workspace/didChangeConfiguration',
-      ),
-    workspaceFolder: z
-      .string()
-      .optional()
-      .describe('Workspace folder path to use for the server'),
-    startupTimeout: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe('Maximum time to wait for server startup (milliseconds)'),
-    shutdownTimeout: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe('Maximum time to wait for graceful shutdown (milliseconds)'),
-    restartOnCrash: z
-      .boolean()
-      .optional()
-      .describe('Whether to restart the server if it crashes'),
-    maxRestarts: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
-      .describe('Maximum number of restart attempts before giving up'),
-    alwaysOn: z
-      .boolean()
-      .optional()
-      .describe('Whether to start the server as soon as LSP initializes'),
-  }),
-)
-
-/**
- * Schema for LSP server declarations in plugin manifest.
- * Supports multiple formats:
- * - String: path to .lsp.json file
- * - Object: inline server configs { "serverName": {...} }
- * - Array: mix of strings and objects
- */
-const PluginManifestLspServerSchema = lazySchema(() =>
-  z.object({
-    lspServers: z.union([
-      RelativeJSONPath().describe(
-        'Path to .lsp.json configuration file relative to plugin root',
-      ),
-      z
-        .record(z.string(), LspServerConfigSchema())
-        .describe('LSP server configurations keyed by server name'),
-      z
-        .array(
-          z.union([
-            RelativeJSONPath().describe('Path to LSP configuration file'),
-            z
-              .record(z.string(), LspServerConfigSchema())
-              .describe('Inline LSP server configurations'),
-          ]),
-        )
-        .describe(
-          'Array of LSP server configurations (paths or inline definitions)',
-        ),
-    ]),
   }),
 )
 
@@ -879,7 +747,7 @@ const PluginManifestSettingsSchema = lazySchema(() =>
  * Unknown top-level fields are silently stripped (zod default) rather than
  * rejected. This keeps plugin loading resilient to custom/future top-level
  * fields that plugin authors may add. Nested config objects (userConfig
- * options, channels, lspServers) remain strict — unknown keys inside those
+ * options, channels) remain strict — unknown keys inside those
  * still fail, since a typo there is more likely to be an author mistake
  * than a vendor extension. Type mismatches and other validation errors
  * still fail at all levels. For developer feedback on unknown top-level
@@ -895,7 +763,6 @@ export const PluginManifestSchema = lazySchema(() =>
     ...PluginManifestOutputStylesSchema().partial().shape,
     ...PluginManifestChannelsSchema().partial().shape,
     ...PluginManifestMcpServerSchema().partial().shape,
-    ...PluginManifestLspServerSchema().partial().shape,
     ...PluginManifestSettingsSchema().partial().shape,
     ...PluginManifestUserConfigSchema().partial().shape,
   }),
@@ -1168,7 +1035,7 @@ export const PluginSourceSchema = lazySchema(() =>
  * Narrow plugin entry for settings-sourced marketplaces.
  *
  * Settings-sourced marketplaces point at remote plugins that have their own
- * plugin.json — there is no reason to inline commands/agents/hooks/mcp/lsp in
+ * plugin.json — there is no reason to inline commands/agents/hooks/mcp in
  * settings.json. This schema carries only what loadPluginFromMarketplaceEntry
  * reads (name, source, version, strict) plus description for discoverability.
  *

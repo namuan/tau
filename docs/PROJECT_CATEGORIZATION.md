@@ -31,11 +31,11 @@ This document groups Tau's source tree by purpose to support a gradual move towa
 |---|---|---|
 | `src/services/mcp`, MCP tools and commands | Model Context Protocol clients, servers, and configuration | Optional if external MCP integrations are not a product requirement. |
 | `src/skills`, `src/plugins`, plugin services and commands | Skills, plugin loading, marketplaces, and lifecycle management | Optional; remove as a coherent feature rather than deleting individual modules. |
-| `src/acp`, IDE-specific commands, UI, MCP transports, and editor bridges | ACP and IDE-specific integrations | Removed in Phase 5; generic MCP, provider APIs, LSP diagnostics, and external editor support remain. |
+| `src/acp`, IDE-specific commands, UI, MCP transports, and editor bridges | ACP and IDE-specific integrations | Removed in Phase 5; generic MCP, provider APIs, and external editor support remain. |
 | `src/upstreamproxy` | Provider proxy modes | Retain with provider/API traffic. |
 | `src/remote` | Tau Web session APIs, resume, and remote model/provider traffic | Retain; this is separate from remote control of a local Tau session. |
 | `src/bridge`, `src/server` | Remote control of a local Tau session | Removed in Phase 4. |
-| `src/services/lsp`, language-server tools and configuration | Background code diagnostics and language-server integration | Optional; LSP is off by default according to the README, but its dependencies still affect installs if statically included. |
+| `src/services/lsp`, language-server tools and configuration | Background code diagnostics and language-server integration | Removed in Phase 6; tree-sitter parsing, syntax highlighting, shell security parsing, and file search remain. |
 
 ## Larger or specialized features
 
@@ -72,7 +72,7 @@ A lightweight terminal coding agent could retain:
 - File read, write, edit, and basic file/content search
 - Essential Git support and build/test execution
 
-Remaining removal candidates, if out of scope, are browser/computer use, LSP, plugins/marketplaces, MCP, and specialized commands/tools.
+Remaining removal candidates, if out of scope, are browser/computer use, plugins/marketplaces, MCP, and specialized commands/tools.
 
 ## Cleanup approach
 

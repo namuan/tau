@@ -256,7 +256,6 @@ if (!code.startsWith('#!')) {
       if (builtins.has(pkgName)) return _match;
       const cjsPackages2 = new Set([
         'ajv','semver','shell-quote','qrcode','asciichart',
-        'vscode-jsonrpc',
         'react','react-reconciler',
       ]);
       if (!cjsPackages2.has(pkgName)) return _match;
@@ -279,7 +278,6 @@ if (!code.startsWith('#!')) {
       // because Node resolves them to proper ESM when imported from ESM context.
       const cjsPackages = new Set([
         'ajv','semver','shell-quote','qrcode','asciichart',
-        'vscode-jsonrpc',
         'react','react-reconciler',
       ]);
       if (!cjsPackages.has(pkgName)) return _match;

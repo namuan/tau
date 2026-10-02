@@ -47,17 +47,15 @@ Removed the `src/bridge` control plane, LAN pairing service, bridge and remote-c
 
 ## Phase 5: IDE and ACP bridges — completed
 
-Removed the ACP server and command, VS Code ACP client and companion extension, IDE-specific commands and UI, editor-selection/open-file plumbing, IDE diff integration, VS Code SDK MCP notifications, and the `sse-ide`/`ws-ide` MCP transports and filters. Removed the ACP SDK dependency. Generic MCP transports and commands remain available, along with LSP diagnostics, editor-independent external editor support, and generic provider/API traffic.
+Removed the ACP server and command, VS Code ACP client and companion extension, IDE-specific commands and UI, editor-selection/open-file plumbing, IDE diff integration, VS Code SDK MCP notifications, and the `sse-ide`/`ws-ide` MCP transports and filters. Removed the ACP SDK dependency. Generic MCP transports and commands remain available, along with editor-independent external editor support and generic provider/API traffic; LSP diagnostics were subsequently removed in Phase 6.
 
 **Verification:** Build succeeds at 17.2 MB; production shrinkwrap and `git diff --check` pass. CLI help/version start normally and the `acp` command is absent. Focused MCP and LSP suites pass (77 passed, 1 platform-specific skip).
 
-## Phase 6: LSP
+## Phase 6: LSP — completed
 
-**Likely scope:** `src/services/lsp`, LSP settings and UI, language-server startup/cleanup, LSP-only tests, and direct language-server runtime dependencies such as `bash-language-server`, `pyright`, `yaml-language-server`, and language-server protocol packages where not used elsewhere.
+Removed `src/services/lsp`, LSP settings and UI, language-server startup/cleanup, diagnostic attachments and rendering, plugin LSP integration, LSP-only tests and fixture, and direct language-server runtime dependencies. Preserved tree-sitter parsing, syntax highlighting, shell security parsing, and file search. `vscode-languageserver-types` remains only as a transitive dependency of `dockerfile-ast` via `e2b`.
 
-**Check before deleting:** Keep syntax highlighting, tree-sitter parsing, shell security parsing, and file search if they are used independently of LSP. Search each dependency's imports before removing it.
-
-**Verify:** Build; test file read/edit/search and shell permission behavior without LSP; confirm Tau does not spawn language-server processes and LSP packages are pruned from the dependency tree.
+**Verification:** Build succeeds at 17.1 MB; production shrinkwrap and `git diff --check` pass. Focused file-read, file-edit, shell, and grep-ignore tests pass. The larger real-ripgrep `GrepTool.test.ts` suite fails in Bun with an unnamed `AssertionError` before reporting any assertions. The language-server process check found no server processes, and `npm ls --depth=0` confirms direct language-server packages are absent.
 
 ## Phase 7: Plugins and marketplaces
 

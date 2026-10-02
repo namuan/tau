@@ -365,10 +365,6 @@ test('OpenRouter GPT sanitizer accepts task, discriminated-union, nested, and na
       activeForm: z.string().optional(),
       metadata: z.record(z.string(), z.unknown()).optional(),
     })),
-    // Was the LSP tool's own schema. That tool is gone, but the property under
-    // test is the sanitizer's handling of a discriminated union of strict
-    // objects, so the shape is kept here as a self-contained fixture and can
-    // never again break because a tool retired.
     SampleUnion: zodToJsonSchema(
       z.discriminatedUnion('operation', [
         z.strictObject({

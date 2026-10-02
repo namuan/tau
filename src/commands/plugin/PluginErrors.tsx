@@ -40,16 +40,6 @@ export function formatErrorMessage(error: PluginError): string {
       return error.blockedByBlocklist ? `Marketplace "${error.marketplace}" is blocked by enterprise policy` : `Marketplace "${error.marketplace}" is not in the allowed marketplace list`;
     case 'dependency-unsatisfied':
       return error.reason === 'not-enabled' ? `Dependency "${error.dependency}" is disabled` : `Dependency "${error.dependency}" is not installed`;
-    case 'lsp-config-invalid':
-      return `Invalid LSP server config for "${error.serverName}": ${error.validationError}`;
-    case 'lsp-server-start-failed':
-      return `LSP server "${error.serverName}" failed to start: ${error.reason}`;
-    case 'lsp-server-crashed':
-      return error.signal ? `LSP server "${error.serverName}" crashed with signal ${error.signal}` : `LSP server "${error.serverName}" crashed with exit code ${error.exitCode ?? 'unknown'}`;
-    case 'lsp-request-timeout':
-      return `LSP server "${error.serverName}" timed out on ${error.method} after ${error.timeoutMs}ms`;
-    case 'lsp-request-failed':
-      return `LSP server "${error.serverName}" ${error.method} failed: ${error.error}`;
     case 'plugin-cache-miss':
       return `Plugin "${error.plugin}" not cached at ${error.installPath}`;
     case 'generic-error':
@@ -105,13 +95,6 @@ export function getErrorGuidance(error: PluginError): string | null {
       return error.allowedSources.length > 0 ? `Allowed sources: ${error.allowedSources.join(', ')}` : 'Contact your administrator to configure allowed marketplace sources';
     case 'dependency-unsatisfied':
       return error.reason === 'not-enabled' ? `Enable "${error.dependency}" or uninstall "${error.plugin}"` : `Install "${error.dependency}" or uninstall "${error.plugin}"`;
-    case 'lsp-config-invalid':
-      return 'Check LSP server configuration in the plugin manifest';
-    case 'lsp-server-start-failed':
-    case 'lsp-server-crashed':
-    case 'lsp-request-timeout':
-    case 'lsp-request-failed':
-      return 'Check LSP server logs with --debug for details';
     case 'plugin-cache-miss':
       return 'Run /plugins to refresh the plugin cache';
     case 'marketplace-load-failed':

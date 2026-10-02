@@ -253,7 +253,7 @@ function recipeFor(
         steps: [
           'Call RepoContextScout with the task and root.',
           'Use CodeGraph first when available; otherwise read the top retrieved files.',
-          'Use LSP/Grep for exact symbols after the scout narrows likely locations.',
+          'Use Grep for exact symbols after the scout narrows likely locations.',
           'Use ProjectWorkflow for command choices and ChangeRisk for review/verify gating.',
         ],
         costControls: [

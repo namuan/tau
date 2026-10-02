@@ -513,11 +513,6 @@ export type GlobalConfig = {
     pairedDeviceName?: string
   }
 
-  // LSP plugin recommendation preferences
-  lspRecommendationDisabled?: boolean // Disable all LSP plugin recommendations
-  lspRecommendationNeverPlugins?: string[] // Plugin IDs to never suggest
-  lspRecommendationIgnoredCount?: number // Track ignored recommendations (stops after 5)
-
   // Tau hint protocol state (<claude-code-hint /> tags from CLIs/SDKs).
   // Nested by hint type so future types (docs, mcp, ...) slot in without new
   // top-level keys.
@@ -707,9 +702,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'respectGitignore',
   'claudeInChromeDefaultEnabled',
   'hasCompletedClaudeInChromeOnboarding',
-  'lspRecommendationDisabled',
-  'lspRecommendationNeverPlugins',
-  'lspRecommendationIgnoredCount',
   'copyFullResponse',
   'copyOnSelect',
   'permissionExplainerEnabled',

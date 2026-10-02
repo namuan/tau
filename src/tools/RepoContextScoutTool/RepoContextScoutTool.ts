@@ -136,7 +136,7 @@ function buildContextPlan(output: Omit<Output, 'contextPlan'>): string[] {
   if (output.hasCodeGraph) {
     plan.push('Use CodeGraph first for exact symbols and call paths, then read only the files it identifies.')
   } else {
-    plan.push('Read the top retrieved files first, then use Grep/LSP for exact symbols and call paths.')
+    plan.push('Read the top retrieved files first, then use Grep for exact symbols and call paths.')
   }
   if (output.changes.changedFiles.length > 0) {
     plan.push('Anchor review around the detected changed files before widening context.')

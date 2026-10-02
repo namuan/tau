@@ -7,7 +7,7 @@
  * Built-in plugins differ from bundled skills (src/skills/bundled/) in that:
  * - They appear in the /plugin UI under a "Built-in" section
  * - Users can enable/disable them (persisted to user settings)
- * - They can provide multiple components (skills, hooks, MCP servers, LSP servers)
+ * - They can provide multiple components (skills, hooks, and MCP servers)
  *
  * Plugin IDs use the format `{name}@builtin` to distinguish them from
  * marketplace plugins (`{name}@{marketplace}`).
@@ -89,7 +89,6 @@ export function getBuiltinPlugins(): {
       isBuiltin: true,
       hooksConfig: definition.hooks,
       mcpServers: definition.mcpServers,
-      lspServers: definition.lspServers,
     }
 
     if (isEnabled) {

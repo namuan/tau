@@ -6,13 +6,13 @@ import type { SettingsJson } from './settings/types.js'
  *
  * - `cheap`: minimal footprint. Every optional prebuilt tool toggle is forced
  *   off, skills/agents/plugins are not loaded (even when present in the
- *   project folder), no MCP server is read or connected, and LSP never
- *   starts. Only the core file/shell/search/task tools remain.
- * - `normal`: current default behavior. The user's own /tools toggles apply,
- *   MCP/skills/agents/plugins/LSP load as configured.
+ *   project folder), and no MCP server is read or connected. Only the core
+ *   file/shell/search/task tools remain.
+ * - `normal`: current default behavior. The user's own /tools toggles apply;
+ *   MCP/skills/agents/plugins load as configured.
  * - `full`: everything on. All optional prebuilt tool toggles are forced on
- *   regardless of saved /tools state; MCP/skills/agents/LSP behave as in
- *   normal mode.
+ *   regardless of saved /tools state; MCP/skills/agents behave as in normal
+ *   mode.
  *
  * The mode is a persisted user setting (settings.json `powerMode`). All gates
  * read it through the merged settings so a /mode switch (which persists and
@@ -160,8 +160,8 @@ export const POWER_MODE_LABELS: Record<PowerMode, string> = {
 
 export const POWER_MODE_DESCRIPTIONS: Record<PowerMode, string> = {
   cheap:
-    'Core tools only — optional tools, skills, agents, plugins, MCP, and LSP are all off and hidden from the model (folder configs are ignored; /tools hidden)',
+    'Core tools only — optional tools, skills, agents, plugins, and MCP are off and hidden from the model (folder configs are ignored; /tools hidden)',
   normal:
-    'Default behavior — your /tools toggles apply; MCP, skills, agents, and LSP load as configured',
+    'Default behavior — your /tools toggles apply; MCP, skills, and agents load as configured',
   full: 'Everything on — all optional tools forced on; /tools hidden (your saved toggles return in normal mode)',
 }

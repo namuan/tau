@@ -78,7 +78,7 @@ See the full command list and usage notes in **[COMMANDS.md](COMMANDS.md)**.
 
 ### The full agent loop
 
-Everything a full agent loop needs is built in: tools, skills, subagents, MCP servers, LSP and hooks. It all works the same way with every provider.
+Everything a full agent loop needs is built in: tools, skills, subagents, MCP servers, and hooks. It all works the same way with every provider.
 
 <p align="center">
   <img src="docs/AgentLoop.PNG" alt="Tau listing its tools, grouped by purpose">
@@ -89,16 +89,6 @@ Everything a full agent loop needs is built in: tools, skills, subagents, MCP se
 We put work into every tool so it does its job as well as possible. Search is a good example. Most agents give the model a basic search tool. Tau uses the latest ripgrep with signal fetch and native indexing, so queries are fast, the results are better, and large outputs are saved so the agent can come back to them without searching again. It also respects `.gitignore` in folders that are not git repos yet, so `node_modules` and build output stay out of your results.
 
 Reading files got the same treatment. Tau reads by signal and starts from a skeleton of the file, so when it needs one function in an 800-line file, it reads those 50 lines instead of the whole file. The Bash tool follows best practices by default, and commands go through a security classifier built on a Go shell parser. All of this keeps noise out of the context window and cuts down on turns wasted by commands that fail.
-
-### Optional background language diagnostics
-
-Language servers are **off by default** to keep startup memory low. File search, reading, tree-sitter file outlines, editing, and project test/type-check commands work without an LSP process or a persistent language-server index.
-
-For automatic background diagnostics, enable **Background language diagnostics (LSP)** in `/config`, or set `"lspEnabled": true` in `.claude/settings.local.json`. This starts the enabled language-server plugins and can use substantial RAM on large projects. Turning it off stops their processes and clears pending diagnostic state. The tool catalog and system prompt do not change when LSP starts or stops.
-
-<p align="center">
-  <img src="docs/LSP.PNG" alt="Tau reporting new diagnostics from the language server" width="560">
-</p>
 
 ### Snapshots and time travel
 

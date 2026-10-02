@@ -1,10 +1,7 @@
 import { agentFileConflictMessage, checkAgentFileClaim } from '../../utils/agentFileClaims.js'
 import { dirname, isAbsolute, sep } from 'path'
-import { pathToFileURL } from 'url'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
-import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
-import { getLspServerManager } from '../../services/lsp/manager.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
 import {
   activateConditionalSkillsForPaths,
@@ -42,7 +39,6 @@ import {
   fetchSingleFileGitDiff,
   type ToolUseDiff,
 } from '../../utils/gitDiff.js'
-import { logError } from '../../utils/log.js'
 import { expandPath } from '../../utils/path.js'
 import {
   checkWritePermissionForTool,
@@ -634,9 +630,9 @@ export const FileEditTool = buildTool({
 
     // Idempotent no-op: the resolved edit leaves the file byte-for-byte
     // identical (old_string === new_string, or new_string already equals the
-    // matched text). Skip the write and every downstream side effect — LSP
-    // didChange/didSave, the VSCode diff, file-history, analytics — since
-    // nothing changed, and return a result that says so plainly so the model
+    // matched text). Skip the write and every downstream side effect —
+    // file-history and analytics — since nothing changed, and return a result
+    // that says so plainly so the model
     // moves on instead of re-issuing the same edit. Guarded on fileExists so
     // creating a brand-new empty file (originalFileContents === '' with the
     // file absent) is never mistaken for a no-op and dropped.
@@ -663,31 +659,6 @@ export const FileEditTool = buildTool({
 
     // 5. Write to disk
     writeTextContent(absoluteFilePath, updatedFile, encoding, endings)
-
-    // Notify LSP servers about file modification (didChange) and save (didSave)
-    const lspManager = getLspServerManager()
-    if (lspManager) {
-      // Clear previously delivered diagnostics so new ones will be shown
-      clearDeliveredDiagnosticsForFile(pathToFileURL(absoluteFilePath).href)
-      // didChange: Content has been modified
-      lspManager
-        .changeFile(absoluteFilePath, updatedFile)
-        .catch((err: Error) => {
-          logForDebugging(
-            `LSP: Failed to notify server of file change for ${absoluteFilePath}: ${err.message}`,
-          )
-          logError(err)
-        })
-      // didSave: File has been saved to disk (triggers diagnostics in TypeScript server)
-      lspManager.saveFile(absoluteFilePath).catch((err: Error) => {
-        logForDebugging(
-          `LSP: Failed to notify server of file save for ${absoluteFilePath}: ${err.message}`,
-        )
-        logError(err)
-      })
-    }
-
-    // Notify VSCode about the file change for diff view
 
     // 6. Update read timestamp, to invalidate stale writes
     readFileState.set(absoluteFilePath, {

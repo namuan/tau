@@ -177,7 +177,7 @@ export function _resetStickyLoadedToolsForTest(): void {
  *      shifts position. (Array-index order would let a low-index tool discovered
  *      late jump ahead of an already-sent high-index tool and void the prefix —
  *      exactly what the plain `tools.filter()` did, because deferred tools like
- *      WebBrowser/LSP/MCP are interleaved with core tools in the source list.)
+ *      WebBrowser/MCP are interleaved with core tools in the source list.)
  *
  * Between ToolSearch calls the block is byte-stable. A load turn appends one
  * cold tail and may re-warm later request sections because native providers put

@@ -9,8 +9,8 @@
  * anchor correctly.
  *
  * Symbol boundaries come from the bundled tree-sitter WASM grammars
- * (utils/treesitter/parser.ts): cross-platform, no native binary, no
- * language server to boot. Everything degrades gracefully — unsupported
+ * (utils/treesitter/parser.ts): cross-platform, no native binary or external
+ * service to boot. Everything degrades gracefully — unsupported
  * language, parse failure, or a file with nothing worth eliding returns
  * null and the caller falls back to a normal read.
  *

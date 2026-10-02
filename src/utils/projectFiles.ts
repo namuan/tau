@@ -10,7 +10,7 @@ import {
 /**
  * Walking a project the way its own ignore files describe it.
  *
- * Every walk that decides what counts as the project (code retrieval, LSP
+ * Every walk that decides what counts as the project (code retrieval
  * warm-up, the Bash preflight search, the provider context) goes through
  * here instead of carrying its own list of folder names to skip. Ignore files
  * (.gitignore, .ignore, .rgignore) are honoured the way Grep honours them,

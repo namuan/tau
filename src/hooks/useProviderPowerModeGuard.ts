@@ -21,7 +21,7 @@ import { getInitialSettings } from '../utils/settings/settings.js'
  * (Antigravity). Checks once on mount, which covers a launch on Antigravity
  * with cheap saved, then after every provider switch, whichever path made it:
  * /models, favorites, /login, /fallback, surf. Leaving cheap is exactly
- * `/mode normal` — persisted, pinned, caches dropped, LSP started — plus a
+ * `/mode normal` — persisted, pinned, caches dropped — plus a
  * notice saying why.
  */
 export function useProviderPowerModeGuard(): void {

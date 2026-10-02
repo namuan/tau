@@ -53,7 +53,7 @@ assert.match(staticPrompt, /exact action and scope\. One approval never generali
 assert.match(staticPrompt, /never guess parameter names or unsupported actions/)
 assert.match(staticPrompt, /update an item as soon as its state changes/)
 assert.match(staticPrompt, /independent tool calls in parallel/)
-assert.match(staticPrompt, /Subagents\/delegation, skills, plugins, MCP, and LSP are off/)
+assert.match(staticPrompt, /Subagents\/delegation, skills, plugins, and MCP are off/)
 assert.match(staticPrompt, /notebooks.*plan mode.*snapshots.*web fetch/s)
 assert.match(staticPrompt, /preserve required evidence, caveats, decisions, and next steps/)
 assert.match(staticPrompt, /file_path:line_number/)

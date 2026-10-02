@@ -23,7 +23,7 @@ const DESCRIPTION =
 
 const PROMPT = `Search the local repository by intent using lightweight lexical scoring and return ranked files with snippets. This is read-only.
 
-Use when the user asks where behavior lives, how a feature works, what to change for an intent, or when broad semantic-style repo orientation is useful before Grep/LSP/Read. Prefer CodeGraph first when a .codegraph directory exists.`
+Use when the user asks where behavior lives, how a feature works, what to change for an intent, or when broad semantic-style repo orientation is useful before Grep/Read. Prefer CodeGraph first when a .codegraph directory exists.`
 
 /**
  * Binary and generated formats, skipped without being opened.

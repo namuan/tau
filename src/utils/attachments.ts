@@ -24,7 +24,6 @@ import { readdir, stat } from 'fs/promises'
 import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../tools/TaskUpdateTool/constants.js'
-import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import type { TodoList } from './todo/types.js'
 import {
@@ -48,7 +47,6 @@ import { getViewedTeammateTask } from '../state/selectors.js'
 import { logError } from './log.js'
 import { logAntError } from './debug.js'
 import { isENOENT, toError } from './errors.js'
-import type { DiagnosticFile } from '../services/lsp/types.js'
 import type {
   AttachmentMessage,
   Message,
@@ -188,10 +186,6 @@ import {
   checkForAsyncHookResponses,
   removeDeliveredAsyncHooks,
 } from './hooks/AsyncHookRegistry.js'
-import {
-  checkForLSPDiagnostics,
-  clearAllLSPDiagnostics,
-} from '../services/lsp/LSPDiagnosticRegistry.js'
 import { logForDebugging } from './debug.js'
 import {
   extractTextContent,
@@ -558,11 +552,6 @@ export type Attachment =
   | {
       type: 'output_style'
       style: string
-    }
-  | {
-      type: 'diagnostics'
-      files: DiagnosticFile[]
-      isNew: boolean
     }
   | {
       type: 'plan_mode'
@@ -996,9 +985,6 @@ export async function getAttachments(
             ? []
             : [{ type: 'mermaid_not_drawn' as const, reasons }]
         }),
-        maybe('lsp_diagnostics', async () =>
-          getLSPDiagnosticAttachments(toolUseContext),
-        ),
         maybe('unified_tasks', async () =>
           getUnifiedTaskAttachments(toolUseContext),
         ),
@@ -2919,66 +2905,6 @@ export function parseAtMentionedFileLines(
   const lineEnd = lineEndStr ? parseInt(lineEndStr, 10) : lineStart
 
   return { filename: filename ?? mention, lineStart, lineEnd }
-}
-
-/**
- * Get LSP diagnostic attachments from passive LSP servers.
- * Follows the AsyncHookRegistry pattern for consistent async attachment delivery.
- */
-async function getLSPDiagnosticAttachments(
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  // Gated on Bash alone. This used to also require the LSP tool to be visible,
-  // which coupled two unrelated features: diagnostics arrive on their own from
-  // the language server after files open or change, and the LSP tool never had
-  // a diagnostics operation to fetch them with. When that tool was removed the
-  // gate would have silently taken diagnostics with it.
-  if (!toolUseContext.options.tools.some(t => toolMatchesName(t, BASH_TOOL_NAME))) {
-    return []
-  }
-
-  logForDebugging('LSP Diagnostics: getLSPDiagnosticAttachments called')
-
-  try {
-    const diagnosticSets = checkForLSPDiagnostics()
-
-    if (diagnosticSets.length === 0) {
-      return []
-    }
-
-    logForDebugging(
-      `LSP Diagnostics: Found ${diagnosticSets.length} pending diagnostic set(s)`,
-    )
-
-    // Convert each diagnostic set to an attachment
-    const attachments: Attachment[] = diagnosticSets.map(({ files }) => ({
-      type: 'diagnostics' as const,
-      files,
-      isNew: true,
-    }))
-
-    // Clear delivered diagnostics from registry to prevent memory leak
-    // Follows same pattern as removeDeliveredAsyncHooks
-    if (diagnosticSets.length > 0) {
-      clearAllLSPDiagnostics()
-      logForDebugging(
-        `LSP Diagnostics: Cleared ${diagnosticSets.length} delivered diagnostic(s) from registry`,
-      )
-    }
-
-    logForDebugging(
-      `LSP Diagnostics: Returning ${attachments.length} diagnostic attachment(s)`,
-    )
-
-    return attachments
-  } catch (error) {
-    const err = toError(error)
-    logError(
-      new Error(`Failed to get LSP diagnostic attachments: ${err.message}`),
-    )
-    // Return empty array to allow other attachments to proceed
-    return []
-  }
 }
 
 export async function* getAttachmentMessages(

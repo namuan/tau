@@ -63,7 +63,6 @@ async function loadSearchTools() {
         export { listProjectFiles, foldersWithProjectFiles } from './src/utils/projectFiles.ts';
         export { readDenyExclusionGlobs } from './src/utils/permissions/readDenyGlobs.ts';
         export { retrieveCodebase, CodebaseRetrievalTool } from './src/tools/CodebaseRetrievalTool/CodebaseRetrievalTool.ts';
-        export { primeLspServers } from './src/services/lsp/prime.ts';
         export { state } from 'test:grep-state';
       `,
       resolveDir: projectRoot,
@@ -703,34 +702,6 @@ describe('GrepTool with real ripgrep', () => {
     expect(await checked({})).toBe(root)
     expect(await checked({ root: 'sub' })).toBe(join(root, 'sub'))
     expect(basename(await checked({ root: join(root, '..', 'elsewhere') }))).toBe('elsewhere')
-  })
-
-  test('LSP warm-up primes each server with its shallowest file the ignore files keep', async () => {
-    await file('.venv/.gitignore', '*\n')
-    await file('.venv/Lib/site-packages/a.py')
-    await file('.gitignore', 'node_modules/\n')
-    await file('node_modules/x/y.ts')
-    await file('.storybook/main.ts')
-    await file('packages/core/src/index.ts')
-    await file('src/app.TS')
-    await file('tools/run.py')
-    tools.state.cwd = root
-    const opened: string[] = []
-    const server = (name: string, exts: string[]) => [name, {
-      name,
-      config: { alwaysOn: true, extensionToLanguage: Object.fromEntries(exts.map(ext => [ext, name])) },
-      waitUntilReady: async () => {},
-    }] as const
-    const servers = new Map([server('ts', ['.ts', '.tsx']), server('py', ['.py'])])
-    const manager = {
-      getAllServers: () => servers,
-      getServerForFile: (file: string) => servers.get(file.toLowerCase().endsWith('.py') ? 'py' : 'ts'),
-      openFile: async (path: string) => { opened.push(path) },
-    }
-    await tools.primeLspServers(manager)
-    // Each primer is opened once its file has been read.
-    for (let i = 0; i < 100 && opened.length < 2; i++) await new Promise(resolve => setTimeout(resolve, 20))
-    expect(names(opened)).toEqual(['src/app.TS', 'tools/run.py'])
   })
 
   test('deny rules become anchored exclusion globs for every root relationship', () => {

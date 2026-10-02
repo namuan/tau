@@ -78,11 +78,6 @@ const EXPLICIT_DEPENDENCY_RUNTIME_FILES = Object.freeze({
     'dist/esm/shared/auth.js',
     'dist/esm/shared/transport.js',
   ],
-  'vscode-langservers-extracted': [
-    'bin/vscode-html-language-server',
-    'bin/vscode-css-language-server',
-    'bin/vscode-json-language-server',
-  ],
 });
 const MANIFEST_ONLY_DEPENDENCIES = new Set([
   // Imported only through TypeScript `import type`; no runtime entry exists.

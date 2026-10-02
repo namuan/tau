@@ -441,7 +441,7 @@ function getCheapModeToolsSection(force = false): string | null {
   return [
     `# Power mode: cheap`,
     ...prependBullets([
-      `Only the tools listed in this request exist. Subagents/delegation, skills, plugins, MCP, and LSP are off; do not attempt them or ask the user to enable them.`,
+      `Only the tools listed in this request exist. Subagents/delegation, skills, plugins, and MCP are off; do not attempt them or ask the user to enable them.`,
       `When their matching tools are listed, core capabilities may include file read/write/edit, notebooks, shell, file/content search, tasks, plan mode, snapshots, web fetch, web search, and running Python in a persistent kernel that can call the other listed tools from inside the code. Provider names may differ; trust the actual list, never invent a missing capability, and never claim a listed one is unavailable.`,
       `Delegation is off, so the kernel is the only way left to keep bulk output out of this conversation. Any question that would otherwise mean reading many files, re-running a command, or parsing a large log belongs in a cell that prints only the answer.`,
     ]),

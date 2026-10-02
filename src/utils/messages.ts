@@ -3841,32 +3841,6 @@ Read the team config to discover your teammates' names. Check the task list peri
         }),
       ])
     }
-    case 'diagnostics': {
-      if (attachment.files.length === 0) return []
-
-      const diagnosticSummary = attachment.files
-        .map(file => {
-          const filename = file.uri.split('/').pop() || file.uri
-          const diagnostics = file.diagnostics
-            .map(diagnostic => {
-              const location = `${diagnostic.range.start.line + 1}:${diagnostic.range.start.character + 1}`
-              const code = diagnostic.code ? ` [${diagnostic.code}]` : ''
-              const source = diagnostic.source ? ` (${diagnostic.source})` : ''
-              return `  ${diagnostic.severity} [Line ${location}] ${diagnostic.message}${code}${source}`
-            })
-            .join('\n')
-          return `${filename}:\n${diagnostics}`
-        })
-        .join('\n\n')
-        .slice(0, 4000)
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: `<new-diagnostics>The following new diagnostic issues were detected:\n\n${diagnosticSummary}</new-diagnostics>`,
-          isMeta: true,
-        }),
-      ])
-    }
     case 'plan_mode': {
       return getPlanModeInstructions(attachment)
     }

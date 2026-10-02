@@ -5,10 +5,6 @@ import { Pane } from '../../components/design-system/Pane.js'
 import { Box, Text } from '../../ink.js'
 import { clearSystemPromptSections } from '../../constants/systemPromptSections.js'
 import { clearToolSchemaCache as clearAdapterToolSchemaCache } from '../../services/api/adapters/tool_schema_cache.js'
-import {
-  initializeLspServerManager,
-  shutdownLspServerManager,
-} from '../../services/lsp/manager.js'
 import { getAgentDefinitionsWithOverrides } from '../../tools/AgentTool/loadAgentsDir.js'
 import { clearToolSearchDescriptionCache } from '../../tools/ToolSearchTool/ToolSearchTool.js'
 import type {
@@ -45,8 +41,8 @@ type OnDone = (
 
 const MODE_SUMMARY: Record<PowerMode, string> = {
   cheap:
-    'core tools only — optional tools, skills, agents, plugins, MCP, and LSP are off and hidden from the model',
-  normal: 'default behavior — your /tools toggles, MCP, skills, and LSP apply',
+    'core tools only — optional tools, skills, agents, plugins, and MCP are off and hidden from the model',
+  normal: 'default behavior — your /tools toggles, MCP, and skills apply',
   full: 'everything on — all optional tools enabled (/tools hidden; saved toggles return in normal mode)',
 }
 
@@ -68,7 +64,7 @@ function providerWithoutCheapMode(): string | null {
 /**
  * Apply a power mode change end-to-end: persist the setting, refresh the
  * reactive app state, drop every tool/command cache derived from the old
- * mode, start/stop LSP, and cross-fade the theme accents.
+ * mode, and cross-fade the theme accents.
  *
  * The tool list changes once per switch (like toggling /tools), so the
  * prompt cache re-warms on the next message and then stays stable — the
@@ -139,13 +135,6 @@ export function applyPowerMode(
   // notify subscribers (REPL re-fetches the slash-command list).
   getAgentDefinitionsWithOverrides.cache?.clear?.()
   skillChangeDetector.notifyManualReload()
-
-  // LSP lifecycle: cheap never runs language servers.
-  if (next === 'cheap') {
-    void shutdownLspServerManager()
-  } else if (previous === 'cheap') {
-    initializeLspServerManager()
-  }
 
   // Cross-fade the accent palette (bronze / base / gold).
   setPowerModeTheme(next)

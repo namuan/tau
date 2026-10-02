@@ -326,7 +326,6 @@ if (!code.startsWith('#!')) {
   let shimCounter = 0
   const cjsPackages = new Set([
     'ajv','semver','shell-quote','qrcode','asciichart',
-    'vscode-jsonrpc',
     'react','react-reconciler',
   ])
 

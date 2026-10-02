@@ -10,7 +10,6 @@ import { formatFileSize } from 'src/utils/format.js';
 import { MessageResponse } from '../MessageResponse.js';
 import { basename, sep } from 'path';
 import { UserTextMessage } from './UserTextMessage.js';
-import { DiagnosticsDisplay } from '../DiagnosticsDisplay.js';
 import { getContentText } from 'src/utils/messages.js';
 import type { Theme } from 'src/utils/theme.js';
 import { UserImageMessage } from './UserImageMessage.js';
@@ -256,8 +255,6 @@ export function AttachmentMessage({
         const skillNames = attachment.skills.map(s_0 => s_0.name).join(', ');
         return <Line>Skills restored ({skillNames})</Line>;
       }
-    case 'diagnostics':
-      return <DiagnosticsDisplay attachment={attachment} verbose={verbose} />;
     case 'mcp_resource':
       return <Line>
           Read MCP resource <Text bold>{attachment.name}</Text> from{' '}
