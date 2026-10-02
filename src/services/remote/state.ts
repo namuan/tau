@@ -1,7 +1,7 @@
 /**
  * Module-level state for the /remote server.
  *
- * Deliberately not persisted: unlike /whatsapp, remote control of this session
+ * Deliberately not persisted: remote control of this session
  * should never survive a restart without the user asking for it again. A stale
  * token on a shared network is a footgun.
  */

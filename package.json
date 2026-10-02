@@ -83,7 +83,6 @@
     "@opentelemetry/semantic-conventions": "^1.30.0",
     "@vscode/tree-sitter-wasm": "^0.3.1",
     "@vtsls/language-server": "^0.3.0",
-    "@whiskeysockets/baileys": "7.0.0-rc12",
     "ajv": "^8.17.1",
     "asciichart": "^1.5.25",
     "auto-bind": "^5.0.1",
@@ -176,12 +175,10 @@
   },
   "allowScripts": {
     "@abdoknbgit/tau": true,
-    "@whiskeysockets/baileys": true,
     "core-js": true,
     "esbuild": true,
     "fsevents": true,
     "node-pty": true,
-    "protobufjs": true,
     "sharp": true
   }
 }

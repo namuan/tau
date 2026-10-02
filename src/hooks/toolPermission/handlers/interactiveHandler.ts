@@ -26,12 +26,6 @@ import {
 import { toolDetail } from '../../../services/remote/transcript.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../../tools/AskUserQuestionTool/prompt.js'
 import { EXIT_PLAN_MODE_TOOL_NAME } from '../../../tools/ExitPlanModeTool/constants.js'
-import { isOn as isWhatsAppOn } from '../../../services/whatsapp/lifecycle.js'
-import {
-  onWhatsAppPermissionResponse,
-  sendWhatsAppPermissionRequest,
-} from '../../../services/whatsapp/permissions.js'
-import { getActiveChatJid } from '../../../services/whatsapp/router.js'
 import { executeAsyncClassifierCheck } from '../../../tools/BashTool/bashPermissions.js'
 import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
 import {
@@ -95,7 +89,6 @@ function handleInteractivePermission(
   // phone, and a stale "yes abc123" after local-resolve falls through
   // tryConsumeReply (entry gone) and gets enqueued as normal chat.
   let channelUnsubscribe: (() => void) | undefined
-  let whatsappUnsubscribe: (() => void) | undefined
   // Unlike the text relays above, /remote holds a live socket, so a prompt
   // settled anywhere else can be actively withdrawn from the phone instead of
   // sitting there as a stale card.
@@ -104,7 +97,6 @@ function handleInteractivePermission(
 
   function cleanupRemotePermissionRequests(): void {
     channelUnsubscribe?.()
-    whatsappUnsubscribe?.()
     remoteUnsubscribe?.()
     if (remoteRequestId) cancelRemoteAsk(remoteRequestId)
   }
@@ -324,69 +316,6 @@ function handleInteractivePermission(
     )
 
     signal.addEventListener('abort', unsubscribe, { once: true })
-  }
-
-  // WhatsApp permission relay. During a WhatsApp-driven turn, mirror the
-  // local permission prompt into the active chat and consume only explicit
-  // "yes <id>" / "no <id>" replies from that same chat.
-  const whatsappJid = isWhatsAppOn() ? getActiveChatJid() : null
-  if (whatsappJid && !ctx.tool.requiresUserInteraction?.()) {
-    const whatsappRequestId = shortRequestId(ctx.toolUseID)
-    const whatsappSignal = ctx.toolUseContext.abortController.signal
-    const mapUnsub = onWhatsAppPermissionResponse(
-      whatsappRequestId,
-      whatsappJid,
-      response => {
-        if (!claim()) return
-        cleanupRemotePermissionRequests()
-        clearClassifierChecking(ctx.toolUseID)
-        clearClassifierIndicator()
-        ctx.removeFromQueue()
-        if (bridgeCallbacks && bridgeRequestId) {
-          bridgeCallbacks.cancelRequest(bridgeRequestId)
-        }
-
-        if (response.behavior === 'allow') {
-          ctx.logDecision(
-            {
-              decision: 'accept',
-              source: { type: 'user', permanent: false },
-            },
-            { permissionPromptStartTimeMs },
-          )
-          resolveOnce(ctx.buildAllow(displayInput))
-        } else {
-          ctx.logDecision(
-            {
-              decision: 'reject',
-              source: { type: 'user_reject', hasFeedback: false },
-            },
-            { permissionPromptStartTimeMs },
-          )
-          resolveOnce(ctx.cancelAndAbort('Denied via WhatsApp'))
-        }
-      },
-    )
-    whatsappUnsubscribe = () => {
-      mapUnsub()
-      whatsappSignal.removeEventListener('abort', whatsappUnsubscribe!)
-    }
-    whatsappSignal.addEventListener('abort', whatsappUnsubscribe, {
-      once: true,
-    })
-
-    void sendWhatsAppPermissionRequest({
-      jid: whatsappJid,
-      requestId: whatsappRequestId,
-      toolName: ctx.tool.name,
-      description,
-      inputPreview: truncateForPreview(displayInput),
-    }).catch(e => {
-      logForDebugging(`WhatsApp permission_request failed: ${errorMessage(e)}`, {
-        level: 'error',
-      })
-      whatsappUnsubscribe?.()
-    })
   }
 
   // /remote interactive relay. Mirrors whatever the agent needs a human for

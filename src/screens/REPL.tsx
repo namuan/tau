@@ -50,11 +50,6 @@ import { endInteractionSpan } from '../utils/telemetry/sessionTracing.js';
 import { useLogMessages } from '../hooks/useLogMessages.js';
 import { useReplBridge } from '../hooks/useReplBridge.js';
 import { useRemoteMirror } from '../hooks/useRemoteMirror.js';
-import { useWhatsAppMirror } from '../hooks/useWhatsAppMirror.js';
-import { isOn as isWhatsAppOn } from '../services/whatsapp/lifecycle.js';
-import { onWhatsAppPermissionResponse, sendWhatsAppPermissionRequest } from '../services/whatsapp/permissions.js';
-import { getActiveChatJid } from '../services/whatsapp/router.js';
-import { isWhatsAppDrivenTurn } from '../services/whatsapp/turnState.js';
 import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getCommandName, isCommandEnabled } from '../commands.js';
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
 import { MessageSelector, selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } from '../components/MessageSelector.js';
@@ -149,7 +144,6 @@ import type { Message as MessageType, UserMessage, ProgressMessage, HookResultMe
 import { query } from '../query.js';
 import { mergeClients, useMergedClients } from '../hooks/useMergedClients.js';
 import { getQuerySourceForREPL } from '../utils/promptCategory.js';
-import { shortRequestId } from '../services/mcp/channelPermissions.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
 import { mergeAndFilterTools } from '../utils/toolPool.js';
 import { getPowerModeFromSettings } from '../utils/powerMode.js';
@@ -2284,10 +2278,6 @@ export function REPL({
     }
   }, [messages, showCostDialog, haveShownCostDialog]);
   const sandboxAskCallback: SandboxAskCallback = useCallback(async (hostPattern: NetworkHostPattern) => {
-    if (isWhatsAppDrivenTurn()) {
-      return true;
-    }
-
     // If running as a swarm worker, forward the request to the leader via mailbox
     if (isAgentSwarmsEnabled() && isSwarmWorker()) {
       const requestId = generateSandboxRequestId();
@@ -2382,37 +2372,6 @@ export function REPL({
         }
       }
 
-      const whatsappJid = isWhatsAppOn() ? getActiveChatJid() : null;
-      if (whatsappJid) {
-        const whatsappRequestId = shortRequestId(randomUUID());
-        const unsubscribe = onWhatsAppPermissionResponse(whatsappRequestId, whatsappJid, response => {
-          unsubscribe();
-          const allow = response.behavior === 'allow';
-          resolveAllPendingForHost(allow);
-        });
-
-        const cleanup = () => {
-          unsubscribe();
-        };
-        const existing = sandboxBridgeCleanupRef.current.get(hostPattern.host) ?? [];
-        existing.push(cleanup);
-        sandboxBridgeCleanupRef.current.set(hostPattern.host, existing);
-
-        void sendWhatsAppPermissionRequest({
-          jid: whatsappJid,
-          requestId: whatsappRequestId,
-          toolName: SANDBOX_NETWORK_ACCESS_TOOL_NAME,
-          description: `Allow network connection to ${hostPattern.host}?`,
-          inputPreview: JSON.stringify({
-            host: hostPattern.host
-          })
-        }).catch(e => {
-          logForDebugging(`WhatsApp sandbox permission_request failed: ${errorMessage(e)}`, {
-            level: 'error'
-          });
-          cleanup();
-        });
-      }
     });
   }, [setAppState, store]);
 
@@ -3983,10 +3942,6 @@ export function REPL({
     sendBridgeResult
   } = useReplBridge(messages, setMessages, abortControllerRef, commands, mainLoopModel);
   sendBridgeResultRef.current = sendBridgeResult;
-
-  // WhatsApp mirror: forwards new assistant text to the WhatsApp chat that
-  // most recently sent us a message. No-op when /whatsapp is off.
-  useWhatsAppMirror(messages, isLoading);
 
   // Remote mirror: streams the session to phones paired over LAN via /remote,
   // and lets them prompt and interrupt. No-op when /remote is off.

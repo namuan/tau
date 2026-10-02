@@ -14,7 +14,7 @@
  * `requiresUserInteraction()` — "the hook IS the user interaction". The phone
  * is the same kind of answer, arriving over a socket instead of a hook.
  *
- * Unlike the WhatsApp and channel relays this holds a live socket, so a prompt
+ * Unlike the channel relay, this holds a live socket, so a prompt
  * settled at the keyboard is actively withdrawn from every phone rather than
  * left sitting there stale.
  */

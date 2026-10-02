@@ -21,7 +21,9 @@ The live voice conversation feature and its native/platform packaging were remov
 
 **Verify:** Build; run voice-related tests only while removing the feature; confirm no voice command, UI control, package, postinstall path, or platform binary reference remains.
 
-## Phase 2: WhatsApp
+## Phase 2: WhatsApp — completed
+
+The WhatsApp command, messaging client, mirroring, permission relays, special turn state, Baileys dependency, and associated script permissions were removed. Removing the turn-state shortcut also restores normal sandbox and tool-permission prompts for all remaining input paths. `npm ci`, the build, production shrinkwrap check, and 51 lifecycle/installer tests pass.
 
 **Likely scope:** `src/services/whatsapp`, `src/commands/whatsapp`, WhatsApp UI/registration/configuration, related tests/docs, and `@whiskeysockets/baileys`.
 

@@ -24,11 +24,9 @@ export const TAU_PACKAGE = "@abdoknbgit/tau";
 
 export const ALLOWED_SCRIPTS = Object.freeze([
   "@abdoknbgit/tau",
-  "@whiskeysockets/baileys",
   "core-js",
   "fsevents",
   "node-pty",
-  "protobufjs",
   "sharp",
 ]);
 

@@ -27,11 +27,9 @@ import {
 // the managed local project's policy aligned with Tau's published installer.
 export const LOCAL_ALLOW_SCRIPTS = [
   '@abdoknbgit/tau',
-  '@whiskeysockets/baileys',
   'core-js',
   'fsevents',
   'node-pty',
-  'protobufjs',
   'sharp',
 ] as const
 

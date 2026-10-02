@@ -1,7 +1,7 @@
 /**
  * Outbound half of /remote: mirrors the live session to any paired phone.
  *
- * Modeled on useWhatsAppMirror's "track a last-written index, forward the new
+ * Tracks the last-written index and forwards new
  * tail" pattern, with one addition — while a turn is in flight the final
  * message is held back, because it is the streaming tail and its content
  * mutates in place rather than appending. Holding it back means tool lines and

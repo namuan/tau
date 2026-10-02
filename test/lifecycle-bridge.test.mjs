@@ -469,7 +469,6 @@ test('managed-local installation rebuilds reviewed lifecycles in place', () => {
       version: '0.93.2',
       allowScripts: {
         '@abdoknbgit/tau': true,
-        '@whiskeysockets/baileys': true,
         'core-js': true,
         'fsevents': true,
         'node-pty': true,
@@ -538,7 +537,9 @@ test('managed-local installation rebuilds reviewed lifecycles in place', () => {
   assert.ok(versionProbe.args.includes('--version'));
   assert.ok(install.args.includes('install'));
   assert.deepEqual(
-    dependencyRebuild.args.slice(-6),
+    dependencyRebuild.args.slice(
+      -TAU_RUNTIME_ALLOW_SCRIPTS.filter(name => name !== '@abdoknbgit/tau').length,
+    ),
     TAU_RUNTIME_ALLOW_SCRIPTS.filter(name => name !== '@abdoknbgit/tau'),
   );
   assert.deepEqual(tauRebuild.args.slice(-1), ['@abdoknbgit/tau']);

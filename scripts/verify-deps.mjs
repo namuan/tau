@@ -52,11 +52,9 @@ const GLOBAL_UPDATE_LOCK_ENV = 'TAU_UPDATE_LOCK';
 const LOCAL_UPDATE_LOCK_ENV = 'TAU_LOCAL_UPDATE_LOCK';
 export const TAU_RUNTIME_ALLOW_SCRIPTS = Object.freeze([
   TAU_PACKAGE_NAME,
-  '@whiskeysockets/baileys',
   'core-js',
   'fsevents',
   'node-pty',
-  'protobufjs',
   'sharp',
 ]);
 

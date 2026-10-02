@@ -1,8 +1,7 @@
 /**
  * Projects the REPL's Message[] into the shape the phone renders.
  *
- * Extraction mirrors useWhatsAppMirror (same content-block walk, same
- * local-command tag handling) but keeps far more: user turns, thinking,
+ * The projection keeps user turns, thinking,
  * per-tool argument detail, and tool results keyed back to their call. A
  * phone showing only "⚙ Bash" tells you nothing — showing the command it is
  * about to run is the difference between watching and actually supervising.
