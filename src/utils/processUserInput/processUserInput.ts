@@ -12,12 +12,7 @@ import {
 import type { QuerySource } from 'src/constants/querySource.js'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getContentText } from 'src/utils/messages.js'
-import {
-  findCommand,
-  getCommandName,
-  isBridgeSafeCommand,
-  type LocalJSXCommandContext,
-} from '../../commands.js'
+import { type LocalJSXCommandContext } from '../../commands.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { SetToolJSXFn, ToolUseContext } from '../../Tool.js'
@@ -52,12 +47,10 @@ import {
 } from '../imageResizer.js'
 import { storeImages } from '../imageStore.js'
 import {
-  createCommandInputMessage,
   createSystemMessage,
   createUserMessage,
 } from '../messages.js'
 import { queryCheckpoint } from '../queryProfiler.js'
-import { parseSlashCommand } from '../slashCommandParsing.js'
 import {
   hasUltraplanKeyword,
   replaceUltraplanKeyword,
@@ -101,7 +94,6 @@ export async function processUserInput({
   querySource,
   canUseTool,
   skipSlashCommands,
-  bridgeOrigin,
   isMeta,
   skipAttachments,
 }: {
@@ -125,15 +117,10 @@ export async function processUserInput({
   canUseTool?: CanUseToolFn
   /**
    * When true, input starting with `/` is treated as plain text.
-   * Used for remotely-received messages (bridge/CCR) that should not
+   * Used for remotely-received messages that should not
    * trigger local slash commands or skills.
    */
   skipSlashCommands?: boolean
-  /**
-   * When true, slash commands matching isBridgeSafeCommand() execute even
-   * though skipSlashCommands is set. See QueuedCommand.bridgeOrigin.
-   */
-  bridgeOrigin?: boolean
   /**
    * When true, the resulting UserMessage gets `isMeta: true` (user-hidden,
    * model-visible). Propagated from `QueuedCommand.isMeta` for queued
@@ -168,7 +155,6 @@ export async function processUserInput({
     canUseTool,
     appState.toolPermissionContext.mode,
     skipSlashCommands,
-    bridgeOrigin,
     isMeta,
     skipAttachments,
     preExpansionInput,
@@ -296,7 +282,6 @@ async function processUserInputBase(
   canUseTool?: CanUseToolFn,
   permissionMode?: PermissionMode,
   skipSlashCommands?: boolean,
-  bridgeOrigin?: boolean,
   isMeta?: boolean,
   skipAttachments?: boolean,
   preExpansionInput?: string,
@@ -439,39 +424,7 @@ async function processUserInputBase(
   }
   queryCheckpoint('query_pasted_image_processing_end')
 
-  // Bridge-safe slash command override: mobile/web clients set bridgeOrigin
-  // with skipSlashCommands still true (defense-in-depth against exit words and
-  // immediate-command fast paths). Resolve the command here — if it passes
-  // isBridgeSafeCommand, clear the skip so the gate below opens. If it's a
-  // known-but-unsafe command (local-jsx UI or terminal-only), short-circuit
-  // with a helpful message rather than letting the model see raw "/config".
-  let effectiveSkipSlash = skipSlashCommands
-  if (bridgeOrigin && inputString !== null && inputString.startsWith('/')) {
-    const parsed = parseSlashCommand(inputString)
-    const cmd = parsed
-      ? findCommand(parsed.commandName, context.options.commands)
-      : undefined
-    if (cmd) {
-      if (isBridgeSafeCommand(cmd)) {
-        effectiveSkipSlash = false
-      } else {
-        const msg = `/${getCommandName(cmd)} isn't available over Remote Control.`
-        return {
-          messages: [
-            createUserMessage({ content: inputString, uuid }),
-            createCommandInputMessage(
-              `<local-command-stdout>${msg}</local-command-stdout>`,
-            ),
-          ],
-          shouldQuery: false,
-          resultText: msg,
-        }
-      }
-    }
-    // Unknown /foo or unparseable — fall through to plain text, same as
-    // pre-#19134. A mobile user typing "/shrug" shouldn't see "Unknown skill".
-  }
-
+  const effectiveSkipSlash = skipSlashCommands
   // Ultraplan keyword — route through /ultraplan. Detect on the
   // pre-expansion input so pasted content containing the word cannot
   // trigger a CCR session; replace with "plan" in the expanded input so

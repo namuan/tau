@@ -116,17 +116,6 @@ Tau keeps snapshots of your working tree in a shadow git repo, separate from you
 
 Web search works out of the box. Tau has a native MCP search built in as a tool, so there is no key to add and nothing to configure, and it is free with no limits. If you prefer Firecrawl, add your key through `/login`, then **Firecrawl Search**, and Tau will use the Firecrawl search backend instead. Their free plan includes 1,000 searches a month.
 
-### Remote control and shared sessions
-
-`/remote local` serves your session over your own Wi-Fi. It connects instantly and nothing leaves your network. `/remote global` opens a free Cloudflare HTTPS tunnel that works from anywhere, even on cellular (it needs `cloudflared`). Scan the QR code to pair, then read, prompt and approve tools from your phone while the work keeps running on your machine.
-
-The global link is also how you work together. Share that one link and your teammates can join the session and work in it with you.
-
-<p align="center">
-  <img src="docs/remote.PNG" alt="A Tau session on the computer" width="70%">
-  <img src="docs/remote-phone.jpeg" alt="The same session on a phone" width="20%">
-</p>
-
 ### Python kernel in the loop
 
 This is one of the biggest reasons Tau costs less than other agents. Tau has a persistent Python kernel, so anything Python can do, Tau can do too. Say you want insights from 20 CSV files. A typical agent works through them one at a time, which easily adds up to 30 turns. Every file it reads stays in the context window, so each turn costs more than the one before, and you pay again for the turns spent fixing mistakes on the way. Tau writes the whole workflow as one Python cell, runs it in a single turn and gets back only the result. The context stays clean, the logic sits in one place so problems are easy to spot, the answer is better, and the bill is much smaller.

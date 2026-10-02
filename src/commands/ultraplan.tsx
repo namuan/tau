@@ -1,5 +1,4 @@
 import { readFileSync } from 'fs';
-import { REMOTE_CONTROL_DISCONNECTED_MSG } from '../bridge/types.js';
 import type { Command } from '../commands.js';
 import { DIAMOND_OPEN } from '../constants/figures.js';
 import { getRemoteSessionUrl } from '../constants/product.js';
@@ -182,9 +181,8 @@ function startDetachedPoll(taskId: string, sessionId: string, url: string, getAp
 
 // Renders immediately so the terminal doesn't appear hung during the
 // multi-second teleportToRemote round-trip.
-function buildLaunchMessage(disconnectedBridge?: boolean): string {
-  const prefix = disconnectedBridge ? `${REMOTE_CONTROL_DISCONNECTED_MSG} ` : '';
-  return `${DIAMOND_OPEN} ultraplan\n${prefix}Starting Tau on the web…`;
+function buildLaunchMessage(): string {
+  return `${DIAMOND_OPEN} ultraplan\nStarting Tau on the web…`;
 }
 function buildSessionReadyMessage(url: string): string {
   return `${DIAMOND_OPEN} ultraplan · Monitor progress in Tau on the web ${url}\nYou can continue working — when the ${DIAMOND_OPEN} fills, press ↓ to view results`;
@@ -237,8 +235,6 @@ export async function launchUltraplan(opts: {
   getAppState: () => AppState;
   setAppState: (f: (prev: AppState) => AppState) => void;
   signal: AbortSignal;
-  /** True if the caller disconnected Remote Control before launching. */
-  disconnectedBridge?: boolean;
   /**
    * Called once teleportToRemote resolves with a session URL. Callers that
    * have setMessages (REPL) append this as a second transcript message so the
@@ -254,7 +250,6 @@ export async function launchUltraplan(opts: {
     getAppState,
     setAppState,
     signal,
-    disconnectedBridge,
     onSessionReady
   } = opts;
   const {
@@ -289,7 +284,7 @@ export async function launchUltraplan(opts: {
     signal,
     onSessionReady
   });
-  return buildLaunchMessage(disconnectedBridge);
+  return buildLaunchMessage();
 }
 async function launchDetached(opts: {
   blurb: string;

@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { useMemo, useState } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
-import { clearTrustedDeviceTokenCache } from '../../bridge/trustedDevice.js'
 import { refreshGrowthBookAfterAuthChange } from '../../services/analytics/growthbook.js'
 import { getGroveNoticeConfig, getGroveSettings } from '../../services/api/grove.js'
 import { clearPolicyLimitsCache } from '../../services/policyLimits/index.js'
@@ -109,7 +108,6 @@ export async function performLogout({
 // Clearing anything memoized that must be invalidated when user/session/auth changes
 export async function clearAuthRelatedCaches(): Promise<void> {
   getClaudeAIOAuthTokens.cache?.clear?.()
-  clearTrustedDeviceTokenCache()
   clearBetasCaches()
   clearToolSchemaCache()
   resetUserCache()

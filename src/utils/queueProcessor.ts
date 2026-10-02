@@ -18,7 +18,7 @@ type ProcessQueueResult = {
  * Check if a queued command is a slash command (value starts with '/').
  */
 function isSlashCommand(cmd: QueuedCommand): boolean {
-  if (cmd.skipSlashCommands && !cmd.bridgeOrigin) {
+  if (cmd.skipSlashCommands) {
     return false
   }
   if (typeof cmd.value === 'string') {

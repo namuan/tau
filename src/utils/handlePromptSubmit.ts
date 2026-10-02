@@ -125,7 +125,7 @@ export type HandlePromptSubmitParams = BaseExecutionParams & {
   uuid?: UUID
   /**
    * When true, input starting with `/` is treated as plain text.
-   * Used for remotely-received messages (bridge/CCR) that should not
+   * Used for remotely-received messages that should not
    * trigger local slash commands or skills.
    */
   skipSlashCommands?: boolean
@@ -505,7 +505,6 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
           uuid: cmd.uuid,
           ideSelection: isFirst ? ideSelection : undefined,
           skipSlashCommands: cmd.skipSlashCommands,
-          bridgeOrigin: cmd.bridgeOrigin,
           isMeta: cmd.isMeta,
           skipAttachments: !isFirst,
         })

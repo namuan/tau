@@ -40,7 +40,7 @@ import {
 const temporaryRoots = [];
 
 function makeTemporaryRoot() {
-  const root = mkdtempSync(join(tmpdir(), 'tau-lifecycle-bridge-'));
+  const root = mkdtempSync(join(tmpdir(), 'tau-lifecycle-'));
   temporaryRoots.push(root);
   return root;
 }
@@ -274,7 +274,7 @@ test('a manifest-only type dependency is not falsely rejected', () => {
   assert.deepEqual(findMissingDeps(packageRoot), []);
 });
 
-test('legacy bridge runtime policy stays aligned with the reviewed installer', () => {
+test('runtime allow-scripts policy stays aligned with the reviewed installer', () => {
   assert.deepEqual(TAU_RUNTIME_ALLOW_SCRIPTS, ALLOWED_SCRIPTS);
 });
 

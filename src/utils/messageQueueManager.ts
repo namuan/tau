@@ -552,14 +552,11 @@ export function getCommandsByMaxPriority(
 /**
  * Returns true if the command is a slash command that should be routed through
  * processSlashCommand rather than sent to the model as text.
- *
- * Commands with `skipSlashCommands` are not treated as slash commands unless
- * `bridgeOrigin` is set; those are filtered through isBridgeSafeCommand().
  */
 export function isSlashCommand(cmd: QueuedCommand): boolean {
   return (
     typeof cmd.value === 'string' &&
     cmd.value.trim().startsWith('/') &&
-    (!cmd.skipSlashCommands || cmd.bridgeOrigin)
+    !cmd.skipSlashCommands
   )
 }

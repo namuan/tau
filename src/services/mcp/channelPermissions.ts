@@ -1,9 +1,9 @@
 /**
  * Permission prompts over channels (Telegram, iMessage, Discord).
  *
- * Mirrors `BridgePermissionCallbacks` — when CC hits a permission dialog,
- * it ALSO sends the prompt via active channels and races the reply against
- * local UI / bridge / hooks / classifier. First resolver wins via claim().
+ * When CC hits a permission dialog, it sends the prompt via active channels
+ * and races the reply against local UI, hooks, and the classifier. First
+ * resolver wins via claim().
  *
  * Inbound is a structured event: the server parses the user's "yes tbxkq"
  * reply and emits notifications/claude/channel/permission with
@@ -197,7 +197,7 @@ export function filterPermissionRelayClients<
  * Factory for the callbacks object. The pending Map is closed over — NOT
  * module-level (per src/CLAUDE.md), NOT in AppState (functions-in-state
  * causes issues with equality/serialization). Same lifetime pattern as
- * `replBridgePermissionCallbacks`: constructed once per session inside
+ * the other permission callbacks: constructed once per session inside
  * a React hook, stable reference stored in AppState.
  *
  * resolve() is called from the dedicated notification handler

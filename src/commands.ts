@@ -43,7 +43,6 @@ import mobile from './commands/mobile/index.js'
 import onboarding from './commands/onboarding/index.js'
 import pr_comments from './commands/pr_comments/index.js'
 import releaseNotes from './commands/release-notes/index.js'
-import remote from './commands/remote/index.js'
 import rename from './commands/rename/index.js'
 import report from './commands/report/index.js'
 import resume from './commands/resume/index.js'
@@ -79,16 +78,6 @@ const proactive =
 const briefCommand =
   feature('KAIROS') || feature('KAIROS_BRIEF')
     ? require('./commands/brief.js').default
-    : null
-const assistantCommand = feature('KAIROS')
-  ? require('./commands/assistant/index.js').default
-  : null
-const bridge = feature('BRIDGE_MODE')
-  ? require('./commands/bridge/index.js').default
-  : null
-const remoteControlServerCommand =
-  feature('DAEMON') && feature('BRIDGE_MODE')
-    ? require('./commands/remoteControlServer/index.js').default
     : null
 const forceSnip = feature('HISTORY_SNIP')
   ? require('./commands/force-snip.js').default
@@ -149,7 +138,6 @@ import rewind from './commands/rewind/index.js'
 import tree from './commands/tree/index.js'
 import heapDump from './commands/heapdump/index.js'
 import mockLimits from './commands/mock-limits/index.js'
-import bridgeKick from './commands/bridge-kick.js'
 import version from './commands/version.js'
 import summary from './commands/summary/index.js'
 import {
@@ -258,7 +246,6 @@ export const INTERNAL_ONLY_COMMANDS = [
   initVerifiers,
   ...(forceSnip ? [forceSnip] : []),
   mockLimits,
-  bridgeKick,
   version,
   ...(ultraplan ? [ultraplan] : []),
   ...(subscribePr ? [subscribePr] : []),
@@ -330,7 +317,6 @@ const COMMANDS = memoize((): Command[] => [
   plugin,
   pr_comments,
   releaseNotes,
-  remote,
   report,
   reloadPlugins,
   rename,
@@ -366,9 +352,6 @@ const COMMANDS = memoize((): Command[] => [
   ...(buddy ? [buddy] : []),
   ...(proactive ? [proactive] : []),
   ...(briefCommand ? [briefCommand] : []),
-  ...(assistantCommand ? [assistantCommand] : []),
-  ...(bridge ? [bridge] : []),
-  ...(remoteControlServerCommand ? [remoteControlServerCommand] : []),
   thinkback,
   thinkbackPlay,
   permissions,
@@ -724,45 +707,6 @@ export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
   stickers, // Stickers
   mobile, // Mobile QR code
 ])
-
-/**
- * Builtin commands of type 'local' that ARE safe to execute when received
- * over the Remote Control bridge. These produce text output that streams
- * back to the mobile/web client and have no terminal-only side effects.
- *
- * 'local-jsx' commands are blocked by type (they render Ink UI) and
- * 'prompt' commands are allowed by type (they expand to text sent to the
- * model) — this set only gates 'local' commands.
- *
- * When adding a new 'local' command that should work from mobile, add it
- * here. Default is blocked.
- */
-export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
-  [
-    compact, // Shrink context — useful mid-session from a phone
-    clear, // Wipe transcript
-    cost, // Show session cost
-    summary, // Summarize conversation
-    releaseNotes, // Show changelog
-    files, // List tracked files
-  ].filter((c): c is Command => c !== null),
-)
-
-/**
- * Whether a slash command is safe to execute when its input arrived over the
- * Remote Control bridge (mobile/web client).
- *
- * PR #19134 blanket-blocked all slash commands from bridge inbound because
- * `/model` from iOS was popping the local Ink picker. This predicate relaxes
- * that with an explicit allowlist: 'prompt' commands (skills) expand to text
- * and are safe by construction; 'local' commands need an explicit opt-in via
- * BRIDGE_SAFE_COMMANDS; 'local-jsx' commands render Ink UI and stay blocked.
- */
-export function isBridgeSafeCommand(cmd: Command): boolean {
-  if (cmd.type === 'local-jsx') return false
-  if (cmd.type === 'prompt') return true
-  return BRIDGE_SAFE_COMMANDS.has(cmd)
-}
 
 /**
  * Filter commands to only include those safe for remote mode.

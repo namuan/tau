@@ -897,7 +897,7 @@ export async function checkSecurityRestrictionGate(
  * inside init, so by the time the slow path returns, disk already has the
  * fresh value — no write needed here.
  *
- * Use for user-invoked features (e.g. /remote-control) that are gated on
+ * Use for user-invoked features that are gated on
  * subscription/org, where a stale `false` would unfairly block access but a
  * stale `true` is acceptable (the server is the real gatekeeper).
  */

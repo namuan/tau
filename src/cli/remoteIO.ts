@@ -2,16 +2,14 @@ import type { StdoutMessage } from 'src/entrypoints/sdk/controlTypes.js'
 import { PassThrough } from 'stream'
 import { URL } from 'url'
 import { getSessionId } from '../bootstrap/state.js'
-import { getPollIntervalConfig } from '../bridge/pollConfig.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { setCommandLifecycleListener } from '../utils/commandLifecycle.js'
-import { isDebugMode, logForDebugging } from '../utils/debug.js'
+import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { errorMessage } from '../utils/errors.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
 import { logError } from '../utils/log.js'
-import { writeToStdout } from '../utils/process.js'
 import { getSessionIngressAuthToken } from '../utils/sessionIngressAuth.js'
 import {
   setSessionMetadataChangedListener,
@@ -21,7 +19,6 @@ import {
   setInternalEventReader,
   setInternalEventWriter,
 } from '../utils/sessionStorage.js'
-import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { StructuredIO } from './structuredIO.js'
 import { CCRClient, CCRInitError } from './transports/ccrClient.js'
 import { SSETransport } from './transports/SSETransport.js'
@@ -36,10 +33,7 @@ export class RemoteIO extends StructuredIO {
   private url: URL
   private transport: Transport
   private inputStream: PassThrough
-  private readonly isBridge: boolean = false
-  private readonly isDebug: boolean = false
   private ccrClient: CCRClient | null = null
-  private keepAliveTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(
     streamUrl: string,
@@ -93,13 +87,8 @@ export class RemoteIO extends StructuredIO {
     )
 
     // Set up data callback
-    this.isBridge = process.env.CLAUDE_CODE_ENVIRONMENT_KIND === 'bridge'
-    this.isDebug = isDebugMode()
     this.transport.setOnData((data: string) => {
       this.inputStream.write(data)
-      if (this.isBridge && this.isDebug) {
-        writeToStdout(data.endsWith('\n') ? data : data + '\n')
-      }
     })
 
     // Set up close callback to handle connection failures
@@ -171,30 +160,6 @@ export class RemoteIO extends StructuredIO {
     // setOnEvent inside new CCRClient() when CCR v2 is enabled).
     void this.transport.connect()
 
-    // Push a silent keep_alive frame on a fixed interval so upstream
-    // proxies and the session-ingress layer don't GC an otherwise-idle
-    // remote control session. The keep_alive type is filtered before
-    // reaching any client UI (Query.ts drops it; structuredIO.ts drops it;
-    // web/iOS/Android never see it in their message loop). Interval comes
-    // from GrowthBook (tengu_bridge_poll_interval_config
-    // session_keepalive_interval_v2_ms, default 120s); 0 = disabled.
-    // Bridge-only: fixes Envoy idle timeout on bridge-topology sessions
-    // (#21931). byoc workers ran without this before #21931 and do not
-    // need it — different network path.
-    const keepAliveIntervalMs =
-      getPollIntervalConfig().session_keepalive_interval_v2_ms
-    if (this.isBridge && keepAliveIntervalMs > 0) {
-      this.keepAliveTimer = setInterval(() => {
-        logForDebugging('[remote-io] keep_alive sent')
-        void this.write({ type: 'keep_alive' }).catch(err => {
-          logForDebugging(
-            `[remote-io] keep_alive write failed: ${errorMessage(err)}`,
-          )
-        })
-      }, keepAliveIntervalMs)
-      this.keepAliveTimer.unref?.()
-    }
-
     // Register for graceful shutdown cleanup
     registerCleanup(async () => this.close())
 
@@ -224,9 +189,6 @@ export class RemoteIO extends StructuredIO {
 
   /**
    * Send output to the transport.
-   * In bridge mode, control_request messages are always echoed to stdout so the
-   * bridge parent can detect permission requests. Other messages are echoed only
-   * in debug mode.
    */
   async write(message: StdoutMessage): Promise<void> {
     if (this.ccrClient) {
@@ -234,21 +196,12 @@ export class RemoteIO extends StructuredIO {
     } else {
       await this.transport.write(message)
     }
-    if (this.isBridge) {
-      if (message.type === 'control_request' || this.isDebug) {
-        writeToStdout(ndjsonSafeStringify(message) + '\n')
-      }
-    }
   }
 
   /**
    * Clean up connections gracefully
    */
   close(): void {
-    if (this.keepAliveTimer) {
-      clearInterval(this.keepAliveTimer)
-      this.keepAliveTimer = null
-    }
     this.transport.close()
     this.inputStream.end()
   }

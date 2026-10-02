@@ -16,11 +16,12 @@ import { randomUUID } from 'crypto'
 import { mkdir, writeFile } from 'fs/promises'
 import { basename, join } from 'path'
 import { z } from 'zod/v4'
-import { getSessionId } from '../bootstrap/state.js'
-import { logForDebugging } from '../utils/debug.js'
-import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
-import { lazySchema } from '../utils/lazySchema.js'
-import { getBridgeAccessToken, getBridgeBaseUrl } from './bridgeConfig.js'
+import { getSessionId } from '../../bootstrap/state.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
+import { lazySchema } from '../../utils/lazySchema.js'
+import { getOauthConfig } from '../../constants/oauth.js'
+import { getClaudeAIOAuthTokens } from '../../utils/auth.js'
 
 const DOWNLOAD_TIMEOUT_MS = 30_000
 
@@ -66,7 +67,7 @@ function uploadsDir(): string {
  * undefined on any failure.
  */
 async function resolveOne(att: InboundAttachment): Promise<string | undefined> {
-  const token = getBridgeAccessToken()
+  const token = getClaudeAIOAuthTokens()?.accessToken
   if (!token) {
     debug('skip: no oauth token')
     return undefined
@@ -74,11 +75,11 @@ async function resolveOne(att: InboundAttachment): Promise<string | undefined> {
 
   let data: Buffer
   try {
-    // getOauthConfig() (via getBridgeBaseUrl) throws on a non-allowlisted
+    // getOauthConfig() throws on a non-allowlisted
     // CLAUDE_CODE_CUSTOM_OAUTH_URL — keep it inside the try so a bad
     // FedStart URL degrades to "no @path" instead of crashing print.ts's
     // reader loop (which has no catch around the await).
-    const url = `${getBridgeBaseUrl()}/api/oauth/files/${encodeURIComponent(att.file_uuid)}/content`
+    const url = `${getOauthConfig().BASE_API_URL}/api/oauth/files/${encodeURIComponent(att.file_uuid)}/content`
     const response = await axios.get(url, {
       headers: { Authorization: `Bearer ${token}` },
       responseType: 'arraybuffer',

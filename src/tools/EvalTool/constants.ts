@@ -2,8 +2,8 @@
  * Eval tool — a persistent Python kernel with a loopback bridge back into
  * Tau's own tools.
  *
- * Naming: this is deliberately NOT called "REPL". `src/bridge/replBridge.ts`,
- * `src/replLauncher.tsx` and `src/screens/REPL.tsx` already use "REPL" to mean
+ * Naming: this is deliberately NOT called "REPL". `src/replLauncher.tsx`
+ * and `src/screens/REPL.tsx` already use "REPL" to mean
  * the interactive terminal loop, and `src/tools/REPLTool/` is a dead ant-only
  * JS VM whose implementation file does not exist. A third meaning would be a
  * permanent reading trap.

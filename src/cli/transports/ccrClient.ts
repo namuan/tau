@@ -3,7 +3,7 @@ import type {
   SDKPartialAssistantMessage,
   StdoutMessage,
 } from 'src/entrypoints/sdk/controlTypes.js'
-import { decodeJwtExpiry } from '../../bridge/jwtUtils.js'
+import { decodeJwtExpiry } from '../../utils/jwtExpiry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { errorMessage, getErrnoCode } from '../../utils/errors.js'
@@ -293,9 +293,8 @@ export class CCRClient {
 
   /**
    * Called when the server returns 409 (a newer worker epoch superseded ours).
-   * Default: process.exit(1) — correct for spawn-mode children where the
-   * parent bridge re-spawns. In-process callers (replBridge) MUST override
-   * this to close gracefully instead; exit would kill the user's REPL.
+   * Default: process.exit(1) for spawn-mode workers. In-process callers
+   * must override this to close gracefully instead.
    */
   private readonly onEpochMismatch: () => never
 
@@ -448,11 +447,11 @@ export class CCRClient {
   /**
    * Initialize the session worker:
    * 1. Take worker_epoch from the argument, or fall back to
-   *    CLAUDE_CODE_WORKER_EPOCH (set by env-manager / bridge spawner)
+   *    CLAUDE_CODE_WORKER_EPOCH (set by the environment manager)
    * 2. Report state as 'idle'
    * 3. Start heartbeat timer
    *
-   * In-process callers (replBridge) pass the epoch directly — they
+   * In-process callers pass the epoch directly — they
    * registered the worker themselves and there is no parent process
    * setting env vars.
    */

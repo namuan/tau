@@ -43,16 +43,6 @@ export type AttributedCounter = {
   add(value: number, additionalAttributes?: Attributes): void
 }
 
-/**
- * Stub for upstream's REPL bridge (inter-Tau messaging). Tau does
- * not implement this feature — always returns false so callers fall
- * back to the non-bridged code path. Kept so strict-ESM bundlers
- * (esbuild) resolve the import at build time.
- */
-export function isReplBridgeActive(): boolean {
-  return false
-}
-
 type State = {
   originalCwd: string
   // Stable project root - set once at startup (including by --worktree flag),
@@ -97,7 +87,6 @@ type State = {
   sdkAgentProgressSummariesEnabled: boolean
   userMsgOptIn: boolean
   clientType: string
-  sessionSource: string | undefined
   questionPreviewFormat: 'markdown' | 'html' | undefined
   flagSettingsPath: string | undefined
   flagSettingsInline: Record<string, unknown> | null
@@ -219,8 +208,6 @@ type State = {
   mainThreadAgentType: string | undefined
   // Remote mode (--remote flag)
   isRemoteMode: boolean
-  // Direct connect server URL (for display in header)
-  directConnectServerUrl: string | undefined
   // System prompt section cache state
   systemPromptSectionCache: Map<string, string | null>
   // Last date emitted to the model (for detecting midnight date changes)
@@ -328,7 +315,6 @@ function getInitialState(): State {
     sdkAgentProgressSummariesEnabled: false,
     userMsgOptIn: false,
     clientType: 'cli',
-    sessionSource: undefined,
     questionPreviewFormat: undefined,
     sessionIngressToken: undefined,
     oauthTokenFromFd: undefined,
@@ -416,11 +402,8 @@ function getInitialState(): State {
     isRemoteMode: false,
     ...(process.env.USER_TYPE === 'ant'
       ? {
-          replBridgeActive: false,
         }
       : {}),
-    // Direct connect server URL
-    directConnectServerUrl: undefined,
     // System prompt section cache state
     systemPromptSectionCache: new Map(),
     // Last date emitted to the model
@@ -581,14 +564,6 @@ export function recordVisitedDir(dir: string): void {
 /** Session-visited directories, most-recent first. */
 export function getVisitedDirs(): string[] {
   return [...STATE.visitedDirs].reverse()
-}
-
-export function getDirectConnectServerUrl(): string | undefined {
-  return STATE.directConnectServerUrl
-}
-
-export function setDirectConnectServerUrl(url: string): void {
-  STATE.directConnectServerUrl = url
 }
 
 export function addToTotalDurationState(
@@ -1190,14 +1165,6 @@ export function getUserMsgOptIn(): boolean {
 
 export function setUserMsgOptIn(value: boolean): void {
   STATE.userMsgOptIn = value
-}
-
-export function getSessionSource(): string | undefined {
-  return STATE.sessionSource
-}
-
-export function setSessionSource(source: string): void {
-  STATE.sessionSource = source
 }
 
 export function getQuestionPreviewFormat(): 'markdown' | 'html' | undefined {

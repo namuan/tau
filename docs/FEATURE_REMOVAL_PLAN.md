@@ -39,13 +39,11 @@ The WhatsApp command, messaging client, mirroring, permission relays, special tu
 
 **Verify:** Build; run affected browser/computer tests during removal; confirm no browser/computer tools or onboarding remain and generic web search/fetch still works.
 
-## Phase 4: Remote control
+## Phase 4: Remote control — completed
 
-**Likely scope:** The remote-control bridge (`src/bridge`), its bridge/remote commands, remote session UI and transport, and tests/docs specific to controlling a local Tau session remotely.
+Removed the `src/bridge` control plane, LAN pairing service, bridge and remote-control commands, local direct-connect server/client, bridge-driven UI and state, remote-control-only notification settings, and obsolete assistant-session history viewer. Generic Tau Web session APIs, session resume, remote model/provider traffic, SSH sessions, and `src/services/remoteManagedSettings` remain.
 
-**Check before deleting:** Distinguish remote control from generic provider API traffic, session resume, remote model/provider APIs, and `src/services/remoteManagedSettings`. Do not remove those just because their names contain “remote”; follow their imports and intended behavior first.
-
-**Verify:** Build; test normal local CLI startup, prompt handling, and session resume; confirm bridge commands and startup no longer open or configure remote-control transports.
+**Verification:** `npm run build` succeeds at about 17.4 MB; `node dist/cli.mjs --help` and `--version` start normally and expose no remote-control/server commands; the prompt/session persistence test suite and lifecycle/auth tests pass. The CLI's local `--print` prompt flow could not be exercised end-to-end without usable provider credentials. Startup no longer configures a bridge transport, and the retained `RemoteIO` path is limited to generic session-ingress APIs.
 
 ## Phase 5: IDE and ACP bridges
 

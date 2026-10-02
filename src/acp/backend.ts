@@ -9,9 +9,9 @@ import type { StopReason, ToolKind } from '@agentclientprotocol/sdk'
  *
  * This keeps the protocol correct and testable on its own (see EchoBackend)
  * and isolates the heavy integration — standing up a real Tau session with a
- * full ToolUseContext (tool pool, MCP clients, app state, permission system),
- * the same bootstrap `tau server` / headless print mode perform — to a single
- * implementation that can be swapped in without touching the protocol code.
+ * full ToolUseContext (tool pool, MCP clients, app state, permission system)
+ * to a single implementation that can be swapped in without touching the
+ * protocol code.
  */
 
 /** Outcome of an ACP permission request, normalized for the backend. */

@@ -220,7 +220,7 @@ export class SSETransport implements Transport {
 
   /**
    * High-water mark of sequence numbers seen on this stream. Callers that
-   * recreate the transport (e.g. replBridge onWorkReceived) read this before
+   * recreate the transport read this before
    * close() and pass it as `initialSequenceNum` to the next instance so the
    * server resumes from the right point instead of replaying everything.
    */

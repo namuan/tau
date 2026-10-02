@@ -15,8 +15,7 @@ const BATCH_FLUSH_INTERVAL_MS = 100
 const POST_TIMEOUT_MS = 15_000
 // Grace period for queued writes on close(). Covers a healthy POST (~100ms)
 // plus headroom; best-effort, not a delivery guarantee under degraded network.
-// Void-ed (nothing awaits it) so this is a last resort — replBridge teardown
-// now closes AFTER archive so archive latency is the primary drain window.
+// Void-ed because the graceful shutdown path cannot await it.
 // NOTE: gracefulShutdown's cleanup budget is 2s (not the 5s outer failsafe);
 // 3s here exceeds it, but the process lives ~2s longer for hooks+analytics.
 const CLOSE_GRACE_MS = 3000
@@ -47,9 +46,8 @@ const CLOSE_GRACE_MS = 3000
  * with exponential backoff + jitter. If the queue fills past maxQueueSize,
  * enqueue() blocks — giving awaiting callers backpressure.
  *
- * Why serialize? Bridge mode fires writes via `void transport.write()`
- * (fire-and-forget). Without this, concurrent POSTs → concurrent Firestore
- * writes to the same document → collisions → retry storms → pages oncall.
+ * Why serialize? Fire-and-forget writes can create concurrent POSTs to the
+ * same document, causing collisions, retry storms, and on-call pages.
  */
 export class HybridTransport extends WebSocketTransport {
   private postUrl: string
@@ -77,8 +75,8 @@ export class HybridTransport extends WebSocketTransport {
       // Large cap — session-ingress accepts arbitrary batch sizes. Events
       // naturally batch during in-flight POSTs; this just bounds the payload.
       maxBatchSize: 500,
-      // Bridge callers use `void transport.write()` — backpressure doesn't
-      // apply (they don't await). A batch >maxQueueSize deadlocks (see
+      // Fire-and-forget callers don't apply backpressure. A batch
+      // >maxQueueSize deadlocks (see
       // SerialBatchEventUploader backpressure check). So set it high enough
       // to be a memory bound only. Wire real backpressure in a follow-up
       // once callers await.
@@ -88,7 +86,7 @@ export class HybridTransport extends WebSocketTransport {
       jitterMs: 1000,
       // Optional cap so a persistently-failing server can't pin the drain
       // loop for the lifetime of the process. Undefined = indefinite retry.
-      // replBridge sets this; the 1P transportUtils path does not.
+      // Callers may set a cap; otherwise failures retry indefinitely.
       maxConsecutiveFailures,
       onBatchDropped: (batchSize, failures) => {
         logForDiagnosticsNoPII(
@@ -110,7 +108,7 @@ export class HybridTransport extends WebSocketTransport {
   /**
    * Enqueue a message and wait for the queue to drain. Returning flush()
    * preserves the contract that `await write()` resolves after the event is
-   * POSTed (relied on by tests and replBridge's initial flush). Fire-and-forget
+   * POSTed. Fire-and-forget
    * callers (`void transport.write()`) are unaffected — they don't await,
    * so the later resolution doesn't add latency.
    */
@@ -143,8 +141,7 @@ export class HybridTransport extends WebSocketTransport {
   }
 
   /**
-   * Block until all pending events are POSTed. Used by bridge's initial
-   * history flush so onStateChange('connected') fires after persistence.
+   * Block until all pending events are POSTed.
    */
   flush(): Promise<void> {
     void this.uploader.enqueue(this.takeStreamEvents())
@@ -174,9 +171,7 @@ export class HybridTransport extends WebSocketTransport {
       this.streamEventTimer = null
     }
     this.streamEventBuffer = []
-    // Grace period for queued writes — fallback. replBridge teardown now
-    // awaits archive between write and close (see CLOSE_GRACE_MS), so
-    // archive latency is the primary drain window and this is a last
+    // Grace period for queued writes so they can drain before close. This is a last
     // resort. Keep close() sync (returns immediately) but defer
     // uploader.close() so any remaining queue gets a chance to finish.
     const uploader = this.uploader

@@ -31,7 +31,9 @@ This document groups Tau's source tree by purpose to support a gradual move towa
 |---|---|---|
 | `src/services/mcp`, MCP tools and commands | Model Context Protocol clients, servers, and configuration | Optional if external MCP integrations are not a product requirement. |
 | `src/skills`, `src/plugins`, plugin services and commands | Skills, plugin loading, marketplaces, and lifecycle management | Optional; remove as a coherent feature rather than deleting individual modules. |
-| `src/bridge`, `src/acp`, `src/remote`, `src/server`, `src/upstreamproxy` | IDE/client protocols, remote access, and server/bridge modes | Strong candidates for a terminal-only build. |
+| `src/acp`, `src/upstreamproxy` | IDE/client protocols and provider proxy modes | Optional; audit in later phases. |
+| `src/remote` | Tau Web session APIs, resume, and remote model/provider traffic | Retain; this is separate from remote control of a local Tau session. |
+| `src/bridge`, `src/server` | Remote control of a local Tau session | Removed in Phase 4. |
 | `src/services/lsp`, language-server tools and configuration | Background code diagnostics and language-server integration | Optional; LSP is off by default according to the README, but its dependencies still affect installs if statically included. |
 
 ## Larger or specialized features
@@ -41,7 +43,7 @@ This document groups Tau's source tree by purpose to support a gradual move towa
 | `src/voice`, `native/tau-voice`, `platform-packages/tau-voice-*` | Live voice conversation and platform-specific native voice addons | Removed in Phase 1; retained generic provider authentication and file/audio handling. |
 | Browser/computer-use tools and `src/services/browser` | Browser automation and computer interaction | Optional; audit separately because it may bring platform/runtime dependencies. |
 | `src/services/whatsapp` and WhatsApp commands | WhatsApp connectivity | Removed in Phase 2, including its permission relay and Baileys dependency. |
-| `src/services/remote`, remote commands and bridge modules | Remote sessions and shared control | Optional if the product is local-only. |
+| `src/services/remote`, remote commands and bridge modules | LAN pairing, remote control, and shared session control | Removed in Phase 4; generic Tau Web session APIs remain. |
 | `src/buddy`, `src/vim`, `src/outputStyles`, `src/moreright`, `src/coordinator` | Specialized UI, interaction, or orchestration modes | Audit against intended product experience; likely non-core for a minimal coding CLI. |
 
 ## Commands and user-facing features

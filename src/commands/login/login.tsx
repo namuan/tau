@@ -2,10 +2,6 @@ import { feature } from 'bun:bundle'
 import * as React from 'react'
 import { useEffect, useState } from 'react'
 import { resetCostState } from '../../bootstrap/state.js'
-import {
-  clearTrustedDeviceToken,
-  enrollTrustedDevice,
-} from '../../bridge/trustedDevice.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { ConfigurableShortcutHint } from '../../components/ConfigurableShortcutHint.js'
 import { ConsoleOAuthFlow } from '../../components/ConsoleOAuthFlow.js'
@@ -65,8 +61,6 @@ function runPostLoginRefresh(context: LocalJSXCommandContext) {
   void refreshPolicyLimits()
   resetUserCache()
   refreshGrowthBookAfterAuthChange()
-  clearTrustedDeviceToken()
-  void enrollTrustedDevice()
   resetBypassPermissionsCheck()
   const appState = context.getAppState()
   void checkAndDisableBypassPermissionsIfNeeded(

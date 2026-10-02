@@ -11,13 +11,12 @@ import figures from 'figures';
 import { type GlobalConfig, saveGlobalConfig, getCurrentProjectConfig, type OutputStyle } from '../../utils/config.js';
 import { MESSAGE_HEADER_MODES, type MessageHeaderMode, normalizeMessageHeaderMode } from '../../utils/messageHeader.js';
 import { normalizeApiKeyForConfig } from '../../utils/authPortable.js';
-import { getGlobalConfig, getAutoUpdaterDisabledReason, formatAutoUpdaterDisabledReason, getRemoteControlAtStartup } from '../../utils/config.js';
+import { getGlobalConfig, getAutoUpdaterDisabledReason, formatAutoUpdaterDisabledReason } from '../../utils/config.js';
 import chalk from 'chalk';
 import { permissionModeTitle, permissionModeFromString, toExternalPermissionMode, isExternalPermissionMode, EXTERNAL_PERMISSION_MODES, PERMISSION_MODES, type ExternalPermissionMode, type PermissionMode } from '../../utils/permissions/PermissionMode.js';
 import { getAutoModeEnabledState, hasAutoModeOptInAnySource, transitionPlanAutoMode } from '../../utils/permissions/permissionSetup.js';
 import { logError } from '../../utils/log.js';
 import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
-import { isBridgeEnabled } from '../../bridge/bridgeEnabled.js';
 import { ThemePicker } from '../ThemePicker.js';
 import { useAppState, useSetAppState, useAppStateStore } from '../../state/AppState.js';
 import { ModelPicker } from '../ModelPicker.js';
@@ -162,8 +161,6 @@ export function Config({
       fastMode: s_4.fastMode,
       promptSuggestionEnabled: s_4.promptSuggestionEnabled,
       isBriefOnly: s_4.isBriefOnly,
-      replBridgeEnabled: s_4.replBridgeEnabled,
-      replBridgeOutboundOnly: s_4.replBridgeOutboundOnly,
       settings: s_4.settings
     };
   });
@@ -755,52 +752,7 @@ export function Config({
         preferredNotifChannel: notifChannel
       });
     }
-  }, ...(feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION') ? [{
-    id: 'taskCompleteNotifEnabled',
-    label: 'Push when idle',
-    value: globalConfig.taskCompleteNotifEnabled ?? false,
-    type: 'boolean' as const,
-    onChange(taskCompleteNotifEnabled: boolean) {
-      saveGlobalConfig(current_10 => ({
-        ...current_10,
-        taskCompleteNotifEnabled
-      }));
-      setGlobalConfig({
-        ...getGlobalConfig(),
-        taskCompleteNotifEnabled
-      });
-    }
   }, {
-    id: 'inputNeededNotifEnabled',
-    label: 'Push when input needed',
-    value: globalConfig.inputNeededNotifEnabled ?? false,
-    type: 'boolean' as const,
-    onChange(inputNeededNotifEnabled: boolean) {
-      saveGlobalConfig(current_11 => ({
-        ...current_11,
-        inputNeededNotifEnabled
-      }));
-      setGlobalConfig({
-        ...getGlobalConfig(),
-        inputNeededNotifEnabled
-      });
-    }
-  }, {
-    id: 'agentPushNotifEnabled',
-    label: 'Push when Tau decides',
-    value: globalConfig.agentPushNotifEnabled ?? false,
-    type: 'boolean' as const,
-    onChange(agentPushNotifEnabled: boolean) {
-      saveGlobalConfig(current_12 => ({
-        ...current_12,
-        agentPushNotifEnabled
-      }));
-      setGlobalConfig({
-        ...getGlobalConfig(),
-        agentPushNotifEnabled
-      });
-    }
-  }] : []), {
     id: 'outputStyle',
     label: 'Output style',
     value: currentOutputStyle,
@@ -1012,54 +964,7 @@ export function Config({
       onChange() {}
     }];
   })() : []),
-  // Remote at startup toggle — gated on build flag + GrowthBook + policy
-  ...(feature('BRIDGE_MODE') && isBridgeEnabled() ? [{
-    id: 'remoteControlAtStartup',
-    label: 'Enable Remote Control for all sessions',
-    value: globalConfig.remoteControlAtStartup === undefined ? 'default' : String(globalConfig.remoteControlAtStartup),
-    options: ['true', 'false', 'default'],
-    type: 'enum' as const,
-    onChange(selected_0: string) {
-      if (selected_0 === 'default') {
-        // Unset the config key so it falls back to the platform default
-        saveGlobalConfig(current_20 => {
-          if (current_20.remoteControlAtStartup === undefined) return current_20;
-          const next_0 = {
-            ...current_20
-          };
-          delete next_0.remoteControlAtStartup;
-          return next_0;
-        });
-        setGlobalConfig({
-          ...getGlobalConfig(),
-          remoteControlAtStartup: undefined
-        });
-      } else {
-        const enabled_6 = selected_0 === 'true';
-        saveGlobalConfig(current_21 => {
-          if (current_21.remoteControlAtStartup === enabled_6) return current_21;
-          return {
-            ...current_21,
-            remoteControlAtStartup: enabled_6
-          };
-        });
-        setGlobalConfig({
-          ...getGlobalConfig(),
-          remoteControlAtStartup: enabled_6
-        });
-      }
-      // Sync to AppState so useReplBridge reacts immediately
-      const resolved = getRemoteControlAtStartup();
-      setAppState(prev_20 => {
-        if (prev_20.replBridgeEnabled === resolved && !prev_20.replBridgeOutboundOnly) return prev_20;
-        return {
-          ...prev_20,
-          replBridgeEnabled: resolved,
-          replBridgeOutboundOnly: false
-        };
-      });
-    }
-  }] : []), ...(shouldShowExternalIncludesToggle ? [{
+...(shouldShowExternalIncludesToggle ? [{
     id: 'showExternalIncludesDialog',
     label: 'External CLAUDE.md includes',
     value: (() => {
@@ -1249,10 +1154,6 @@ export function Config({
     if (globalConfig.messageHeaderMode !== initialConfig.current.messageHeaderMode) {
       formattedChanges.push(`Set message header to ${chalk.bold(normalizeMessageHeaderMode(globalConfig.messageHeaderMode))}`);
     }
-    if (globalConfig.remoteControlAtStartup !== initialConfig.current.remoteControlAtStartup) {
-      const remoteLabel = globalConfig.remoteControlAtStartup === undefined ? 'Reset Remote Control to default' : `${globalConfig.remoteControlAtStartup ? 'Enabled' : 'Disabled'} Remote Control for all sessions`;
-      formattedChanges.push(remoteLabel);
-    }
     if (settingsData?.autoUpdatesChannel !== initialSettingsData.current?.autoUpdatesChannel) {
       formattedChanges.push(`Set auto-update channel to ${chalk.bold(settingsData?.autoUpdatesChannel ?? 'latest')}`);
     }
@@ -1328,8 +1229,6 @@ export function Config({
       fastMode: ia.fastMode,
       promptSuggestionEnabled: ia.promptSuggestionEnabled,
       isBriefOnly: ia.isBriefOnly,
-      replBridgeEnabled: ia.replBridgeEnabled,
-      replBridgeOutboundOnly: ia.replBridgeOutboundOnly,
       settings: ia.settings,
       // Reconcile auto-mode state after useAutoModeDuringPlan revert above —
       // the onChange handler may have activated/deactivated auto mid-plan.

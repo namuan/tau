@@ -52,7 +52,6 @@ Use \`ListPeers\` to discover targets, then:
 
 \`\`\`json
 {"to": "uds:/tmp/cc-socks/1234.sock", "message": "check if tests pass over there"}
-{"to": "bridge:session_01AbCd...", "message": "what branch are you on?"}
 \`\`\`
 
 A listed peer is alive and will process your message — no "busy" state; messages enqueue and drain at the receiver's next tool round. Your message arrives wrapped as \`<cross-session-message from="...">\`. **To reply to an incoming message, copy its \`from\` attribute as your \`to\`.**`
