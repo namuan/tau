@@ -1052,7 +1052,7 @@ export async function computeSimpleEnvInfo(
       : `The most recent Claude model family is Claude 4.6/4.7/4.8. Model IDs — Opus 4.8: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.opus}', Sonnet 4.6: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.sonnet}', Haiku 4.5: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.haiku}'. When building AI applications, default to the latest and most capable Claude models.`,
     process.env.USER_TYPE === 'ant' && isUndercover()
       ? null
-      : `Tau is available as a CLI in the terminal, desktop app (Mac/Windows), web app, and IDE extensions (VS Code, JetBrains).`,
+      : `Tau is available as a CLI in the terminal, desktop app (Mac/Windows), and web app.`,
     process.env.USER_TYPE === 'ant' && isUndercover()
       ? null
       : `Fast mode for Tau uses the same ${FRONTIER_MODEL_NAME} model with faster output. It does NOT switch to a different model. It can be toggled with /fast.`,

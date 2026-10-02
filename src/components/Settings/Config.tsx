@@ -35,7 +35,6 @@ import { Byline } from '../design-system/Byline.js';
 import { useTabHeaderFocus } from '../design-system/Tabs.js';
 import { useIsInsideModal } from '../../context/modalContext.js';
 import { SearchBox } from '../SearchBox.js';
-import { isSupportedTerminal, hasAccessToIDEExtensionDiffFeature } from '../../utils/ide.js';
 import { getInitialSettings, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js';
 import { getUserMsgOptIn, setUserMsgOptIn } from '../../bootstrap/state.js';
 import { DEFAULT_OUTPUT_STYLE_NAME } from 'src/constants/outputStyles.js';
@@ -195,7 +194,6 @@ export function Config({
   React.useEffect(() => {
     onIsSearchModeChange?.(ownsEsc);
   }, [ownsEsc, onIsSearchModeChange]);
-  const isConnectedToIde = hasAccessToIDEExtensionDiffFeature(context.options.mcpClients);
   const isFileCheckpointingAvailable = !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING);
   const memoryFiles = React.use(getMemoryFiles(true));
   const shouldShowExternalIncludesToggle = hasExternalClaudeMdIncludes(memoryFiles);
@@ -851,65 +849,7 @@ export function Config({
     value: mainLoopModel === null ? 'Default (recommended)' : mainLoopModel,
     type: 'managedEnum' as const,
     onChange: onChangeMainModelConfig
-  }, ...(isConnectedToIde ? [{
-    id: 'diffTool',
-    label: 'Diff tool',
-    value: globalConfig.diffTool ?? 'auto',
-    options: ['terminal', 'auto'],
-    type: 'enum' as const,
-    onChange(diffTool: string) {
-      saveGlobalConfig(current_15 => ({
-        ...current_15,
-        diffTool: diffTool as GlobalConfig['diffTool']
-      }));
-      setGlobalConfig({
-        ...getGlobalConfig(),
-        diffTool: diffTool as GlobalConfig['diffTool']
-      });
-      logEvent('tengu_diff_tool_changed', {
-        tool: diffTool as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        source: 'config_panel' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
-    }
-  }] : []), ...(!isSupportedTerminal() ? [{
-    id: 'autoConnectIde',
-    label: 'Auto-connect to IDE (external terminal)',
-    value: globalConfig.autoConnectIde ?? false,
-    type: 'boolean' as const,
-    onChange(autoConnectIde: boolean) {
-      saveGlobalConfig(current_16 => ({
-        ...current_16,
-        autoConnectIde
-      }));
-      setGlobalConfig({
-        ...getGlobalConfig(),
-        autoConnectIde
-      });
-      logEvent('tengu_auto_connect_ide_changed', {
-        enabled: autoConnectIde,
-        source: 'config_panel' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
-    }
-  }] : []), ...(isSupportedTerminal() ? [{
-    id: 'autoInstallIdeExtension',
-    label: 'Auto-install IDE extension',
-    value: globalConfig.autoInstallIdeExtension ?? true,
-    type: 'boolean' as const,
-    onChange(autoInstallIdeExtension: boolean) {
-      saveGlobalConfig(current_17 => ({
-        ...current_17,
-        autoInstallIdeExtension
-      }));
-      setGlobalConfig({
-        ...getGlobalConfig(),
-        autoInstallIdeExtension
-      });
-      logEvent('tengu_auto_install_ide_extension_changed', {
-        enabled: autoInstallIdeExtension,
-        source: 'config_panel' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
-    }
-  }] : []), {
+  }, {
     id: 'claudeInChromeDefaultEnabled',
     label: 'Tau in Chrome enabled by default',
     value: globalConfig.claudeInChromeDefaultEnabled ?? true,
@@ -1117,15 +1057,6 @@ export function Config({
     }
     if (globalConfig.editorMode !== initialConfig.current.editorMode) {
       formattedChanges.push(`Set editor mode to ${chalk.bold(globalConfig.editorMode || 'emacs')}`);
-    }
-    if (globalConfig.diffTool !== initialConfig.current.diffTool) {
-      formattedChanges.push(`Set diff tool to ${chalk.bold(globalConfig.diffTool)}`);
-    }
-    if (globalConfig.autoConnectIde !== initialConfig.current.autoConnectIde) {
-      formattedChanges.push(`${globalConfig.autoConnectIde ? 'Enabled' : 'Disabled'} auto-connect to IDE`);
-    }
-    if (globalConfig.autoInstallIdeExtension !== initialConfig.current.autoInstallIdeExtension) {
-      formattedChanges.push(`${globalConfig.autoInstallIdeExtension ? 'Enabled' : 'Disabled'} auto-install IDE extension`);
     }
     if (globalConfig.autoCompactEnabled !== initialConfig.current.autoCompactEnabled) {
       formattedChanges.push(`${globalConfig.autoCompactEnabled ? 'Enabled' : 'Disabled'} auto-compact`);

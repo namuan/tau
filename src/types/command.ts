@@ -5,7 +5,6 @@ import type { CompactionResult } from '../services/compact/compact.js'
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { EffortValue } from '../utils/effort.js'
-import type { IDEExtensionInstallationStatus, IdeType } from '../utils/ide.js'
 import type { SettingSource } from '../utils/settings/constants.js'
 import type { HooksSettings } from '../utils/settings/types.js'
 import type { ThemeName } from '../utils/theme.js'
@@ -82,14 +81,12 @@ export type LocalJSXCommandContext = ToolUseContext & {
   setMessages: (updater: (prev: Message[]) => Message[]) => void
   options: {
     dynamicMcpConfig?: Record<string, ScopedMcpServerConfig>
-    ideInstallationStatus: IDEExtensionInstallationStatus | null
     theme: ThemeName
   }
   onChangeAPIKey: () => void
   onChangeDynamicMcpConfig?: (
     config: Record<string, ScopedMcpServerConfig>,
   ) => void
-  onInstallIDEExtension?: (ide: IdeType) => void
   resume?: (
     sessionId: UUID,
     log: LogOption,

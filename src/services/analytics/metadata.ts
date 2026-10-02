@@ -9,7 +9,6 @@
 import { extname } from 'path'
 import memoize from 'lodash-es/memoize.js'
 import { env, getHostPlatformForAnalytics } from '../../utils/env.js'
-import { envDynamic } from '../../utils/envDynamic.js'
 import { getModelBetas } from '../../utils/betas.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import {
@@ -587,7 +586,7 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
     platformRaw: process.env.CLAUDE_CODE_HOST_PLATFORM || process.platform,
     arch: env.arch,
     nodeVersion: env.nodeVersion,
-    terminal: envDynamic.terminal,
+    terminal: env.terminal,
     packageManagers: packageManagers.join(','),
     runtimes: runtimes.join(','),
     isRunningWithBun: env.isRunningWithBun(),

@@ -1,22 +1,15 @@
-export type LspServerState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
-
-export type LspServerConfig = {
-  command: string
-  args?: string[]
-  extensionToLanguage: Record<string, string>
-  transport?: 'stdio' | 'socket'
-  env?: Record<string, string>
-  initializationOptions?: unknown
-  settings?: unknown
-  workspaceFolder?: string
-  startupTimeout?: number
-  shutdownTimeout?: number
-  restartOnCrash?: boolean
-  maxRestarts?: number
-  alwaysOn?: boolean
+export interface Diagnostic {
+  message: string
+  severity: 'Error' | 'Warning' | 'Info' | 'Hint'
+  range: {
+    start: { line: number; character: number }
+    end: { line: number; character: number }
+  }
+  source?: string
+  code?: string
 }
 
-export type ScopedLspServerConfig = LspServerConfig & {
-  scope?: 'dynamic' | 'builtin'
-  source?: string
+export interface DiagnosticFile {
+  uri: string
+  diagnostics: Diagnostic[]
 }

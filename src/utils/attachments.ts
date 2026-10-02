@@ -21,7 +21,6 @@ import { countCharInString } from './stringUtils.js'
 import { count, uniq } from './array.js'
 import { getFsImplementation } from './fsOperations.js'
 import { readdir, stat } from 'fs/promises'
-import type { IDESelection } from '../hooks/useIdeSelection.js'
 import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../tools/TaskUpdateTool/constants.js'
@@ -35,7 +34,6 @@ import {
   isTodoV2Enabled,
 } from './tasks.js'
 import { getPlanFilePath, getPlan } from './plans.js'
-import { getConnectedIdeName } from './ide.js'
 import {
   filterInjectedMemoryFiles,
   getManagedAndUserConditionalRules,
@@ -50,8 +48,7 @@ import { getViewedTeammateTask } from '../state/selectors.js'
 import { logError } from './log.js'
 import { logAntError } from './debug.js'
 import { isENOENT, toError } from './errors.js'
-import type { DiagnosticFile } from '../services/diagnosticTracking.js'
-import { diagnosticTracker } from '../services/diagnosticTracking.js'
+import type { DiagnosticFile } from '../services/lsp/types.js'
 import type {
   AttachmentMessage,
   Message,
@@ -475,20 +472,6 @@ export type Attachment =
       displayPath: string
     }
   | {
-      type: 'selected_lines_in_ide'
-      ideName: string
-      lineStart: number
-      lineEnd: number
-      filename: string
-      content: string
-      /** Path relative to CWD at creation time, for stable display */
-      displayPath: string
-    }
-  | {
-      type: 'opened_file_in_ide'
-      filename: string
-    }
-  | {
       type: 'todo_reminder'
       content: TodoList
       itemCount: number
@@ -784,7 +767,6 @@ export type TeamContextAttachment = {
 export async function getAttachments(
   input: string | null,
   toolUseContext: ToolUseContext,
-  ideSelection: IDESelection | null,
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
@@ -981,12 +963,6 @@ export async function getAttachments(
   // Attachments which are semantically only for the main conversation or don't have concurrency-safe implementations
   const mainThreadAttachments = isMainThread
     ? [
-        maybe('ide_selection', async () =>
-          getSelectedLinesFromIDE(ideSelection, toolUseContext),
-        ),
-        maybe('ide_opened_file', async () =>
-          getOpenedFileFromIDE(ideSelection, toolUseContext),
-        ),
         maybe('output_style', async () =>
           Promise.resolve(getOutputStyleAttachment()),
         ),
@@ -1020,9 +996,6 @@ export async function getAttachments(
             ? []
             : [{ type: 'mermaid_not_drawn' as const, reasons }]
         }),
-        maybe('diagnostics', async () =>
-          getDiagnosticAttachments(toolUseContext),
-        ),
         maybe('lsp_diagnostics', async () =>
           getLSPDiagnosticAttachments(toolUseContext),
         ),
@@ -1766,38 +1739,6 @@ function getOutputStyleAttachment(): Attachment[] {
   ]
 }
 
-async function getSelectedLinesFromIDE(
-  ideSelection: IDESelection | null,
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  const ideName = getConnectedIdeName(toolUseContext.options.mcpClients)
-  if (
-    !ideName ||
-    ideSelection?.lineStart === undefined ||
-    !ideSelection.text ||
-    !ideSelection.filePath
-  ) {
-    return []
-  }
-
-  const appState = toolUseContext.getAppState()
-  if (isFileReadDenied(ideSelection.filePath, appState.toolPermissionContext)) {
-    return []
-  }
-
-  return [
-    {
-      type: 'selected_lines_in_ide',
-      ideName,
-      lineStart: ideSelection.lineStart,
-      lineEnd: ideSelection.lineStart + ideSelection.lineCount - 1,
-      filename: ideSelection.filePath,
-      content: ideSelection.text,
-      displayPath: relative(getCwd(), ideSelection.filePath),
-    },
-  ]
-}
-
 /**
  * Computes the directories to process for nested memory file loading.
  * Returns two lists:
@@ -2014,36 +1955,6 @@ async function getNestedMemoryAttachmentsForFile(
   }
 
   return attachments
-}
-
-async function getOpenedFileFromIDE(
-  ideSelection: IDESelection | null,
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  if (!ideSelection?.filePath || ideSelection.text) {
-    return []
-  }
-
-  const appState = toolUseContext.getAppState()
-  if (isFileReadDenied(ideSelection.filePath, appState.toolPermissionContext)) {
-    return []
-  }
-
-  // Get nested memory files
-  const nestedMemoryAttachments = await getNestedMemoryAttachmentsForFile(
-    ideSelection.filePath,
-    toolUseContext,
-    appState,
-  )
-
-  // Return nested memory attachments followed by the opened file attachment
-  return [
-    ...nestedMemoryAttachments,
-    {
-      type: 'opened_file_in_ide',
-      filename: ideSelection.filePath,
-    },
-  ]
 }
 
 async function processAtMentionedFiles(
@@ -3010,31 +2921,6 @@ export function parseAtMentionedFileLines(
   return { filename: filename ?? mention, lineStart, lineEnd }
 }
 
-async function getDiagnosticAttachments(
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  // Diagnostics are only useful if the agent has the Bash tool to act on them
-  if (
-    !toolUseContext.options.tools.some(t => toolMatchesName(t, BASH_TOOL_NAME))
-  ) {
-    return []
-  }
-
-  // Get new diagnostics from the tracker (IDE diagnostics via MCP)
-  const newDiagnostics = await diagnosticTracker.getNewDiagnostics()
-  if (newDiagnostics.length === 0) {
-    return []
-  }
-
-  return [
-    {
-      type: 'diagnostics',
-      files: newDiagnostics,
-      isNew: true,
-    },
-  ]
-}
-
 /**
  * Get LSP diagnostic attachments from passive LSP servers.
  * Follows the AsyncHookRegistry pattern for consistent async attachment delivery.
@@ -3098,7 +2984,6 @@ async function getLSPDiagnosticAttachments(
 export async function* getAttachmentMessages(
   input: string | null,
   toolUseContext: ToolUseContext,
-  ideSelection: IDESelection | null,
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
@@ -3108,7 +2993,6 @@ export async function* getAttachmentMessages(
   const attachments = await getAttachments(
     input,
     toolUseContext,
-    ideSelection,
     queuedCommands,
     messages,
     querySource,

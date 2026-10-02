@@ -1228,7 +1228,6 @@ function getTransportDisplayName(type: string): string {
     case 'http':
       return 'HTTP'
     case 'ws':
-    case 'ws-ide':
       return 'WebSocket'
     default:
       return 'SSE'

@@ -7,24 +7,8 @@ import type { z } from 'zod/v4';
 import { Text } from '../../../ink.js';
 import { FileEditTool } from '../../../tools/FileEditTool/FileEditTool.js';
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js';
-import { createSingleEditDiffConfig, type FileEdit, type IDEDiffSupport } from '../FilePermissionDialog/ideDiffConfig.js';
 import type { PermissionRequestProps } from '../PermissionRequest.js';
 type FileEditInput = z.infer<typeof FileEditTool.inputSchema>;
-const ideDiffSupport: IDEDiffSupport<FileEditInput> = {
-  getConfig: (input: FileEditInput) => createSingleEditDiffConfig(input.file_path, input.old_string, input.new_string, input.replace_all),
-  applyChanges: (input: FileEditInput, modifiedEdits: FileEdit[]) => {
-    const firstEdit = modifiedEdits[0];
-    if (firstEdit) {
-      return {
-        ...input,
-        old_string: firstEdit.old_string,
-        new_string: firstEdit.new_string,
-        replace_all: firstEdit.replace_all
-      };
-    }
-    return input;
-  }
-};
 export function FileEditPermissionRequest(props) {
   const $ = _c(51);
   const parseInput = _temp;
@@ -158,7 +142,7 @@ export function FileEditPermissionRequest(props) {
   }
   let t16;
   if ($[39] !== T2 || $[40] !== file_path || $[41] !== t10 || $[42] !== t12 || $[43] !== t15 || $[44] !== t4 || $[45] !== t5 || $[46] !== t6 || $[47] !== t7 || $[48] !== t8 || $[49] !== t9) {
-    t16 = <T2 toolUseConfirm={t4} toolUseContext={t5} onDone={t6} onReject={t7} workerBadge={t8} title={t9} subtitle={t10} question={t12} content={t15} path={file_path} completionType="str_replace_single" parseInput={parseInput} ideDiffSupport={ideDiffSupport} />;
+    t16 = <T2 toolUseConfirm={t4} toolUseContext={t5} onDone={t6} onReject={t7} workerBadge={t8} title={t9} subtitle={t10} question={t12} content={t15} path={file_path} completionType="str_replace_single" parseInput={parseInput} />;
     $[39] = T2;
     $[40] = file_path;
     $[41] = t10;

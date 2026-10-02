@@ -72,7 +72,6 @@ import {
   TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
 } from '../../utils/errors.js'
 import { getMCPUserAgent } from '../../utils/http.js'
-import { maybeNotifyIDEConnected } from '../../utils/ide.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import {
@@ -660,14 +659,6 @@ function isLocalMcpServer(config: ScopedMcpServerConfig): boolean {
   return !config.type || config.type === 'stdio' || config.type === 'sdk'
 }
 
-// For the IDE MCP servers, we only include specific tools
-const ALLOWED_IDE_TOOLS = ['mcp__ide__executeCode', 'mcp__ide__getDiagnostics']
-function isIncludedMcpTool(tool: Tool): boolean {
-  return (
-    !tool.name.startsWith('mcp__ide__') || ALLOWED_IDE_TOOLS.includes(tool.name)
-  )
-}
-
 /**
  * Generates the cache key for a server connection
  * @param name Server name
@@ -697,8 +688,6 @@ export const connectToServer = memoize(
       stdioCount: number
       sseCount: number
       httpCount: number
-      sseIdeCount: number
-      wsIdeCount: number
     },
   ): Promise<MCPServerConnection> => {
     const connectStartTime = Date.now()
@@ -771,63 +760,6 @@ export const connectToServer = memoize(
           transportOptions,
         )
         logMCPDebug(name, `SSE transport initialized, awaiting connection`)
-      } else if (serverRef.type === 'sse-ide') {
-        logMCPDebug(name, `Setting up SSE-IDE transport to ${serverRef.url}`)
-        // IDE servers don't need authentication
-        // TODO: Use the auth token provided in the lockfile
-        const proxyOptions = getProxyFetchOptions()
-        const transportOptions: SSEClientTransportOptions =
-          proxyOptions.dispatcher
-            ? {
-                eventSourceInit: {
-                  fetch: async (url: string | URL, init?: RequestInit) => {
-                    // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
-                    return fetch(url, {
-                      ...init,
-                      ...proxyOptions,
-                      headers: {
-                        'User-Agent': getMCPUserAgent(),
-                        ...init?.headers,
-                      },
-                    })
-                  },
-                },
-              }
-            : {}
-
-        transport = new SSEClientTransport(
-          new URL(serverRef.url),
-          Object.keys(transportOptions).length > 0
-            ? transportOptions
-            : undefined,
-        )
-      } else if (serverRef.type === 'ws-ide') {
-        const tlsOptions = getWebSocketTLSOptions()
-        const wsHeaders = {
-          'User-Agent': getMCPUserAgent(),
-          ...(serverRef.authToken && {
-            'X-Claude-Code-Ide-Authorization': serverRef.authToken,
-          }),
-        }
-
-        let wsClient: WsClientLike
-        if (typeof Bun !== 'undefined') {
-          // Bun's WebSocket supports headers/proxy/tls options but the DOM typings don't
-          // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
-          wsClient = new globalThis.WebSocket(serverRef.url, {
-            protocols: ['mcp'],
-            headers: wsHeaders,
-            proxy: getWebSocketProxyUrl(serverRef.url),
-            tls: tlsOptions || undefined,
-          } as unknown as string[])
-        } else {
-          wsClient = await createNodeWsClient(serverRef.url, {
-            headers: wsHeaders,
-            agent: getWebSocketProxyAgent(serverRef.url),
-            ...(tlsOptions || {}),
-          })
-        }
-        transport = new WebSocketTransport(wsClient)
       } else if (serverRef.type === 'ws') {
         logMCPDebug(
           name,
@@ -1232,13 +1164,6 @@ export const connectToServer = memoize(
           if (errorCode === 401) {
             return handleRemoteAuthFailure(name, serverRef, 'claudeai-proxy')
           }
-        } else if (
-          serverRef.type === 'sse-ide' ||
-          serverRef.type === 'ws-ide'
-        ) {
-          logEvent('tengu_mcp_ide_server_connection_failed', {
-            connectionDurationMs: elapsed,
-          })
         }
         if (inProcessServer) {
           inProcessServer.close().catch(() => {})
@@ -1291,23 +1216,6 @@ export const connectToServer = memoize(
         )
         return { action: 'cancel' as const }
       })
-
-      if (serverRef.type === 'sse-ide' || serverRef.type === 'ws-ide') {
-        const ideConnectionDurationMs = Date.now() - connectStartTime
-        logEvent('tengu_mcp_ide_server_connection_succeeded', {
-          connectionDurationMs: ideConnectionDurationMs,
-          serverVersion:
-            serverVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        })
-        try {
-          void maybeNotifyIDEConnected(client)
-        } catch (error) {
-          logMCPError(
-            name,
-            `Failed to send ide_connected notification: ${error}`,
-          )
-        }
-      }
 
       // Enhanced connection drop detection and logging for all transport types
       const connectionStartTime = Date.now()
@@ -1706,8 +1614,6 @@ export const connectToServer = memoize(
         stdioCount: serverStats?.stdioCount,
         sseCount: serverStats?.sseCount,
         httpCount: serverStats?.httpCount,
-        sseIdeCount: serverStats?.sseIdeCount,
-        wsIdeCount: serverStats?.wsIdeCount,
         ...mcpBaseUrlAnalytics(serverRef),
       })
       return {
@@ -1730,10 +1636,6 @@ export const connectToServer = memoize(
         sseCount: serverStats?.sseCount || (serverRef.type === 'sse' ? 1 : 0),
         httpCount:
           serverStats?.httpCount || (serverRef.type === 'http' ? 1 : 0),
-        sseIdeCount:
-          serverStats?.sseIdeCount || (serverRef.type === 'sse-ide' ? 1 : 0),
-        wsIdeCount:
-          serverStats?.wsIdeCount || (serverRef.type === 'ws-ide' ? 1 : 0),
         transportType: (serverRef.type ??
           'stdio') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         ...mcpBaseUrlAnalytics(serverRef),
@@ -2237,7 +2139,6 @@ export const fetchToolsForClient = memoizeDiscovery(
             : {}),
         }
       })
-      .filter(isIncludedMcpTool)
   },
   (client: MCPServerConnection) => getServerCacheKey(client.name, client.config),
   MCP_FETCH_CACHE_SIZE,
@@ -2346,27 +2247,6 @@ export const fetchCommandsForClient = memoizeDiscovery(
 )
 
 /**
- * Call an IDE tool directly as an RPC
- * @param toolName The name of the tool to call
- * @param args The arguments to pass to the tool
- * @param client The IDE client to use for the RPC call
- * @returns The result of the tool call
- */
-export async function callIdeRpc(
-  toolName: string,
-  args: Record<string, unknown>,
-  client: ConnectedMCPServer,
-): Promise<string | ContentBlockParam[] | undefined> {
-  const result = await callMCPTool({
-    client,
-    tool: toolName,
-    args,
-    signal: createAbortController().signal,
-  })
-  return result.content
-}
-
-/**
  * Note: This should not be called by UI components directly, they should use the reconnectMcpServer
  * function from useManageMcpConnections.
  * @param name Server name
@@ -2384,10 +2264,8 @@ export async function reconnectMcpServerImpl(
 }> {
   try {
     // Invalidate the keychain cache so we read fresh credentials from disk.
-    // This is necessary when another process (e.g. the VS Code extension host)
-    // has modified stored tokens (cleared auth, saved new OAuth tokens) and then
-    // asks the CLI subprocess to reconnect.  Without this, the subprocess would
-    // use stale cached data and never notice the tokens were removed.
+    // This is necessary when another process modifies stored tokens before
+    // asking this process to reconnect.
     clearKeychainCache()
 
     await clearServerCache(name, config)
@@ -2568,8 +2446,6 @@ export async function getMcpToolsCommandsAndResources(
   const stdioCount = count(configEntries, ([_, c]) => c.type === 'stdio')
   const sseCount = count(configEntries, ([_, c]) => c.type === 'sse')
   const httpCount = count(configEntries, ([_, c]) => c.type === 'http')
-  const sseIdeCount = count(configEntries, ([_, c]) => c.type === 'sse-ide')
-  const wsIdeCount = count(configEntries, ([_, c]) => c.type === 'ws-ide')
 
   // Split servers by type: local (stdio/sdk) need lower concurrency due to
   // process spawning, remote servers can connect with higher concurrency
@@ -2585,8 +2461,6 @@ export async function getMcpToolsCommandsAndResources(
     stdioCount,
     sseCount,
     httpCount,
-    sseIdeCount,
-    wsIdeCount,
   }
 
   // Settle the server in the readiness registry however this attempt ends —
@@ -3383,7 +3257,7 @@ export async function callMCPToolWithUrlElicitationRetry({
   }
 }
 
-async function callMCPTool({
+export async function callMCPTool({
   client: { client, name, config },
   tool,
   args,

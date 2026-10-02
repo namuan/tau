@@ -7,7 +7,6 @@ import { useAppState } from '../../../state/AppState.js';
 import type { Question, QuestionOption } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js';
 import type { PastedContent } from '../../../utils/config.js';
 import { getExternalEditor } from '../../../utils/editor.js';
-import { toIDEDisplayName } from '../../../utils/ide.js';
 import type { ImageDimensions } from '../../../utils/imageResizer.js';
 import { editPromptInEditor } from '../../../utils/promptEditor.js';
 import { type OptionWithDescription, Select, SelectMulti } from '../../CustomSelect/index.js';
@@ -73,7 +72,7 @@ export function QuestionView(t0) {
   let t2;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
     const editor = getExternalEditor();
-    t2 = editor ? toIDEDisplayName(editor) : null;
+    t2 = editor ?? null;
     $[0] = t2;
   } else {
     t2 = $[0];

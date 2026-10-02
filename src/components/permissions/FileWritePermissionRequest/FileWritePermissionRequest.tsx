@@ -8,35 +8,9 @@ import { FileWriteTool } from '../../../tools/FileWriteTool/FileWriteTool.js';
 import { getCwd } from '../../../utils/cwd.js';
 import { readFileSync } from '../../../utils/fileRead.js';
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js';
-import { createSingleEditDiffConfig, type FileEdit, type IDEDiffSupport } from '../FilePermissionDialog/ideDiffConfig.js';
 import type { PermissionRequestProps } from '../PermissionRequest.js';
 import { FileWriteToolDiff } from './FileWriteToolDiff.js';
 type FileWriteToolInput = z.infer<typeof FileWriteTool.inputSchema>;
-const ideDiffSupport: IDEDiffSupport<FileWriteToolInput> = {
-  getConfig: (input: FileWriteToolInput) => {
-    let oldContent: string;
-    try {
-      oldContent = readFileSync(input.file_path);
-    } catch {
-      // Any unreadable target is previewed as a plain create. Rethrowing a
-      // non-ENOENT read error here used to escape into the render (see the
-      // dialog body below for why that is fatal).
-      oldContent = '';
-    }
-    return createSingleEditDiffConfig(input.file_path, oldContent, input.content, false // For file writes, we replace the entire content
-    );
-  },
-  applyChanges: (input: FileWriteToolInput, modifiedEdits: FileEdit[]) => {
-    const firstEdit = modifiedEdits[0];
-    if (firstEdit) {
-      return {
-        ...input,
-        content: firstEdit.new_string
-      };
-    }
-    return input;
-  }
-};
 export function FileWritePermissionRequest(props) {
   const $ = _c(30);
   const parseInput = _temp;
@@ -145,7 +119,7 @@ export function FileWritePermissionRequest(props) {
   }
   let t13;
   if ($[19] !== file_path || $[20] !== props.onDone || $[21] !== props.onReject || $[22] !== props.toolUseConfirm || $[23] !== props.toolUseContext || $[24] !== props.workerBadge || $[25] !== t11 || $[26] !== t12 || $[27] !== t7 || $[28] !== t8) {
-    t13 = <FilePermissionDialog toolUseConfirm={t2} toolUseContext={t3} onDone={t4} onReject={t5} workerBadge={t6} title={t7} subtitle={t8} question={t11} content={t12} path={file_path} completionType="write_file_single" parseInput={parseInput} ideDiffSupport={ideDiffSupport} />;
+    t13 = <FilePermissionDialog toolUseConfirm={t2} toolUseContext={t3} onDone={t4} onReject={t5} workerBadge={t6} title={t7} subtitle={t8} question={t11} content={t12} path={file_path} completionType="write_file_single" parseInput={parseInput} />;
     $[19] = file_path;
     $[20] = props.onDone;
     $[21] = props.onReject;

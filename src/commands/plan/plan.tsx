@@ -5,7 +5,6 @@ import type { LocalJSXCommandContext } from '../../commands.js';
 import { Box, Text } from '../../ink.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import { getExternalEditor } from '../../utils/editor.js';
-import { toIDEDisplayName } from '../../utils/ide.js';
 import { applyPermissionUpdate } from '../../utils/permissions/PermissionUpdate.js';
 import { prepareContextForPlanMode } from '../../utils/permissions/permissionSetup.js';
 import { getPlan, getPlanFilePath } from '../../utils/plans.js';
@@ -111,7 +110,7 @@ export async function call(onDone: LocalJSXCommandOnDone, context: LocalJSXComma
     return null;
   }
   const editor = getExternalEditor();
-  const editorName = editor ? toIDEDisplayName(editor) : undefined;
+  const editorName = editor ?? undefined;
   const display = <PlanDisplay planContent={planContent} planPath={planPath} editorName={editorName} />;
 
   // Render to string and pass to onDone like local commands do

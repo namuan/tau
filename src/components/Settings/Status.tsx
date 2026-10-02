@@ -9,7 +9,7 @@ import { Box, Text, useTheme } from '../../ink.js';
 import { type AppState, useAppState } from '../../state/AppState.js';
 import { getCwd } from '../../utils/cwd.js';
 import { getCurrentSessionTitle } from '../../utils/sessionStorage.js';
-import { buildAccountProperties, buildAPIProviderProperties, buildIDEProperties, buildInstallationDiagnostics, buildInstallationHealthDiagnostics, buildMcpProperties, buildMemoryDiagnostics, buildSandboxProperties, buildSettingSourcesProperties, type Diagnostic, getModelDisplayLabel, type Property } from '../../utils/status.js';
+import { buildAccountProperties, buildAPIProviderProperties, buildInstallationDiagnostics, buildInstallationHealthDiagnostics, buildMcpProperties, buildMemoryDiagnostics, buildSandboxProperties, buildSettingSourcesProperties, type Diagnostic, getModelDisplayLabel, type Property } from '../../utils/status.js';
 import { getSurfBannerLabel } from '../../utils/surf/label.js';
 import type { ThemeName } from '../../utils/theme.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
@@ -39,12 +39,10 @@ function buildSecondarySection({
   mainLoopModel,
   mcp,
   theme,
-  context
 }: {
   mainLoopModel: AppState['mainLoopModel'];
   mcp: AppState['mcp'];
   theme: ThemeName;
-  context: LocalJSXCommandContext;
 }): Property[] {
   // When surf is on, /status shows the router banner in place of the
   // manual model — since surf picks the effective model per phase, no
@@ -53,7 +51,7 @@ function buildSecondarySection({
   return [{
     label: 'Model',
     value: modelLabel
-  }, ...buildIDEProperties(mcp.clients, context.options.ideInstallationStatus, theme), ...buildMcpProperties(mcp.clients, theme), ...buildSandboxProperties(), ...buildSettingSourcesProperties()];
+  }, ...buildMcpProperties(mcp.clients, theme), ...buildSandboxProperties(), ...buildSettingSourcesProperties()];
 }
 export async function buildDiagnostics(): Promise<Diagnostic[]> {
   return [...(await buildInstallationDiagnostics()), ...(await buildInstallationHealthDiagnostics()), ...(await buildMemoryDiagnostics())];
@@ -120,20 +118,18 @@ export function Status(t0) {
     t1 = $[0];
   }
   let t2;
-  if ($[1] !== context || $[2] !== mainLoopModel || $[3] !== mcp || $[4] !== theme) {
+  if ($[1] !== mainLoopModel || $[2] !== mcp || $[3] !== theme) {
     t2 = buildSecondarySection({
       mainLoopModel,
       mcp,
-      theme,
-      context
+      theme
     });
-    $[1] = context;
-    $[2] = mainLoopModel;
-    $[3] = mcp;
-    $[4] = theme;
-    $[5] = t2;
+    $[1] = mainLoopModel;
+    $[2] = mcp;
+    $[3] = theme;
+    $[4] = t2;
   } else {
-    t2 = $[5];
+    t2 = $[4];
   }
   let t3;
   if ($[6] !== t2) {

@@ -153,7 +153,7 @@ import { validateUuid } from './utils/uuid.js';
 import { registerMcpAddCommand } from 'src/commands/mcp/addCommand.js';
 import { registerMcpXaaIdpCommand } from 'src/commands/mcp/xaaIdpCommand.js';
 import { logPermissionContextForAnts } from 'src/services/internalLogging.js';
-import { areMcpConfigsAllowedWithEnterpriseMcpConfig, doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getClaudeCodeMcpConfigs, isMcpServerDisabled, parseMcpConfig, parseMcpConfigFromFilePath } from 'src/services/mcp/config.js';
+import { doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getClaudeCodeMcpConfigs, isMcpServerDisabled, parseMcpConfig, parseMcpConfigFromFilePath } from 'src/services/mcp/config.js';
 import { isXaaEnabled } from 'src/services/mcp/xaaIdpLogin.js';
 import { getRelevantTips } from 'src/services/tips/tipRegistry.js';
 import { logContextMetrics } from 'src/utils/api.js';
@@ -545,12 +545,6 @@ function initializeEntrypoint(isNonInteractive: boolean): void {
     process.env.CLAUDE_CODE_ENTRYPOINT = 'mcp';
     return;
   }
-  // `tau acp` speaks JSON-RPC over stdio (like `mcp serve`); it must skip the
-  // interactive startup path and must not have its stdin/stdout hijacked.
-  if (cliArgs.includes('acp')) {
-    process.env.CLAUDE_CODE_ENTRYPOINT = 'acp';
-    return;
-  }
   if (isEnvTruthy(process.env.CLAUDE_CODE_ACTION)) {
     process.env.CLAUDE_CODE_ENTRYPOINT = 'claude-code-github-action';
     return;
@@ -584,35 +578,6 @@ const _pendingSSH: PendingSSH | undefined = feature('SSH_REMOTE') ? {
   extraCliArgs: []
 } : undefined;
 export async function main() {
-  // ACP stdio server fast-path. An editor (Zed, JetBrains, the VS Code ACP
-  // Client extension) launches `tau acp` and immediately speaks JSON-RPC over
-  // stdin/stdout. This must run before any startup touches stdio — raw-mode
-  // setup / stdin.resume() during normal boot would discard the editor's
-  // buffered request. `tau acp --help` falls through to commander for help.
-  {
-    const acpArgs = process.argv.slice(2);
-    // Require `acp` AND no -p/--print: the ACP server spawns headless `tau -p`
-    // children (its real engine), and those must NOT re-enter ACP mode even if
-    // the user's prompt happens to contain the word "acp".
-    if (
-      acpArgs.includes('acp') &&
-      !acpArgs.includes('-p') &&
-      !acpArgs.includes('--print') &&
-      !acpArgs.includes('--help') &&
-      !acpArgs.includes('-h')
-    ) {
-      const {
-        runAcpServer
-      } = await import('./acp/index.js');
-      try {
-        await runAcpServer();
-        process.exit(0);
-      } catch (err) {
-        process.stderr.write(`tau acp: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
-        process.exit(1);
-      }
-    }
-  }
   profileCheckpoint('main_function_start');
 
   // SECURITY: Prevent Windows from executing commands from current directory
@@ -810,7 +775,6 @@ export async function main() {
     if (process.env.CLAUDE_CODE_ENTRYPOINT === 'sdk-ts') return 'sdk-typescript';
     if (process.env.CLAUDE_CODE_ENTRYPOINT === 'sdk-py') return 'sdk-python';
     if (process.env.CLAUDE_CODE_ENTRYPOINT === 'sdk-cli') return 'sdk-cli';
-    if (process.env.CLAUDE_CODE_ENTRYPOINT === 'claude-vscode') return 'claude-vscode';
     if (process.env.CLAUDE_CODE_ENTRYPOINT === 'local-agent') return 'local-agent';
     if (process.env.CLAUDE_CODE_ENTRYPOINT === 'claude-desktop') return 'claude-desktop';
 
@@ -845,14 +809,7 @@ export async function main() {
   profileCheckpoint('main_after_run');
 }
 async function getInputPrompt(prompt: string, inputFormat: 'text' | 'stream-json'): Promise<string | AsyncIterable<string>> {
-  if ((!process.stdin.isTTY || process.env.TAU_ACP_CHILD === '1') &&
-  // Input hijacking breaks MCP and the ACP stdio server.
-  // TAU_ACP_CHILD: the `tau acp` server spawns headless children over a pipe;
-  // the bundle can mis-report that pipe's stdin as a TTY, which would skip
-  // stream-json input. The env flag (set only on those children) forces the
-  // read. Terminal `tau` never sets it, so its behavior is unchanged.
-  !process.argv.includes('mcp') &&
-  !process.argv.includes('acp')) {
+  if (!process.stdin.isTTY && !process.argv.includes('mcp')) {
     if (inputFormat === 'stream-json') {
       return process.stdin;
     }
@@ -992,7 +949,7 @@ async function run(): Promise<CommanderCommand> {
       throw new InvalidArgumentError(`It must be one of: ${allowed.join(', ')}`);
     }
     return value;
-  })).option('--agent <agent>', `Agent for the current session. Overrides the 'agent' setting.`).option('--betas <betas...>', 'Beta headers to include in API requests (API key users only)').option('--fallback-model <model>', 'Enable automatic fallback to specified model when default model is overloaded (only works with --print)').addOption(new Option('--workload <tag>', 'Workload tag for billing-header attribution (cc_workload). Process-scoped; set by SDK daemon callers that spawn subprocesses for cron work. (only works with --print)').hideHelp()).option('--settings <file-or-json>', 'Path to a settings JSON file or a JSON string to load additional settings from').option('--add-dir <directories...>', 'Additional directories to allow tool access to').option('--ide', 'Automatically connect to IDE on startup if exactly one valid IDE is available', () => true).option('--strict-mcp-config', 'Only use MCP servers from --mcp-config, ignoring all other MCP configurations', () => true).option('--session-id <uuid>', 'Use a specific session ID for the conversation (must be a valid UUID)').option('-n, --name <name>', 'Set a display name for this session (shown in /resume and terminal title)').option('--agents <json>', 'JSON object defining custom agents (e.g. \'{"reviewer": {"description": "Reviews code", "prompt": "You are a code reviewer"}}\')').option('--setting-sources <sources>', 'Comma-separated list of setting sources to load (user, project, local).')
+  })).option('--agent <agent>', `Agent for the current session. Overrides the 'agent' setting.`).option('--betas <betas...>', 'Beta headers to include in API requests (API key users only)').option('--fallback-model <model>', 'Enable automatic fallback to specified model when default model is overloaded (only works with --print)').addOption(new Option('--workload <tag>', 'Workload tag for billing-header attribution (cc_workload). Process-scoped; set by SDK daemon callers that spawn subprocesses for cron work. (only works with --print)').hideHelp()).option('--settings <file-or-json>', 'Path to a settings JSON file or a JSON string to load additional settings from').option('--add-dir <directories...>', 'Additional directories to allow tool access to').option('--strict-mcp-config', 'Only use MCP servers from --mcp-config, ignoring all other MCP configurations', () => true).option('--session-id <uuid>', 'Use a specific session ID for the conversation (must be a valid UUID)').option('-n, --name <name>', 'Set a display name for this session (shown in /resume and terminal title)').option('--agents <json>', 'JSON object defining custom agents (e.g. \'{"reviewer": {"description": "Reviews code", "prompt": "You are a code reviewer"}}\')').option('--setting-sources <sources>', 'Comma-separated list of setting sources to load (user, project, local).')
   // gh-33508: <paths...> (variadic) consumed everything until the next
   // --flag. `tau --plugin-dir /path mcp add --transport http` swallowed
   // `mcp` and `add` as paths, then choked on --transport as an unknown
@@ -1573,7 +1530,7 @@ async function run(): Promise<CommanderCommand> {
       }
 
       // For --mcp-config, allow if all servers are internal types (sdk)
-      if (dynamicMcpConfig && !areMcpConfigsAllowedWithEnterpriseMcpConfig(dynamicMcpConfig)) {
+      if (dynamicMcpConfig) {
         process.stderr.write(chalk.red('You cannot dynamically configure MCP servers when an enterprise MCP config is present'));
         process.exit(1);
       }
@@ -2973,7 +2930,6 @@ async function run(): Promise<CommanderCommand> {
       commands: [...commands, ...mcpCommands],
       initialTools,
       mcpClients,
-      autoConnectIdeFlag: ide,
       mainThreadAgentDefinition,
       disableSlashCommands,
       dynamicMcpConfig,
@@ -3111,7 +3067,6 @@ async function run(): Promise<CommanderCommand> {
         initialTools: [],
         initialMessages: [sshInfoMessage],
         mcpClients: [],
-        autoConnectIdeFlag: ide,
         mainThreadAgentDefinition,
         disableSlashCommands,
         sshSession,
@@ -3260,7 +3215,6 @@ async function run(): Promise<CommanderCommand> {
           initialTools: [],
           initialMessages: initialUserMessage ? [remoteInfoMessage, initialUserMessage] : [remoteInfoMessage],
           mcpClients: [],
-          autoConnectIdeFlag: ide,
           mainThreadAgentDefinition,
           disableSlashCommands,
           remoteSessionConfig,
@@ -3713,27 +3667,6 @@ async function run(): Promise<CommanderCommand> {
       mcpResetChoicesHandler
     } = await import('./cli/handlers/mcp.js');
     await mcpResetChoicesHandler();
-  });
-
-  // tau acp — Agent Client Protocol agent server over stdio.
-  // Lets editors that speak ACP (Zed, JetBrains 2026.1+, the VS Code ACP Client
-  // extension) drive Tau from their native agent panel. The terminal `tau` is
-  // unaffected — this is a separate, additive entrypoint.
-  program.command('acp').description('Start an ACP (Agent Client Protocol) agent server over stdio for editor integration (Zed, JetBrains, VS Code ACP Client)').action(async () => {
-    // In ACP stdio mode, stdout is the JSON-RPC channel — nothing else may
-    // write to it. Diagnostics go to stderr. (Normal launches are handled by
-    // the fast-path at the top of main(); this registration also keeps the
-    // command discoverable via `tau acp --help`.)
-    const {
-      runAcpServer
-    } = await import('./acp/index.js');
-    try {
-      await runAcpServer();
-      process.exit(0);
-    } catch (err) {
-      process.stderr.write(`tau acp: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
-      process.exit(1);
-    }
   });
 
   // `tau ssh <host> [dir]` — registered here only so --help shows it.

@@ -596,10 +596,6 @@ function expandEnvVars(config: McpServerConfig): {
       }
       break
     }
-    case 'sse-ide':
-    case 'ws-ide':
-      expanded = config
-      break
     case 'sdk':
       expanded = config
       break
@@ -1445,21 +1441,6 @@ export const doesEnterpriseMcpConfigExist = memoize((): boolean => {
 export function shouldAllowManagedMcpServersOnly(): boolean {
   return (
     getSettingsForSource('policySettings')?.allowManagedMcpServersOnly === true
-  )
-}
-
-/**
- * Check if all MCP servers in a config are allowed with enterprise MCP config.
- */
-export function areMcpConfigsAllowedWithEnterpriseMcpConfig(
-  configs: Record<string, ScopedMcpServerConfig>,
-): boolean {
-  // NOTE: While all SDK MCP servers should be safe from a security perspective, we are still discussing
-  // what the best way to do this is. In the meantime, we are limiting this to claude-vscode for now to
-  // unbreak the VSCode extension for certain enterprise customers who have enterprise MCP config enabled.
-  // https://anthropic.slack.com/archives/C093UA0KLD7/p1764975463670109
-  return Object.values(configs).every(
-    c => c.type === 'sdk' && c.name === 'claude-vscode',
   )
 }
 

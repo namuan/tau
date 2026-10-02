@@ -134,7 +134,6 @@ import {
   LOCAL_COMMAND_CAVEAT_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
 } from '../constants/xml.js'
-import { DiagnosticTrackingService } from '../services/diagnosticTracking.js'
 import {
   findToolByName,
   type Tool,
@@ -153,7 +152,6 @@ import type { PermissionMode } from '../types/permissions.js'
 import { normalizeToolInput, normalizeToolInputForAPI } from './api.js'
 import { getCurrentProjectConfig } from './config.js'
 import { logAntError, logForDebugging } from './debug.js'
-import { stripIdeContextTags } from './displayTags.js'
 import { hasEmbeddedSearchTools } from './embeddedTools.js'
 import { formatFileSize } from './format.js'
 import { validateImagesForAPI } from './imageValidation.js'
@@ -2883,7 +2881,7 @@ export function textForResubmit(
     const args = extractTag(content, COMMAND_ARGS_TAG) ?? ''
     return { text: `${cmd} ${args}`, mode: 'prompt' }
   }
-  return { text: stripIdeContextTags(content), mode: 'prompt' }
+  return { text: content, mode: 'prompt' }
 }
 
 /**
@@ -3650,29 +3648,6 @@ Read the team config to discover your teammates' names. Check the task list peri
         }),
       ])
     }
-    case 'selected_lines_in_ide': {
-      const maxSelectionLength = 2000
-      const content =
-        attachment.content.length > maxSelectionLength
-          ? attachment.content.substring(0, maxSelectionLength) +
-            '\n... (truncated)'
-          : attachment.content
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: `The user selected the lines ${attachment.lineStart} to ${attachment.lineEnd} from ${attachment.filename}:\n${content}\n\nThis may or may not be related to the current task.`,
-          isMeta: true,
-        }),
-      ])
-    }
-    case 'opened_file_in_ide': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: `The user opened the file ${attachment.filename} in the IDE. This may or may not be related to the current task.`,
-          isMeta: true,
-        }),
-      ])
-    }
     case 'plan_file_reference': {
       return wrapMessagesInSystemReminder([
         createUserMessage({
@@ -3869,9 +3844,21 @@ Read the team config to discover your teammates' names. Check the task list peri
     case 'diagnostics': {
       if (attachment.files.length === 0) return []
 
-      // Use the centralized diagnostic formatting
-      const diagnosticSummary =
-        DiagnosticTrackingService.formatDiagnosticsSummary(attachment.files)
+      const diagnosticSummary = attachment.files
+        .map(file => {
+          const filename = file.uri.split('/').pop() || file.uri
+          const diagnostics = file.diagnostics
+            .map(diagnostic => {
+              const location = `${diagnostic.range.start.line + 1}:${diagnostic.range.start.character + 1}`
+              const code = diagnostic.code ? ` [${diagnostic.code}]` : ''
+              const source = diagnostic.source ? ` (${diagnostic.source})` : ''
+              return `  ${diagnostic.severity} [Line ${location}] ${diagnostic.message}${code}${source}`
+            })
+            .join('\n')
+          return `${filename}:\n${diagnostics}`
+        })
+        .join('\n\n')
+        .slice(0, 4000)
 
       return wrapMessagesInSystemReminder([
         createUserMessage({

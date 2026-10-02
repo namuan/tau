@@ -17,7 +17,6 @@ import type { AllowedPrompt } from '../../../tools/ExitPlanModeTool/ExitPlanMode
 import { calculateContextPercentages, getContextWindowForModel } from '../../../utils/context.js';
 import { getExternalEditor } from '../../../utils/editor.js';
 import { getDisplayPath } from '../../../utils/file.js';
-import { toIDEDisplayName } from '../../../utils/ide.js';
 import { logError } from '../../../utils/log.js';
 import { enqueuePendingNotification } from '../../../utils/messageQueueManager.js';
 import { createUserMessage } from '../../../utils/messages.js';
@@ -504,7 +503,7 @@ export function ExitPlanModePermissionRequest({
     }
   }
   const editor = getExternalEditor();
-  const editorName = editor ? toIDEDisplayName(editor) : null;
+  const editorName = editor ?? null;
 
   // Sticky footer: when setStickyFooter is provided (fullscreen mode), the
   // Select options render in FullscreenLayout's `bottom` slot so they stay

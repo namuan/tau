@@ -627,7 +627,6 @@ export function ManagePlugins({
     // Build standalone MCP items
     const standaloneMcps: UnifiedInstalledItem[] = [];
     for (const client_1 of mcpClients) {
-      if (client_1.name === 'ide') continue;
       if (client_1.name.startsWith('plugin:')) continue;
       standaloneMcps.push({
         type: 'mcp',

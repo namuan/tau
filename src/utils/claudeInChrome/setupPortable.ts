@@ -138,7 +138,7 @@ export function getAllBrowserDataPathsPortable(): BrowserPath[] {
  * Detects if the Claude in Chrome extension is installed by checking the Extensions
  * directory across all supported Chromium-based browsers and their profiles.
  *
- * This is a portable version that can be used by both TUI and VS Code extension.
+ * This version uses only portable filesystem APIs.
  *
  * @param browserPaths - Array of browser data paths to check (from getAllBrowserDataPaths)
  * @param log - Optional logging callback for debug messages

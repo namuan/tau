@@ -45,13 +45,11 @@ Removed the `src/bridge` control plane, LAN pairing service, bridge and remote-c
 
 **Verification:** `npm run build` succeeds at about 17.4 MB; `node dist/cli.mjs --help` and `--version` start normally and expose no remote-control/server commands; the prompt/session persistence test suite and lifecycle/auth tests pass. The CLI's local `--print` prompt flow could not be exercised end-to-end without usable provider credentials. Startup no longer configures a bridge transport, and the retained `RemoteIO` path is limited to generic session-ingress APIs.
 
-## Phase 5: IDE and ACP bridges
+## Phase 5: IDE and ACP bridges — completed
 
-**Likely scope:** `src/acp`, the `tau acp` entrypoint and package dependency, IDE-specific commands/detection, and IDE/client protocol bridge code not already removed with remote control.
+Removed the ACP server and command, VS Code ACP client and companion extension, IDE-specific commands and UI, editor-selection/open-file plumbing, IDE diff integration, VS Code SDK MCP notifications, and the `sse-ide`/`ws-ide` MCP transports and filters. Removed the ACP SDK dependency. Generic MCP transports and commands remain available, along with LSP diagnostics, editor-independent external editor support, and generic provider/API traffic.
 
-**Check before deleting:** `src/bridge` is primarily remote control, not a generic IDE bridge. IDE integrations may also be implemented as MCP servers or editor-detection helpers; remove only IDE-specific registrations and retain generic MCP support for now.
-
-**Verify:** Build; test standard terminal startup and CLI invocation; ensure no ACP or IDE-only command/protocol dependency remains.
+**Verification:** Build succeeds at 17.2 MB; production shrinkwrap and `git diff --check` pass. CLI help/version start normally and the `acp` command is absent. Focused MCP and LSP suites pass (77 passed, 1 platform-specific skip).
 
 ## Phase 6: LSP
 

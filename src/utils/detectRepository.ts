@@ -133,9 +133,8 @@ export function parseGitHubRepository(input: string): string | null {
   const trimmed = input.trim()
 
   // Try parsing as a full remote URL first.
-  // Only return results for github.com hosts — existing callers (VS Code extension,
-  // bridge) assume this function is GitHub.com-specific. Use parseGitRemote() directly
-  // for GHE support.
+  // Existing callers expect GitHub.com-specific results. Use parseGitRemote()
+  // directly for GHE support.
   const parsed = parseGitRemote(trimmed)
   if (parsed) {
     if (parsed.host !== 'github.com') return null

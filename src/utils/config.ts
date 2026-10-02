@@ -174,8 +174,6 @@ export type AccountInfo = {
 // TODO: 'emacs' is kept for backward compatibility - remove after a few releases
 export type EditorMode = 'emacs' | (typeof EDITOR_MODES)[number]
 
-export type DiffTool = 'terminal' | 'auto'
-
 export type OutputStyle = string
 
 export type GlobalConfig = {
@@ -283,8 +281,6 @@ export type GlobalConfig = {
   hasUsedStash?: boolean // Whether the user has used the stash feature (Ctrl+S)
   hasUsedBackgroundTask?: boolean // Whether the user has backgrounded a task (Ctrl+B)
   queuedCommandUpHintCount?: number // Counter for how many times the user has seen the queued command up hint
-  diffTool?: DiffTool // Which tool to use for displaying diffs (terminal or vscode)
-
   // Terminal setup state tracking
   iterm2SetupInProgress?: boolean
   iterm2BackupPath?: string // Path to the backup file for iTerm2 preferences
@@ -294,15 +290,6 @@ export type GlobalConfig = {
   // Key binding setup tracking
   shiftEnterKeyBindingInstalled?: boolean // Whether Shift+Enter key binding is installed (for iTerm2 or VSCode)
   optionAsMetaKeyInstalled?: boolean // Whether Option as Meta key is installed (for Terminal.app)
-
-  // IDE configurations
-  autoConnectIde?: boolean // Whether to automatically connect to IDE on startup if exactly one valid IDE is available
-  autoInstallIdeExtension?: boolean // Whether to automatically install IDE extensions when running from within an IDE
-
-  // IDE dialogs
-  hasIdeOnboardingBeenShown?: Record<string, boolean> // Map of terminal name to whether IDE onboarding has been shown
-  ideHintShownCount?: number // Number of times the /ide command hint has been shown
-  hasIdeAutoConnectDialogBeenShown?: boolean // Whether the auto-connect IDE dialog has been shown
 
   tipsHistory: {
     [tipId: string]: number // Key is tipId, value is the numStartups when tip was last shown
@@ -667,7 +654,6 @@ function createDefaultGlobalConfig(): GlobalConfig {
     hasUsedStash: false,
     hasUsedBackgroundTask: false,
     queuedCommandUpHintCount: 0,
-    diffTool: 'auto',
     customApiKeyResponses: {
       approved: [],
       rejected: [],
@@ -680,8 +666,6 @@ function createDefaultGlobalConfig(): GlobalConfig {
     todoFeatureEnabled: true,
     showExpandedTodos: false,
     messageIdleNotifThresholdMs: 60000,
-    autoConnectIde: false,
-    autoInstallIdeExtension: true,
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,
     cachedStatsigGates: {},
@@ -712,14 +696,11 @@ export const GLOBAL_CONFIG_KEYS = [
   'autoCompactPreserveRecent',
   'showTurnDuration',
   'messageHeaderMode',
-  'diffTool',
   'env',
   'tipsHistory',
   'todoFeatureEnabled',
   'showExpandedTodos',
   'messageIdleNotifThresholdMs',
-  'autoConnectIde',
-  'autoInstallIdeExtension',
   'fileCheckpointingEnabled',
   'terminalProgressBarEnabled',
   'showStatusInTerminalTab',

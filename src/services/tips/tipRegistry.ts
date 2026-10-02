@@ -23,15 +23,6 @@ import { env } from '../../utils/env.js'
 import { cacheKeys } from '../../utils/fileStateCache.js'
 import { getWorktreeCount } from '../../utils/git.js'
 import {
-  detectRunningIDEsCached,
-  getSortedIdeLockfiles,
-  isCursorInstalled,
-  isSupportedTerminal,
-  isSupportedVSCodeTerminal,
-  isVSCodeInstalled,
-  isWindsurfInstalled,
-} from '../../utils/ide.js'
-import {
   getMainLoopModel,
   getUserSpecifiedModelSetting,
 } from '../../utils/model/model.js'
@@ -275,52 +266,6 @@ const externalTips: Tip[] = [
       'Ask Claude to create a todo list when working on complex tasks to track progress and remain on track',
     cooldownSessions: 20,
     isRelevant: async () => true,
-  },
-  {
-    id: 'vscode-command-install',
-    content: async () =>
-      `Open the Command Palette (Cmd+Shift+P) and run "Shell Command: Install '${env.terminal === 'vscode' ? 'code' : env.terminal}' command in PATH" to enable IDE integration`,
-    cooldownSessions: 0,
-    async isRelevant() {
-      // Only show this tip if we're in a VS Code-style terminal
-      if (!isSupportedVSCodeTerminal()) {
-        return false
-      }
-      if (getPlatform() !== 'macos') {
-        return false
-      }
-
-      // Check if the relevant command is available
-      switch (env.terminal) {
-        case 'vscode':
-          return !(await isVSCodeInstalled())
-        case 'cursor':
-          return !(await isCursorInstalled())
-        case 'windsurf':
-          return !(await isWindsurfInstalled())
-        default:
-          return false
-      }
-    },
-  },
-  {
-    id: 'ide-upsell-external-terminal',
-    content: async () => 'Connect Claude to your IDE · /ide',
-    cooldownSessions: 4,
-    async isRelevant() {
-      if (isSupportedTerminal()) {
-        return false
-      }
-
-      // Use lockfiles as a (quicker) signal for running IDEs
-      const lockfiles = await getSortedIdeLockfiles()
-      if (lockfiles.length !== 0) {
-        return false
-      }
-
-      const runningIDEs = await detectRunningIDEsCached()
-      return runningIDEs.length > 0
-    },
   },
   {
     id: 'install-github-app',

@@ -55,7 +55,7 @@ export function MCPSettings(t0) {
   const agentMcpServers = t3;
   let t4;
   if ($[4] !== mcpClients) {
-    t4 = mcpClients.filter(_temp3).sort(_temp4);
+    t4 = [...mcpClients].sort(_temp4);
     $[4] = mcpClients;
     $[5] = t4;
   } else {
@@ -385,9 +385,6 @@ export function MCPSettings(t0) {
 }
 function _temp4(a, b) {
   return a.name.localeCompare(b.name);
-}
-function _temp3(client) {
-  return client.name !== "ide";
 }
 function _temp2(s_0) {
   return s_0.agentDefinitions;

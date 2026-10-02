@@ -112,25 +112,6 @@ function isConductor(): boolean {
   return process.env.__CFBundleIdentifier === 'com.conductor.app'
 }
 
-export const JETBRAINS_IDES = [
-  'pycharm',
-  'intellij',
-  'webstorm',
-  'phpstorm',
-  'rubymine',
-  'clion',
-  'goland',
-  'rider',
-  'datagrip',
-  'appcode',
-  'dataspell',
-  'aqua',
-  'gateway',
-  'fleet',
-  'jetbrains',
-  'androidstudio',
-]
-
 // Detect terminal type with fallbacks for all platforms
 function detectTerminal(): string | null {
   if (process.env.CURSOR_TRACE_ID) return 'cursor'
@@ -147,26 +128,9 @@ function detectTerminal(): string | null {
   const bundleId = process.env.__CFBundleIdentifier?.toLowerCase()
   if (bundleId?.includes('vscodium')) return 'codium'
   if (bundleId?.includes('windsurf')) return 'windsurf'
-  if (bundleId?.includes('com.google.android.studio')) return 'androidstudio'
-  // Check for JetBrains IDEs in bundle ID
-  if (bundleId) {
-    for (const ide of JETBRAINS_IDES) {
-      if (bundleId.includes(ide)) return ide
-    }
-  }
-
   if (process.env.VisualStudioVersion) {
     // This is desktop Visual Studio, not VS Code
     return 'visualstudio'
-  }
-
-  // Check for JetBrains terminal on Linux/Windows
-  if (process.env.TERMINAL_EMULATOR === 'JetBrains-JediTerm') {
-    // For macOS, bundle ID detection above already handles JetBrains IDEs
-    if (process.platform === 'darwin') return 'pycharm'
-
-    // For finegrained detection on Linux/Windows use envDynamic.getTerminalWithJetBrainsDetection()
-    return 'pycharm'
   }
 
   // Check for specific terminals by TERM before TERM_PROGRAM

@@ -1,7 +1,6 @@
 import chalk from 'chalk';
-import figures from 'figures';
 import * as React from 'react';
-import { color, Text } from '../ink.js';
+import { color } from '../ink.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import { getAccountInformation, isClaudeAISubscriber } from './auth.js';
 import { getLargeMemoryFiles, getMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from './claudemd.js';
@@ -9,7 +8,6 @@ import { getDoctorDiagnostic } from './doctorDiagnostic.js';
 import { getAWSRegion, getDefaultVertexRegion, isEnvTruthy } from './envUtils.js';
 import { getDisplayPath } from './file.js';
 import { formatNumber } from './format.js';
-import { getIdeClientName, type IDEExtensionInstallationStatus, isJetBrainsIde, toIDEDisplayName } from './ide.js';
 import { getClaudeAiUserDefaultModelDescription } from './model/model.js';
 import { modelDisplayStringForProvider } from './model/display.js';
 import { getAPIProvider, PROVIDER_DISPLAY_NAMES } from './model/providers.js';
@@ -36,59 +34,8 @@ export function buildSandboxProperties(): Property[] {
     value: isSandboxed ? 'Enabled' : 'Disabled'
   }];
 }
-export function buildIDEProperties(mcpClients: MCPServerConnection[], ideInstallationStatus: IDEExtensionInstallationStatus | null = null, theme: ThemeName): Property[] {
-  const ideClient = mcpClients?.find(client => client.name === 'ide');
-  if (ideInstallationStatus) {
-    const ideName = toIDEDisplayName(ideInstallationStatus.ideType);
-    const pluginOrExtension = isJetBrainsIde(ideInstallationStatus.ideType) ? 'plugin' : 'extension';
-    if (ideInstallationStatus.error) {
-      return [{
-        label: 'IDE',
-        value: <Text>
-              {color('error', theme)(figures.cross)} Error installing {ideName}{' '}
-              {pluginOrExtension}: {ideInstallationStatus.error}
-              {'\n'}Please restart your IDE and try again.
-            </Text>
-      }];
-    }
-    if (ideInstallationStatus.installed) {
-      if (ideClient && ideClient.type === 'connected') {
-        if (ideInstallationStatus.installedVersion !== ideClient.serverInfo?.version) {
-          return [{
-            label: 'IDE',
-            value: `Connected to ${ideName} ${pluginOrExtension} version ${ideInstallationStatus.installedVersion} (server version: ${ideClient.serverInfo?.version})`
-          }];
-        } else {
-          return [{
-            label: 'IDE',
-            value: `Connected to ${ideName} ${pluginOrExtension} version ${ideInstallationStatus.installedVersion}`
-          }];
-        }
-      } else {
-        return [{
-          label: 'IDE',
-          value: `Installed ${ideName} ${pluginOrExtension}`
-        }];
-      }
-    }
-  } else if (ideClient) {
-    const ideName = getIdeClientName(ideClient) ?? 'IDE';
-    if (ideClient.type === 'connected') {
-      return [{
-        label: 'IDE',
-        value: `Connected to ${ideName} extension`
-      }];
-    } else {
-      return [{
-        label: 'IDE',
-        value: `${color('error', theme)(figures.cross)} Not connected to ${ideName}`
-      }];
-    }
-  }
-  return [];
-}
 export function buildMcpProperties(clients: MCPServerConnection[] = [], theme: ThemeName): Property[] {
-  const servers = clients.filter(client => client.name !== 'ide');
+  const servers = clients;
   if (!servers.length) {
     return [];
   }

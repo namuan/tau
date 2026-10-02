@@ -168,7 +168,6 @@ export async function mcpListHandler(): Promise<void> {
       server,
       status
     } of results) {
-      // Intentionally excluding sse-ide servers here since they're internal
       if (server.type === 'sse') {
         // biome-ignore lint/suspicious/noConsole:: intentional console output
         console.log(`${name}: ${server.url} (SSE) - ${status}`);
@@ -210,7 +209,6 @@ export async function mcpGetHandler(name: string): Promise<void> {
   // biome-ignore lint/suspicious/noConsole:: intentional console output
   console.log(`  Status: ${status}`);
 
-  // Intentionally excluding sse-ide servers here since they're internal
   if (server.type === 'sse') {
     // biome-ignore lint/suspicious/noConsole:: intentional console output
     console.log(`  Type: sse`);

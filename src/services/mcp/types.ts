@@ -21,7 +21,7 @@ export const ConfigScopeSchema = lazySchema(() =>
 export type ConfigScope = z.infer<ReturnType<typeof ConfigScopeSchema>>
 
 export const TransportSchema = lazySchema(() =>
-  z.enum(['stdio', 'sse', 'sse-ide', 'http', 'ws', 'sdk']),
+  z.enum(['stdio', 'sse', 'http', 'ws', 'sdk']),
 )
 export type Transport = z.infer<ReturnType<typeof TransportSchema>>
 
@@ -65,27 +65,6 @@ export const McpSSEServerConfigSchema = lazySchema(() =>
   }),
 )
 
-// Internal-only server type for IDE extensions
-export const McpSSEIDEServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('sse-ide'),
-    url: z.string(),
-    ideName: z.string(),
-    ideRunningInWindows: z.boolean().optional(),
-  }),
-)
-
-// Internal-only server type for IDE extensions
-export const McpWebSocketIDEServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('ws-ide'),
-    url: z.string(),
-    ideName: z.string(),
-    authToken: z.string().optional(),
-    ideRunningInWindows: z.boolean().optional(),
-  }),
-)
-
 export const McpHTTPServerConfigSchema = lazySchema(() =>
   z.object({
     type: z.literal('http'),
@@ -125,8 +104,6 @@ export const McpServerConfigSchema = lazySchema(() =>
   z.union([
     McpStdioServerConfigSchema(),
     McpSSEServerConfigSchema(),
-    McpSSEIDEServerConfigSchema(),
-    McpWebSocketIDEServerConfigSchema(),
     McpHTTPServerConfigSchema(),
     McpWebSocketServerConfigSchema(),
     McpSdkServerConfigSchema(),
@@ -139,12 +116,6 @@ export type McpStdioServerConfig = z.infer<
 >
 export type McpSSEServerConfig = z.infer<
   ReturnType<typeof McpSSEServerConfigSchema>
->
-export type McpSSEIDEServerConfig = z.infer<
-  ReturnType<typeof McpSSEIDEServerConfigSchema>
->
-export type McpWebSocketIDEServerConfig = z.infer<
-  ReturnType<typeof McpWebSocketIDEServerConfigSchema>
 >
 export type McpHTTPServerConfig = z.infer<
   ReturnType<typeof McpHTTPServerConfigSchema>

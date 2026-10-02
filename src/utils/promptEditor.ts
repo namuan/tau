@@ -8,7 +8,6 @@ import type { PastedContent } from './config.js'
 import { classifyGuiEditor, getExternalEditor } from './editor.js'
 import { execSync_DEPRECATED } from './execSyncWrapper.js'
 import { getFsImplementation } from './fsOperations.js'
-import { toIDEDisplayName } from './ide.js'
 import { writeFileSync_DEPRECATED } from './slowOperations.js'
 import { generateTempFilePath } from './tempfile.js'
 
@@ -82,7 +81,7 @@ export function editFileInEditor(filePath: string): EditorResult {
     ) {
       const status = (err as { status: number }).status
       if (status !== 0) {
-        const editorName = toIDEDisplayName(editor)
+        const editorName = editor
         return {
           content: null,
           error: `${editorName} exited with code ${status}`,

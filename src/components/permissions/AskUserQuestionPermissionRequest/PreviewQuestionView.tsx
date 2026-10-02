@@ -7,7 +7,6 @@ import { useKeybinding, useKeybindings } from '../../../keybindings/useKeybindin
 import { useAppState } from '../../../state/AppState.js';
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js';
 import { getExternalEditor } from '../../../utils/editor.js';
-import { toIDEDisplayName } from '../../../utils/ide.js';
 import { editPromptInEditor } from '../../../utils/promptEditor.js';
 import { Divider } from '../../design-system/Divider.js';
 import TextInput from '../../TextInput.js';
@@ -62,7 +61,7 @@ export function PreviewQuestionView({
   const [isInNotesInput, setIsInNotesInput] = useState(false);
   const [cursorOffset, setCursorOffset] = useState(0);
   const editor = getExternalEditor();
-  const editorName = editor ? toIDEDisplayName(editor) : null;
+  const editorName = editor ?? null;
   const questionText = question.question;
   const questionState = questionStates[questionText];
 

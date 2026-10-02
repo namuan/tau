@@ -37,15 +37,3 @@ export function stripDisplayTags(text: string): string {
 export function stripDisplayTagsAllowEmpty(text: string): string {
   return text.replace(XML_TAG_BLOCK_PATTERN, '').trim()
 }
-
-const IDE_CONTEXT_TAGS_PATTERN =
-  /<(ide_opened_file|ide_selection)(?:\s[^>]*)?>[\s\S]*?<\/\1>\n?/g
-
-/**
- * Strip only IDE-injected context tags (ide_opened_file, ide_selection).
- * Used by textForResubmit so UP-arrow resubmit preserves user-typed content
- * including lowercase HTML like `<code>foo</code>` while dropping IDE noise.
- */
-export function stripIdeContextTags(text: string): string {
-  return text.replace(IDE_CONTEXT_TAGS_PATTERN, '').trim()
-}

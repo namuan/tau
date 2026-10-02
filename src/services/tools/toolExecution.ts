@@ -329,8 +329,6 @@ export type McpServerType =
   | 'http'
   | 'ws'
   | 'sdk'
-  | 'sse-ide'
-  | 'ws-ide'
   | 'claudeai-proxy'
   | undefined
 

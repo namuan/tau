@@ -249,7 +249,6 @@ import {
   commandBelongsToServer,
   filterToolsByServer,
 } from 'src/services/mcp/utils.js'
-import { setupVscodeSdkMcp } from 'src/services/mcp/vscodeSdkMcp.js'
 import { getAllMcpConfigs } from 'src/services/mcp/config.js'
 import {
   isQualifiedForGrove,
@@ -1484,8 +1483,6 @@ function runHeadlessStreaming(
         },
       }))
 
-      // Set up the special internal VSCode MCP server if necessary.
-      setupVscodeSdkMcp(sdkClients)
     }
   }
 
@@ -5133,9 +5130,7 @@ export type DynamicMcpState = {
 function toScopedConfig(
   config: McpServerConfigForProcessTransport,
 ): ScopedMcpServerConfig {
-  // McpServerConfigForProcessTransport is a subset of McpServerConfig
-  // (it excludes IDE-specific types like sse-ide and ws-ide)
-  // Adding scope makes it a valid ScopedMcpServerConfig
+  // Adding scope makes the process transport config a valid ScopedMcpServerConfig
   return { ...config, scope: 'dynamic' } as ScopedMcpServerConfig
 }
 

@@ -545,7 +545,7 @@ export function extractAgentMcpServers(
         needsAuth: false,
       })
     }
-    // Skip unsupported transport types (sdk, claudeai-proxy, sse-ide, ws-ide)
+    // Skip unsupported transport types (sdk, claudeai-proxy)
     // These are internal types not meant for agent MCP server display
   }
 

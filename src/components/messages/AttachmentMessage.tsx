@@ -161,13 +161,6 @@ export function AttachmentMessage({
           Referenced PDF <Text bold>{attachment.displayPath}</Text> (
           {attachment.pageCount} pages)
         </Line>;
-    case 'selected_lines_in_ide':
-      return <Line>
-          ⧉ Selected{' '}
-          <Text bold>{attachment.lineEnd - attachment.lineStart + 1}</Text>{' '}
-          lines from <Text bold>{attachment.displayPath}</Text> in{' '}
-          {attachment.ideName}
-        </Line>;
     case 'nested_memory':
       return <Line>
           Loaded <Text bold>{attachment.displayPath}</Text>
