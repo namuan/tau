@@ -658,7 +658,7 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe(
-          'Preferred language for Claude responses and voice dictation (e.g., "japanese", "spanish")',
+          'Preferred language for Claude responses (e.g., "japanese", "spanish")',
         ),
       skipWebFetchPreflight: z
         .boolean()
@@ -915,18 +915,6 @@ export const SettingsSchema = lazySchema(() =>
               ),
           }
         : {}),
-      heyEnabled: z
-        .boolean()
-        .optional()
-        .describe(
-          'Enable Codex realtime voice conversation with hold-Space input.',
-        ),
-      heyVoiceName: z
-        .string()
-        .optional()
-        .describe(
-          'Codex realtime voice for /hey. Choose with /models voice; defaults to sol.',
-        ),
       ...(feature('KAIROS')
         ? {
             assistant: z

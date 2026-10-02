@@ -217,31 +217,6 @@ function validateBlock(
           suggestion: 'Move this binding to a block with "context": "Chat"',
         })
       }
-    } else if (action === 'hey:pushToTalk') {
-      // Hold detection needs OS auto-repeat. Bare letters print into the
-      // input during warmup and the activation strip is best-effort —
-      // space (default) or a modifier combo like meta+k avoid that.
-      // Hey mode's default is Space, so bare letters are usually accidental
-      // and should still warn.
-      const ks = parseChord(key)[0]
-      if (
-        ks &&
-        !ks.ctrl &&
-        !ks.alt &&
-        !ks.shift &&
-        !ks.meta &&
-        !ks.super &&
-        /^[a-z]$/.test(ks.key)
-      ) {
-        warnings.push({
-          type: 'invalid_action',
-          severity: 'warning',
-          message: `Binding "${key}" to ${action} prints into the input during warmup; use a modifier combo like meta+k`,
-          key,
-          context: contextName,
-          action,
-        })
-      }
     }
   }
 

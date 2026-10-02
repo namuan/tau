@@ -2,7 +2,6 @@
 import addDir from './commands/add-dir/index.js'
 import autofixPr from './commands/autofix-pr/index.js'
 import backfillSessions from './commands/backfill-sessions/index.js'
-import bye from './commands/bye/index.js'
 import btw from './commands/btw/index.js'
 import github from './commands/github/index.js'
 import githubRun from './commands/github/github-run.js'
@@ -64,8 +63,8 @@ const agentsPlatform =
     : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 import securityReview from './commands/security-review.js'
-import safetest from './commands/safetest/index.js'
 import whatsapp from './commands/whatsapp/index.js'
+import safetest from './commands/safetest/index.js'
 import bughunter from './commands/bughunter/index.js'
 import terminalSetup from './commands/terminalSetup/index.js'
 import usage from './commands/usage/index.js'
@@ -92,7 +91,6 @@ const remoteControlServerCommand =
   feature('DAEMON') && feature('BRIDGE_MODE')
     ? require('./commands/remoteControlServer/index.js').default
     : null
-const heyCommand = require('./commands/hey/index.js').default
 const forceSnip = feature('HISTORY_SNIP')
   ? require('./commands/force-snip.js').default
   : null
@@ -373,7 +371,6 @@ const COMMANDS = memoize((): Command[] => [
   ...(assistantCommand ? [assistantCommand] : []),
   ...(bridge ? [bridge] : []),
   ...(remoteControlServerCommand ? [remoteControlServerCommand] : []),
-  ...(heyCommand ? [heyCommand] : []),
   thinkback,
   thinkbackPlay,
   permissions,

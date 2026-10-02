@@ -392,65 +392,12 @@ async function runPostinstall() {
   await installRipgrep();
 
   await verifyDependencyTree();
-  // Users never compile Rust or download a speech model: the addon arrives
-  // prebuilt. Trimmed or partial trees (repair fixtures, vendored subsets) may
-  // not carry the voice helper at all, which is not an install failure.
-  const voiceHelper = join(packageRoot, 'scripts', 'native-voice.mjs');
-  if (existsSync(voiceHelper)) await verifyBundledVoice();
   try { buildOptionalNativeTools(); } catch { /* native accelerators are optional */ }
   try { primeOllamaCloudModels(); } catch { /* first launch retries */ }
 
   // This is the final mandatory operation. A missing marker lets the verifier
   // distinguish npm 12's exit-0/script-blocked install from a completed one.
   writeLifecycleCompletionMarker(packageRoot);
-}
-
-/**
- * Reports whether this host's voice addon is usable. Never fails the install.
- *
- * Voice is an optional dependency behind a paid plan, so most installs never
- * load it and none of them should break because of it. Everything that can go
- * wrong here -- a glibc or macOS older than the build floor, an antivirus
- * quarantine, a truncated download, a corrupted file -- used to abort the
- * install and leave the lifecycle marker unwritten, condemning a working CLI
- * over a feature the user may not even have access to.
- *
- * Nothing is lost by reporting instead. The integrity check that protects the
- * user runs again in-process, in loadNativeVoice, immediately before the addon
- * is executed: a tampered binary still never runs. This check is an early
- * warning, not the gate.
- */
-async function verifyBundledVoice() {
-  try {
-    await checkBundledVoice();
-  } catch (error) {
-    console.log(`[tau] Voice audio is unavailable on this host: ${error?.message ?? error}`);
-    console.log('[tau] The rest of Tau is unaffected; /hey will report the same reason.');
-  }
-}
-
-async function checkBundledVoice() {
-  const { nativeVoiceTarget, nativeVoiceLoadPath, resolveNativeVoiceArtifact, voicePackageNameFor } =
-    await import('./native-voice.mjs');
-  let voiceTarget = null;
-  try { voiceTarget = nativeVoiceTarget(); } catch (error) { console.log(`[tau] ${error.message}`); }
-  if (voiceTarget) {
-    // The addon arrives as a per-platform optional dependency, so npm can
-    // legitimately skip it (unsupported host, or no network). That is not an
-    // install failure: voice degrades and the rest of Tau works. A binary that
-    // is present but fails its integrity check still fails the install, because
-    // that means tampering or corruption rather than absence.
-    if (existsSync(resolveNativeVoiceArtifact(packageRoot, voiceTarget).path)) {
-      const { createRequire } = await import('node:module');
-      const voice = createRequire(import.meta.url)(nativeVoiceLoadPath(packageRoot));
-      if (voice.voiceAbiVersion?.() !== 1 || typeof voice.AudioCapture !== 'function' || typeof voice.LiveWebRtcPeer !== 'function') {
-        throw new Error('The Tau audio component is incompatible. Reinstall Tau.');
-      }
-      console.log('[tau] Native voice ready (no Rust or speech-model installation required).');
-    } else {
-      console.log(`[tau] Voice audio (${voicePackageNameFor(voiceTarget)}) was not installed; /hey stays unavailable until it is. The rest of Tau is unaffected.`);
-    }
-  }
 }
 
 if (process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url) {

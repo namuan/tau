@@ -21,7 +21,6 @@ import {
   filterProviderModels,
   getDefaultBrowsableProvider,
   getProviderBrowseLabel,
-  isVoiceConversationProvider,
   loadProviderModels,
   parseProviderModelQuery,
   resolveProviderModelSelection,
@@ -29,10 +28,6 @@ import {
 } from '../../utils/model/providerCatalog.js'
 import { getProviderModelDisplayName } from '../../utils/model/display.js'
 import { isConcreteOpenAIGptModelForProvider } from '../../utils/model/openaiGptModels.js'
-import {
-  getLiveVoiceDisplayName,
-  setSelectedLiveVoice,
-} from '../../voice/voiceConversation.js'
 import { getClineEffortLabel, setClineEffort } from '../../utils/model/clineThinking.js'
 import { isClinePassProvider } from '../../utils/model/clinePassCatalog.js'
 
@@ -67,21 +62,6 @@ function ModelsPickerWrapper({
   const initialProvider = lockedProvider ?? getDefaultBrowsableProvider(currentProvider)
 
   function handleSelect(provider: BrowsableModelProvider, modelId: string) {
-    if (isVoiceConversationProvider(provider)) {
-      const result = setSelectedLiveVoice(modelId)
-      if (result.error) {
-        onDone(
-          `Failed to save Codex voice: ${result.error.message}`,
-          { display: 'system' },
-        )
-        return
-      }
-      const displayModel =
-        getLiveVoiceDisplayName(modelId) ?? modelId
-      onDone(`Set Codex voice to ${chalk.bold(displayModel)}. Applies to the next /hey session.`)
-      return
-    }
-
     const selection = resolveProviderModelSelection(provider, modelId)
 
     if (isClinePassProvider(provider) && selection.clineEffort) {

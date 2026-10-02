@@ -102,15 +102,8 @@ import { errorMessage } from '../utils/errors.js';
 import { isHumanTurn } from '../utils/messagePredicates.js';
 import { logError } from '../utils/log.js';
 import { measureContextBaseline } from '../utils/analyzeContext.js';
-import { isHeyModeFeatureOn } from '../voice/heyModeEnabled.js';
-import { LiveVoiceIndicator } from '../components/LiveVoiceIndicator.js';
-import { createLiveAgentTurnTracker } from '../voice/liveAgentTurnTracker.js';
-import { getLiveVoiceSnapshot, subscribeLiveVoice, setLiveVoiceAgentBridge, sendLiveVoiceAgentProgress, finishLiveVoiceAgentTurn, stopLiveVoice } from '../services/liveVoice.js';
 // Dead code elimination: conditional imports
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-const heyModeAvailable = isHeyModeFeatureOn();
-const HeyKeybindingHandler: typeof import('../hooks/useHeyIntegration.js').HeyKeybindingHandler = heyModeAvailable ? require('../hooks/useHeyIntegration.js').HeyKeybindingHandler : () => null;
-const useHeyIntegrationImpl: typeof import('../hooks/useHeyIntegration.js').useHeyIntegration = heyModeAvailable ? require('../hooks/useHeyIntegration.js').useHeyIntegration : () => ({ stripTrailing: () => 0, handleKeyEvent: () => {}, cancelHold: () => {}, isHolding: () => false, state: 'off' as const });
 // Frustration detection is ant-only (dogfooding). Conditional require so external
 // builds eliminate the module entirely (including its two O(n) useMemos that run
 // on every messages change, plus the GrowthBook fetch).
@@ -1375,12 +1368,6 @@ export function REPL({
   const [inputValue, setInputValueRaw] = useState(() => consumeEarlyInput());
   const inputValueRef = useRef(inputValue);
   inputValueRef.current = inputValue;
-  const insertTextRef = useRef<{
-    insert: (text: string) => void;
-    setInputWithCursor: (value: string, cursor: number) => void;
-    cursorOffset: number;
-  } | null>(null);
-
   // Wrap setInputValue to co-locate suppression state updates.
   // Both setState calls happen in the same synchronous context so React
   // batches them into a single render, eliminating the extra render that
@@ -1503,12 +1490,6 @@ export function REPL({
   // throttle batches rapid updates). Cleared on message arrival (messages.ts)
   // so displayedMessages switches from deferredMessages to messages atomically.
   const [streamingText, setStreamingText] = useState<string | null>(null);
-  const heyAgentTurnsRef = useRef(createLiveAgentTurnTracker({
-    progress: sendLiveVoiceAgentProgress,
-    finish: finishLiveVoiceAgentTurn
-  }));
-  const heyActiveRequestIdsRef = useRef<readonly string[]>([]);
-  const heyAgentStreamingTextRef = useRef<string | null>(null);
   const reducedMotion = useAppState(s => s.settings.prefersReducedMotion) ?? false;
   const showStreamingTextChunks = useMemo(
     () =>
@@ -1519,10 +1500,6 @@ export function REPL({
   const showStreamingText =
     !reducedMotion && (showStreamingTextChunks || !hasCursorUpViewportYankBug());
   const onStreamingText = useCallback((f: (current: string | null) => string | null) => {
-    if (heyActiveRequestIdsRef.current.length > 0) {
-      heyAgentStreamingTextRef.current = f(heyAgentStreamingTextRef.current);
-      heyAgentTurnsRef.current.progress(heyAgentStreamingTextRef.current, heyActiveRequestIdsRef.current);
-    }
     if (!showStreamingText) return;
     setStreamingText(f);
   }, [showStreamingText]);
@@ -3036,14 +3013,6 @@ export function REPL({
       });
       return;
     }
-    const heyRequestIds = heyAgentTurnsRef.current.beginTurn(newMessages.flatMap(message => {
-      if (message.type !== 'user' || message.isMeta) return [];
-      const text = getContentText(message.message.content);
-      return text ? [text] : [];
-    }));
-    const heyTurnMessageStart = messagesRef.current.length;
-    heyActiveRequestIdsRef.current = heyRequestIds;
-    let heyTurnError: unknown;
     try {
       // isLoading is derived from queryGuard — tryStart() above already
       // transitioned dispatching→running, so no setter call needed here.
@@ -3057,7 +3026,6 @@ export function REPL({
       apiMetricsRef.current = [];
       setStreamingToolUses([]);
       setStreamingText(null);
-      heyAgentStreamingTextRef.current = null;
 
       // messagesRef is updated synchronously by the setMessages wrapper
       // above, so it already includes newMessages from the append at the
@@ -3077,23 +3045,7 @@ export function REPL({
         }
       }
       await onQueryImpl(latestMessages, newMessages, abortController, shouldQuery, additionalAllowedTools, mainLoopModelParam, effort);
-    } catch (error) {
-      heyTurnError = error;
-      throw error;
     } finally {
-      if (heyRequestIds.length > 0) {
-        const replies = messagesRef.current.slice(heyTurnMessageStart).flatMap(message => {
-          if (message.type !== 'assistant') return [];
-          const text = getContentText(message.message.content);
-          return text ? [text] : [];
-        });
-        const result = replies.at(-1) || 'The agent finished without a text response.';
-        heyAgentTurnsRef.current.finishTurn(heyRequestIds, abortController.signal.aborted ? 'The agent request was interrupted.' : heyTurnError ? `The agent request failed: ${errorMessage(heyTurnError)}` : result);
-      }
-      if (heyActiveRequestIdsRef.current === heyRequestIds) {
-        heyActiveRequestIdsRef.current = [];
-        heyAgentStreamingTextRef.current = null;
-      }
       // queryGuard.end() atomically checks generation and transitions
       // running→idle. Returns false if a newer query owns the guard
       // (cancel+resubmit race where the stale finally fires as a microtask).
@@ -3331,11 +3283,7 @@ export function REPL({
     setAppState: SetAppState;
   }, options?: {
     fromKeybinding?: boolean;
-    voiceMode?: boolean;
   }) => {
-    if (options?.voiceMode && activeRemote.isRemoteMode) {
-      throw new Error('Voice delegation requires a local Tau agent session.');
-    }
     // Re-pin scroll to bottom on submit so the user always sees the new
     // exchange (matches OpenCode's auto-scroll behavior).
     repinScroll();
@@ -3348,7 +3296,7 @@ export function REPL({
     // Handle immediate commands - these bypass the queue and execute right away
     // even while Tau is processing. Commands opt-in via `immediate: true`.
     // Commands triggered via keybindings are always treated as immediate.
-    if (!options?.voiceMode && !speculationAccept && input.trim().startsWith('/')) {
+    if (!speculationAccept && input.trim().startsWith('/')) {
       // Expand [Pasted text #N] refs so immediate commands (e.g. /btw) receive
       // the pasted content, not the placeholder. The non-immediate path gets
       // this expansion later in handlePromptSubmit.
@@ -3494,7 +3442,7 @@ export function REPL({
       const willowMode = getFeatureValue_CACHED_MAY_BE_STALE('tengu_willow_mode', 'off');
       const idleThresholdMin = Number(process.env.CLAUDE_CODE_IDLE_THRESHOLD_MINUTES ?? 75);
       const tokenThreshold = Number(process.env.CLAUDE_CODE_IDLE_TOKEN_THRESHOLD ?? 100_000);
-      if (!options?.voiceMode && willowMode !== 'off' && !getGlobalConfig().idleReturnDismissed && !skipIdleCheckRef.current && !speculationAccept && !input.trim().startsWith('/') && lastQueryCompletionTimeRef.current > 0 && getTotalInputTokens() >= tokenThreshold) {
+      if (willowMode !== 'off' && !getGlobalConfig().idleReturnDismissed && !skipIdleCheckRef.current && !speculationAccept && !input.trim().startsWith('/') && lastQueryCompletionTimeRef.current > 0 && getTotalInputTokens() >= tokenThreshold) {
         const idleMs = Date.now() - lastQueryCompletionTimeRef.current;
         const idleMinutes = idleMs / 60_000;
         if (idleMinutes >= idleThresholdMin && willowMode === 'dialog') {
@@ -3516,12 +3464,12 @@ export function REPL({
     // Skip history for keybinding-triggered commands (user didn't type the command).
     if (!options?.fromKeybinding) {
       addToHistory({
-        display: speculationAccept || options?.voiceMode ? input : prependModeCharacterToInput(input, inputMode),
-        pastedContents: speculationAccept || options?.voiceMode ? {} : pastedContents
+        display: speculationAccept ? input : prependModeCharacterToInput(input, inputMode),
+        pastedContents: speculationAccept ? {} : pastedContents
       });
       // Add the just-submitted command to the front of the ghost-text
       // cache so it's suggested immediately (not after the 60s TTL).
-      if (!options?.voiceMode && inputMode === 'bash') {
+      if (inputMode === 'bash') {
         prependToShellHistoryCache(input.trim());
       }
     }
@@ -3537,17 +3485,17 @@ export function REPL({
     //   Remote mode is exempt: it sends via WebSocket and returns early without
     //   calling handlePromptSubmit, so there's no clobbering risk — restore eagerly.
     // In both deferred cases, the stash is restored after await handlePromptSubmit.
-    const isSlashCommand = !options?.voiceMode && !speculationAccept && input.trim().startsWith('/');
+    const isSlashCommand = !speculationAccept && input.trim().startsWith('/');
     // Submit runs "now" (not queued) when not already loading, or when
     // accepting speculation, or in remote mode (which sends via WS and
     // returns early without calling handlePromptSubmit).
     const submitsNow = !isLoading || speculationAccept || activeRemote.isRemoteMode;
-    if (!options?.voiceMode && stashedPrompt !== undefined && !isSlashCommand && submitsNow) {
+    if (stashedPrompt !== undefined && !isSlashCommand && submitsNow) {
       setInputValue(stashedPrompt.text);
       helpers.setCursorOffset(stashedPrompt.cursorOffset);
       setPastedContents(stashedPrompt.pastedContents);
       setStashedPrompt(undefined);
-    } else if (submitsNow && !options?.voiceMode) {
+    } else if (submitsNow) {
       if (!options?.fromKeybinding) {
         // Clear input when not loading or accepting speculation.
         // Preserve input for keybinding-triggered commands.
@@ -3557,10 +3505,8 @@ export function REPL({
       setPastedContents({});
     }
     if (submitsNow) {
-      if (!options?.voiceMode) {
-        setInputMode('prompt');
-        setIDESelection(undefined);
-      }
+      setInputMode('prompt');
+      setIDESelection(undefined);
       setSubmitCount(_ => _ + 1);
       helpers.clearBuffer();
       tipPickedThisTurnRef.current = false;
@@ -3568,7 +3514,7 @@ export function REPL({
       // Show the placeholder in the same React batch as setInputValue('').
       // Skip for slash/bash (they have their own echo), speculation and remote
       // mode (both setMessages directly with no gap to bridge).
-      if (!isSlashCommand && (inputMode === 'prompt' || options?.voiceMode) && !speculationAccept && !activeRemote.isRemoteMode) {
+      if (!isSlashCommand && inputMode === 'prompt' && !speculationAccept && !activeRemote.isRemoteMode) {
         setUserInputOnProcessing(input);
         // showSpinner includes userInputOnProcessing, so the spinner appears
         // on this render. Reset timing refs now (before queryGuard.reserve()
@@ -3695,16 +3641,16 @@ export function REPL({
       helpers,
       queryGuard,
       isExternalLoading,
-      mode: options?.voiceMode ? 'prompt' : inputMode,
+      mode: inputMode,
       commands,
-      onInputChange: options?.voiceMode ? () => {} : setInputValue,
-      setPastedContents: options?.voiceMode ? () => {} : setPastedContents,
+      onInputChange: setInputValue,
+      setPastedContents,
       setToolJSX,
       getToolUseContext,
       messages: messagesRef.current,
       mainLoopModel,
-      pastedContents: options?.voiceMode ? {} : pastedContents,
-      ideSelection: options?.voiceMode ? undefined : ideSelection,
+      pastedContents,
+      ideSelection,
       setUserInputOnProcessing,
       setAbortController,
       abortController,
@@ -3719,8 +3665,6 @@ export function REPL({
       // handlePromptSubmit only uses it for debug log + telemetry event.
       streamMode: streamModeRef.current,
       hasInterruptibleToolInProgress: hasInterruptibleToolInProgressRef.current,
-      voiceMode: options?.voiceMode,
-      skipSlashCommands: options?.voiceMode
     });
 
     // Restore stash that was deferred above. Two cases:
@@ -3729,7 +3673,7 @@ export function REPL({
     //   the visible input.
     // - Loading (queued): handlePromptSubmit enqueued + cleared input, then
     //   returned quickly. Restoring now places the stash back after the clear.
-    if (!options?.voiceMode && (isSlashCommand || isLoading) && stashedPrompt !== undefined) {
+    if ((isSlashCommand || isLoading) && stashedPrompt !== undefined) {
       setInputValue(stashedPrompt.text);
       helpers.setCursorOffset(stashedPrompt.cursorOffset);
       setPastedContents(stashedPrompt.pastedContents);
@@ -4232,61 +4176,6 @@ export function REPL({
     return true;
   }, [onQuery, mainLoopModel, store]);
 
-  // Hold-Space controls only microphone capture. The live model explicitly
-  // delegates coding requests through the ordinary submit/permission pipeline.
-  const hey = heyModeAvailable ?
-  // biome-ignore lint/correctness/useHookAtTopLevel: process-lifetime constant
-  useHeyIntegrationImpl({ setInputValue, inputValueRef, insertTextRef }) : {
-    stripTrailing: () => 0,
-    handleKeyEvent: () => {},
-    cancelHold: () => {},
-    isHolding: () => false,
-    state: 'off' as const
-  };
-  const heySubmitRef = useRef(onSubmit);
-  heySubmitRef.current = onSubmit;
-  useEffect(() => {
-    if (!heyModeAvailable) return;
-    const releaseBridge = setLiveVoiceAgentBridge({
-      submit: async (request, requestId) => {
-        const text = request.trim();
-        if (!text) throw new Error('The voice request was empty.');
-        heyAgentTurnsRef.current.register(requestId, text);
-        try {
-          await heySubmitRef.current(text, {
-            setCursorOffset: () => {},
-            clearBuffer: () => {},
-            resetHistory: () => {}
-          }, undefined, { voiceMode: true });
-        } catch (error) {
-          heyAgentTurnsRef.current.discard(requestId);
-          throw error;
-        }
-      },
-      getContext: () => {
-        const recent = messagesRef.current.slice(-12).flatMap(message => {
-          if (message.type !== 'user' && message.type !== 'assistant') return [];
-          if (message.type === 'user' && message.isMeta) return [];
-          const text = getContentText(message.message.content);
-          return text ? [`${message.type}: ${text}`] : [];
-        }).join('\n');
-        return `Tau workspace: ${getProjectRoot()}\nRecent conversation:\n${recent.slice(-12000)}`;
-      }
-    });
-    const unsubscribe = subscribeLiveVoice(() => {
-      const phase = getLiveVoiceSnapshot().phase;
-      if (phase === 'off' || phase === 'error') {
-        heyAgentTurnsRef.current.clear();
-        heyActiveRequestIdsRef.current = [];
-      }
-    });
-    return () => {
-      releaseBridge();
-      unsubscribe();
-      heyAgentTurnsRef.current.clear();
-      void stopLiveVoice().catch(logError);
-    };
-  }, []);
   useInboxPoller({
     enabled: isAgentSwarmsEnabled(),
     isLoading,
@@ -4821,7 +4710,6 @@ export function REPL({
   const mainReturn = <KeybindingSetup>
       <AnimatedTerminalTitle isAnimating={titleIsAnimating} title={terminalTitle} disabled={titleDisabled} noPrefix={showStatusInTerminalTab} />
       <GlobalKeybindingHandlers {...globalKeybindingProps} />
-      {heyModeAvailable ? <HeyKeybindingHandler heyHandleKeyEvent={hey.handleKeyEvent} heyState={hey.state} heyCancelHold={hey.cancelHold} heyIsHolding={hey.isHolding} stripTrailing={hey.stripTrailing} isActive={!toolJSX?.isLocalJSXCommand && !toolJSX?.shouldHidePromptInput && !focusedInputDialog && !showBashesDialog && !cursor && !isExiting && !disabled} /> : null}
       <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
       {/* ScrollKeybindingHandler must mount before CancelRequestHandler so
           ctrl+c-with-selection copies instead of cancelling the active task.
@@ -5173,10 +5061,9 @@ export function REPL({
                       {"external" === 'ant' && skillImprovementSurvey.suggestion && <SkillImprovementSurvey isOpen={skillImprovementSurvey.isOpen} skillName={skillImprovementSurvey.suggestion.skillName} updates={skillImprovementSurvey.suggestion.updates} handleSelect={skillImprovementSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} />}
                       {showIssueFlagBanner && <IssueFlagBanner />}
                       {}
-                      {heyModeAvailable ? <LiveVoiceIndicator /> : null}
                       <PromptInput debug={debug} ideSelection={ideSelection} hasSuppressedDialogs={!!hasSuppressedDialogs} isLocalJSXCommandActive={isShowingLocalJSXCommand} isCenteredPrompt={centerFreshPrompt} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={commands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
             // Works during isLoading — edit cancels first; uuid selection survives appends.
-            feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={heyModeAvailable ? insertTextRef : undefined} />
+            feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} />
                       <SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />
                     </>}
                 {cursor &&

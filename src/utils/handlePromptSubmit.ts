@@ -90,7 +90,6 @@ type BaseExecutionParams = {
    * so headless paths (print.ts, tests) can skip passing it.
    */
   setMessages?: (updater: (prev: Message[]) => Message[]) => void
-  voiceMode?: boolean
 }
 
 /**
@@ -194,7 +193,7 @@ export async function handlePromptSubmit(
   }
 
   const input = params.input ?? ''
-  const mode = params.voiceMode ? 'prompt' : (params.mode ?? 'prompt')
+  const mode = params.mode ?? 'prompt'
   const rawPastedContents = params.pastedContents ?? {}
 
   // Images are only sent if their [Image #N] placeholder is still in the text.

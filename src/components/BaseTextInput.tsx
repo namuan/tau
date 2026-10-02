@@ -13,7 +13,6 @@ type BaseTextInputComponentProps = BaseTextInputProps & {
   terminalFocus: boolean;
   highlights?: TextHighlight[];
   invert?: (text: string) => string;
-  hidePlaceholderText?: boolean;
 };
 
 /**
@@ -26,7 +25,6 @@ export function BaseTextInput(t0) {
     children,
     terminalFocus,
     invert,
-    hidePlaceholderText,
     ...props
   } = t0;
   const {
@@ -82,8 +80,7 @@ export function BaseTextInput(t0) {
     showCursor: props.showCursor,
     focus: props.focus,
     terminalFocus,
-    invert,
-    hidePlaceholderText
+    invert
   });
   useInput(wrappedOnInput, {
     isActive: props.focus

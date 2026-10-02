@@ -101,9 +101,6 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       ...(feature('MESSAGE_ACTIONS')
         ? { 'shift+up': 'chat:messageActions' as const }
         : {}),
-      // Hey-mode now owns the default hold-space binding for conversational
-      // local STT + native TTS. Single taps still type spaces normally.
-      space: 'hey:pushToTalk',
     },
   },
   {

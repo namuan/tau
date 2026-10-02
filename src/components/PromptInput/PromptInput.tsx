@@ -181,15 +181,6 @@ type Props = {
   setHelpOpen: React.Dispatch<React.SetStateAction<boolean>>;
   hasSuppressedDialogs?: boolean;
   isLocalJSXCommandActive?: boolean;
-  insertTextRef?: React.MutableRefObject<{
-    insert: (text: string) => void;
-    setInputWithCursor: (value: string, cursor: number) => void;
-    cursorOffset: number;
-  } | null>;
-  voiceInterimRange?: {
-    start: number;
-    end: number;
-  } | null;
   isCenteredPrompt?: boolean;
 };
 
@@ -237,8 +228,6 @@ function PromptInput({
   setHelpOpen,
   hasSuppressedDialogs,
   isLocalJSXCommandActive = false,
-  insertTextRef,
-  voiceInterimRange,
   isCenteredPrompt = false
 }: Props): React.ReactNode {
   const mainLoopModel = useMainLoopModel();
@@ -256,39 +245,9 @@ function PromptInput({
     show: false
   });
   const [cursorOffset, setCursorOffset] = useState<number>(input.length);
-  // Track the last input value set via internal handlers so we can detect
-  // external input changes (e.g. speech-to-text injection) and move cursor to end.
-  const lastInternalInputRef = React.useRef(input);
-  if (input !== lastInternalInputRef.current) {
-    // Input changed externally (not through any internal handler) — move cursor to end
-    setCursorOffset(input.length);
-    lastInternalInputRef.current = input;
-  }
-  // Wrap onInputChange to track internal changes before they trigger re-render
   const trackAndSetInput = React.useCallback((value: string) => {
-    lastInternalInputRef.current = value;
     onInputChange(value);
   }, [onInputChange]);
-  // Expose an insertText function so callers (e.g. STT) can splice text at the
-  // current cursor position instead of replacing the entire input.
-  if (insertTextRef) {
-    insertTextRef.current = {
-      cursorOffset,
-      insert: (text: string) => {
-        const needsSpace = cursorOffset === input.length && input.length > 0 && !/\s$/.test(input);
-        const insertText = needsSpace ? ' ' + text : text;
-        const newValue = input.slice(0, cursorOffset) + insertText + input.slice(cursorOffset);
-        lastInternalInputRef.current = newValue;
-        onInputChange(newValue);
-        setCursorOffset(cursorOffset + insertText.length);
-      },
-      setInputWithCursor: (value: string, cursor: number) => {
-        lastInternalInputRef.current = value;
-        onInputChange(value);
-        setCursorOffset(cursor);
-      }
-    };
-  }
   const store = useAppStateStore();
   const setAppState = useSetAppState();
   const tasks = useAppState(s => s.tasks);
@@ -677,17 +636,6 @@ function PromptInput({
       });
     }
 
-    // Dim interim voice dictation text
-    if (voiceInterimRange) {
-      highlights.push({
-        start: voiceInterimRange.start,
-        end: voiceInterimRange.end,
-        color: undefined,
-        dimColor: true,
-        priority: 1
-      });
-    }
-
     // Rainbow highlighting for ultrathink keyword (per-character cycling colors)
     if (isUltrathinkEnabled()) {
       for (const trigger of thinkTriggers) {
@@ -744,7 +692,7 @@ function PromptInput({
       }
     }
     return highlights;
-  }, [isSearchingHistory, historyQuery, historyMatch, historyFailedMatch, cursorOffset, btwTriggers, imageRefPositions, memberMentionHighlights, slashCommandTriggers, tokenBudgetTriggers, slackChannelTriggers, displayedValue, voiceInterimRange, thinkTriggers, ultraplanTriggers, ultrareviewTriggers, buddyTriggers]);
+  }, [isSearchingHistory, historyQuery, historyMatch, historyFailedMatch, cursorOffset, btwTriggers, imageRefPositions, memberMentionHighlights, slashCommandTriggers, tokenBudgetTriggers, slackChannelTriggers, displayedValue, thinkTriggers, ultraplanTriggers, ultrareviewTriggers, buddyTriggers]);
   const {
     addNotification,
     removeNotification

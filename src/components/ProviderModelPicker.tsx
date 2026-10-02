@@ -9,7 +9,6 @@ import {
 import {
   BROWSABLE_MODEL_PROVIDERS,
   getProviderBrowseLabel,
-  isVoiceConversationProvider,
   loadProviderModelSections,
   type BrowsableModelProvider,
   type ModelVariantInfo,
@@ -86,7 +85,6 @@ import {
   getOpenRouterEffortChipLabel,
   supportsOpenRouterEffortSelection,
 } from '../utils/model/openrouterThinking.js'
-import { hasStoredKey } from '../services/api/auth/api_key_manager.js'
 
 type Props = {
   initialProvider: BrowsableModelProvider
@@ -130,10 +128,6 @@ const SECTION_ACCENT: Record<NonNullable<ProviderModelSection['accent']>, string
 }
 
 function getProviderStatusLabel(provider: BrowsableModelProvider): string {
-  if (isVoiceConversationProvider(provider)) {
-    return hasStoredKey('openai_oauth') ? 'OpenAI connected' : 'OpenAI OAuth required'
-  }
-
   if (provider === 'firstParty') {
     return getClaudeAIOAuthTokens()?.accessToken || hasAnthropicApiKeyAuth()
       ? 'configured'
@@ -441,11 +435,6 @@ export function ProviderModelPicker({
       const row = flatRows[selectedRowIndex]
       if (row?.kind !== 'model') return
 
-      if (isVoiceConversationProvider(selectedProvider)) {
-        setFavoriteNotice('Voices cannot be favorited')
-        return
-      }
-
       const modelId = getSelectedModelId(
         selectedProvider,
         row.model,
@@ -711,7 +700,7 @@ export function ProviderModelPicker({
   }
 
   const totalRegistered = sections.reduce((sum, s) => sum + s.models.length, 0)
-  const itemLabel = isVoiceConversationProvider(selectedProvider) ? 'voices' : 'models'
+  const itemLabel = 'models'
 
   return (
     <Box flexDirection="column" paddingLeft={1}>
@@ -780,12 +769,10 @@ export function ProviderModelPicker({
                 model.name && model.name !== model.id
                   ? `${model.id} - ${model.name}`
                   : model.id
-              const isStarred =
-                !isVoiceConversationProvider(selectedProvider)
-                && isFavoriteModel(
-                  selectedProvider,
-                  getSelectedModelId(selectedProvider, model, variantSelections),
-                )
+              const isStarred = isFavoriteModel(
+                selectedProvider,
+                getSelectedModelId(selectedProvider, model, variantSelections),
+              )
               const isReasoning = selectedProvider === 'openai' && modelSupportsReasoning(model.id)
               // Every V4 row carries the same None/Low/High/Max ladder.
               const isDeepseekV4 =

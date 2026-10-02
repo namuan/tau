@@ -33,12 +33,6 @@ import { inferProviderLabelFromModelId } from './openrouterCatalog.js'
 import { warmOpenRouterReasoningCatalog } from './openrouterReasoningCatalog.js'
 import { getOpencodeContextWindow, waitForOpencodeModelsDev } from './opencodeModelsDevCatalog.js'
 import {
-  VOICE_CONVERSATION_LABEL,
-  DEFAULT_LIVE_VOICE,
-  LIVE_VOICE_OPTIONS,
-  VOICE_CONVERSATION_PROVIDER,
-} from '../../voice/voiceConversation.js'
-import {
   encodeClineEffortVariant,
   getClineEffort,
   getClineEffortLabel,
@@ -51,18 +45,10 @@ import { isClinePassProvider } from './clinePassCatalog.js'
 /** Longest the picker waits for OpenCode's ladders when none are on disk. */
 const OPENCODE_MODELS_DEV_WAIT_MS = 8_000
 
-export type BrowsableModelProvider =
-  | APIProvider
-  | typeof VOICE_CONVERSATION_PROVIDER
+export type BrowsableModelProvider = APIProvider
 
 export const BROWSABLE_MODEL_PROVIDERS: readonly BrowsableModelProvider[] =
-  [...SELECTABLE_PROVIDERS, VOICE_CONVERSATION_PROVIDER]
-
-export function isVoiceConversationProvider(
-  provider: BrowsableModelProvider,
-): provider is typeof VOICE_CONVERSATION_PROVIDER {
-  return provider === VOICE_CONVERSATION_PROVIDER
-}
+  SELECTABLE_PROVIDERS
 
 export function getDefaultBrowsableProvider(
   preferredProvider: APIProvider,
@@ -72,9 +58,8 @@ export function getDefaultBrowsableProvider(
   }
 
   return (
-    BROWSABLE_MODEL_PROVIDERS.find(provider =>
-      !isVoiceConversationProvider(provider) && validateProviderAuth(provider).valid,
-    ) ?? 'firstParty'
+    BROWSABLE_MODEL_PROVIDERS.find(provider => validateProviderAuth(provider).valid) ??
+    'firstParty'
   )
 }
 
@@ -87,9 +72,6 @@ function normalizeProviderQueryToken(
     claude: 'firstParty',
     firstparty: 'firstParty',
     'first-party': 'firstParty',
-    voice: VOICE_CONVERSATION_PROVIDER,
-    voiceconversation: VOICE_CONVERSATION_PROVIDER,
-    'voice-conversation': VOICE_CONVERSATION_PROVIDER,
     kimi: 'moonshot',
     moonshotai: 'moonshot',
     'moonshot-ai': 'moonshot',
@@ -243,15 +225,6 @@ export async function refreshProviderContextWindows(): Promise<void> {
 export async function loadProviderModels(
   provider: BrowsableModelProvider,
 ): Promise<ModelInfo[]> {
-  if (isVoiceConversationProvider(provider)) {
-    return LIVE_VOICE_OPTIONS.map(voice => ({
-      id: voice.value,
-      name: voice.label,
-      tags: voice.value === DEFAULT_LIVE_VOICE ? ['recommended' as const] : [],
-      provider: VOICE_CONVERSATION_LABEL,
-    }))
-  }
-
   if (provider === 'firstParty') {
     const models = ANTHROPIC_MODELS.map(model => ({
       id: model.id,
@@ -506,22 +479,6 @@ export function resolveProviderModelSelection(
 export async function loadProviderModelSections(
   provider: BrowsableModelProvider,
 ): Promise<ProviderModelSection[]> {
-  if (isVoiceConversationProvider(provider)) {
-    return [
-      {
-        id: 'voice-conversation',
-        title: VOICE_CONVERSATION_LABEL,
-        accent: 'cloud',
-        models: LIVE_VOICE_OPTIONS.map(voice => ({
-          id: voice.value,
-          name: voice.label,
-          tags: voice.value === DEFAULT_LIVE_VOICE ? ['recommended' as const] : [],
-          provider: VOICE_CONVERSATION_LABEL,
-        })),
-      },
-    ]
-  }
-
   if (provider === 'firstParty') {
     return buildAnthropicSections()
   }
@@ -815,9 +772,6 @@ export function filterProviderModels(
 }
 
 export function getProviderBrowseLabel(provider: BrowsableModelProvider): string {
-  if (isVoiceConversationProvider(provider)) {
-    return VOICE_CONVERSATION_LABEL
-  }
   return PROVIDER_DISPLAY_NAMES[provider]
 }
 

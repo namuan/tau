@@ -122,7 +122,7 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
     source: 'settings',
     type: 'string',
     description:
-      'Preferred language for Claude responses and voice dictation (e.g., "japanese", "spanish")',
+      'Preferred language for Claude responses (e.g., "japanese", "spanish")',
   },
   teammateMode: {
     source: 'global',
