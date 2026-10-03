@@ -16,7 +16,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 // still run against a real ripgrep process, including explicit-glob overrides.
 async function loadSearchTools() {
   const stubs: Array<[RegExp, string, string]> = [
-    [/^test:grep-state$/, 'state', `export const state = { cwd: '', pluginExclusions: [] };`],
+    [/^test:grep-state$/, 'state', `export const state = { cwd: '' };`],
     [/(?:^|\/)Tool\.js$/, 'tool', `export const buildTool = definition => definition;`],
     [/(?:^|\/)cwd\.js$/, 'cwd', `import { state } from 'test:grep-state'; export const getCwd = () => state.cwd;`],
     [/(?:^|\/)errors\.js$/, 'errors', `export const isENOENT = error => error?.code === 'ENOENT'; export const getErrnoCode = error => error?.code; export const toError = error => error instanceof Error ? error : new Error(String(error));`],
@@ -38,7 +38,6 @@ async function loadSearchTools() {
         return null;
       };
     `],
-    [/plugins\/orphanedPluginFilter\.js$/, 'plugins', `import { state } from 'test:grep-state'; export const getGlobExclusionsForPluginCache = async () => state.pluginExclusions;`],
     [/^\.\/UI\.js$/, 'ui', `
       export const getToolUseSummary = () => '';
       export const renderToolResultMessage = () => null;
@@ -99,7 +98,14 @@ async function loadSearchTools() {
       },
     }],
   })
-  return import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`)
+  const bundleDir = await mkdtemp(join(tmpdir(), 'tau-grep-bundle-'))
+  const bundlePath = join(bundleDir, 'search-tools.mjs')
+  try {
+    await writeFile(bundlePath, bundled.outputFiles[0]!.text)
+    return await import(pathToFileURL(bundlePath).href)
+  } finally {
+    await rm(bundleDir, { recursive: true, force: true })
+  }
 }
 
 describe('GrepTool with real ripgrep', () => {
@@ -136,7 +142,6 @@ describe('GrepTool with real ripgrep', () => {
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'tau-grep-tool-'))
     tools.state.cwd = root
-    tools.state.pluginExclusions = []
   })
 
   afterEach(async () => {
@@ -283,15 +288,12 @@ describe('GrepTool with real ripgrep', () => {
     expect(normalized((await search({ glob: '*.py !app.py' })).filenames)).toEqual(['src/model.py'])
   })
 
-  test('deny patterns and orphaned-plugin exclusions retain precedence over a positive glob', async () => {
+  test('deny patterns retain precedence over a positive glob', async () => {
     await file('.gitignore', '*.ts\n')
     await file('source.ts')
     await file('denied.ts')
-    await file('orphaned.ts')
-    tools.state.pluginExclusions = ['!**/orphaned.ts']
     const input = { glob: '*.ts', include_ignored: true }
     expect(normalized((await search(input, ['denied.ts'])).filenames)).toEqual(['source.ts'])
-    // Beside `type` the glob stays an override; exclusions still win.
     expect(normalized((await search({ ...input, type: 'ts' }, ['denied.ts'])).filenames)).toEqual(['source.ts'])
   })
 
@@ -502,16 +504,14 @@ describe('GrepTool with real ripgrep', () => {
     expect(included.files).toHaveLength(2)
   })
 
-  test('deny rules and plugin exclusions still win, and what they hide is not counted', async () => {
+  test('deny rules still win, and what they hide is not counted', async () => {
     await file('.gitignore', 'ignored.py\n')
     await file('ignored.py')
     await file('denied.py')
-    await file('orphaned.py')
     await file('source.py')
     // A rule rooted at the searched folder must anchor there, not in the
     // directory tau was started from.
     await file('secret/key.py')
-    tools.state.pluginExclusions = ['!**/orphaned.py']
     const rooted: Array<[string, string[]]> = [[root, ['/secret/**']]]
     const result = await globIn(root, '*.py', {}, ['denied.py'], rooted)
     expect(names(result.files)).toEqual(['source.py'])
