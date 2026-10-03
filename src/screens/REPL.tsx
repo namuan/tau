@@ -1196,7 +1196,7 @@ export function REPL({
         });
       }
     }
-  }, [onRepin, onScrollAway, maybeLoadOlder, setAppState]);
+  }, [onRepin, onScrollAway, setAppState]);
   // Deferred SessionStart hook messages — REPL renders immediately and
   // hook messages are injected when they resolve. awaitPendingHooks()
   // must be called before the first API call so the model sees hook context.

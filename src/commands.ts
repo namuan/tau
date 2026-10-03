@@ -256,7 +256,6 @@ const COMMANDS = memoize((): Command[] => [
   agents,
   branch,
   clone,
-  bye,
   btw,
   clear,
   color,
