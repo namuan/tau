@@ -23,7 +23,6 @@ import { OpenRouterToolCallError } from '../../lanes/openai-compat/openrouter_to
 import { randomUUID } from 'crypto'
 import {
   getAPIProvider,
-  isFirstPartyAnthropicBaseUrl,
   isThirdPartyProvider,
 } from 'src/utils/model/providers.js'
 import {
@@ -237,10 +236,7 @@ import {
   pinCacheEdits,
 } from '../compact/microCompact.js'
 import { withStreamingVCR, withVCR } from '../vcr.js'
-import {
-  CLIENT_REQUEST_ID_HEADER,
-  getAnthropicClient,
-} from './client.js'
+import { getAnthropicClient } from './client.js'
 import { resolveEffectiveAPIProvider } from './providerRouting.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
@@ -2353,14 +2349,6 @@ async function* queryModel(
             headlessProfilerCheckpoint('api_request_sent')
           }
 
-          // Generate and track client request ID so timeouts (which return no
-          // server request ID) can still be correlated with server logs.
-          // First-party only — 3P providers don't log it (inc-4029 class).
-          clientRequestId =
-            getAPIProvider() === 'firstParty' && isFirstPartyAnthropicBaseUrl()
-              ? randomUUID()
-              : undefined
-
           // Use raw stream instead of BetaMessageStream to avoid O(n²) partial JSON parsing
           // BetaMessageStream calls partialParse() on every input_json_delta, which we don't need
           // since we handle tool input accumulation ourselves
@@ -2368,12 +2356,7 @@ async function* queryModel(
           const result = await anthropic.beta.messages
             .create(
               { ...params, stream: true },
-              {
-                signal,
-                ...(clientRequestId && {
-                  headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
-                }),
-              },
+              { signal },
             )
             .withResponse()
           queryCheckpoint('query_response_headers_received')

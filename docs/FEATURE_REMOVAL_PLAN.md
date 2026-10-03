@@ -67,6 +67,16 @@ Removed MCP clients/servers, connection startup, tools/resources, settings and p
 
 **Verification:** Production build, production shrinkwrap check, and `git diff --check` pass. Focused core, session, provider, Cursor, Gemini schema, and placeholder-argument suites pass. One combined test run hit a temporary-directory cleanup collision; the affected suite passed when rerun alone. The standalone ToolSearch Bun test remains blocked by the missing `src/entrypoints/sdk/runtimeTypes.js` module. Source, manifest, and lockfile audits show no MCP client/server implementation or SDK dependency.
 
+## Phase 9: Claude inference — in progress
+
+Remove first-party Anthropic inference and Claude-specific Bedrock, Vertex AI, and Foundry routes. Preserve the Anthropic SDK only where it remains a shared message/error contract for other providers, and preserve unrelated Tau Web/session APIs and provider adapters.
+
+The provider picker no longer offers these backends, saved selections are ignored, first-run setup no longer treats Anthropic credentials as a configured provider, and the shared client rejects legacy native-provider selections before making a request. The SDK-compatible AgentRouter route remains supported.
+
+**Remaining scope:** Remove remaining direct Claude login entrypoints and provider-specific settings/model paths, then remove unused Anthropic cloud SDK dependencies and verify OAuth-backed Tau services that are intentionally retained.
+
+**Verification so far:** Production build succeeds; focused provider routing tests pass. The standalone provider-name test remains blocked under Bun by the missing `src/entrypoints/sdk/runtimeTypes.js` module. A Node regression test covers provider-picker exclusion and the client rejection guard.
+
 ## Clean-checkout verification and footprint
 
 Measured on clean worktrees using `npm ci`, `npm run build`, `du -sk node_modules`, and exact byte counts for `dist/tau.mjs`. Baseline is pre-removal commit `98c0255`; final is `50f48f9`.

@@ -6,6 +6,7 @@ import { createSignal } from '../signal.js'
 import {
   API_PROVIDERS,
   SELECTABLE_PROVIDERS,
+  REMOVED_CLAUDE_INFERENCE_PROVIDERS,
   type APIProvider,
 } from './providerRegistry.js'
 
@@ -39,13 +40,14 @@ let _sessionActiveProvider: APIProvider | null = null
 function _resolveAPIProvider(): APIProvider {
   // 1. Check persistent config first (set by /provider command)
   const configured = getGlobalConfig().activeProvider
-  if (configured && VALID_PROVIDERS.includes(configured as APIProvider)) {
+  if (
+    configured &&
+    VALID_PROVIDERS.includes(configured as APIProvider) &&
+    !REMOVED_CLAUDE_INFERENCE_PROVIDERS.includes(configured as APIProvider)
+  ) {
     return configured as APIProvider
   }
   // 2. Fall back to environment variables
-  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK))    return 'bedrock'
-  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX))     return 'vertex'
-  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_FOUNDRY))    return 'foundry'
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI))     return 'openai'
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI))     return 'gemini'
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENROUTER)) return 'openrouter'
@@ -87,7 +89,7 @@ function _resolveAPIProvider(): APIProvider {
     return 'opencode'
   }
 
-  return 'firstParty'
+  return 'openai'
 }
 
 export function getAPIProvider(): APIProvider {

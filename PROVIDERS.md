@@ -4,7 +4,6 @@ Tau ships **28 native provider adapters**. Each speaks the provider's API direct
 
 | Provider | Notes |
 |---|---|
-| Anthropic | No comment |
 | OpenAI | Best in class |
 | Antigravity | Saving lives from agent server overload errors |
 | OpenRouter | Would use this full-time if the bills didn't care |
@@ -33,6 +32,8 @@ Tau ships **28 native provider adapters**. Each speaks the provider's API direct
 | Fireworks AI | Open-model inference on Fireworks' OpenAI-compatible API (`api.fireworks.ai`), with account usage checks |
 | Cloudflare Workers AI | Cloudflare's hosted open models, authenticated with your account ID and API token |
 | Cline Pass | Cline's subscription pass, kept separate from the pay-as-you-go Cline row above |
+
+Anthropic direct inference and the Claude-specific Bedrock, Vertex AI, and Foundry routes are not supported. Old saved selections for those providers are ignored; Tau defaults to OpenAI unless another provider is selected.
 
 ## LM Studio note
 

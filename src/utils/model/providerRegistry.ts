@@ -13,8 +13,12 @@ export const API_PROVIDERS = [
 
 export type APIProvider = (typeof API_PROVIDERS)[number]
 
+export const REMOVED_CLAUDE_INFERENCE_PROVIDERS: readonly APIProvider[] = [
+  'firstParty', 'bedrock', 'vertex', 'foundry',
+]
+
 /** Providers available for user selection in /provider and /login. */
 export const SELECTABLE_PROVIDERS: readonly APIProvider[] = [
-  'firstParty', 'openai', 'commandcode', 'antigravity', 'openrouter', 'agentrouter', 'vercel', 'requesty', 'opencode', 'opencodego', 'lxd', 'mimo', 'fireworks', 'cloudflare', 'mistral', 'nim', 'deepseek', 'glm', 'moonshot', 'minimax', 'alibaba', 'ollama', 'lmstudio',
+  'openai', 'commandcode', 'antigravity', 'openrouter', 'agentrouter', 'vercel', 'requesty', 'opencode', 'opencodego', 'lxd', 'mimo', 'fireworks', 'cloudflare', 'mistral', 'nim', 'deepseek', 'glm', 'moonshot', 'minimax', 'alibaba', 'ollama', 'lmstudio',
   'cline', 'clinepass', 'copilot', 'kilocode', 'kiro',
 ]

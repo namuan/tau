@@ -16,13 +16,9 @@ import { isAbsolute, join, resolve } from 'path'
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8'))
 const bundledRuntimePackages = new Set(['e2b', 'google-auth-library'])
 const optionalExternalPackages = new Set([
-  '@anthropic-ai/bedrock-sdk',
-  '@anthropic-ai/foundry-sdk',
   '@anthropic-ai/mcpb',
-  '@anthropic-ai/vertex-sdk',
   '@aws-sdk/client-bedrock',
   '@aws-sdk/client-sts',
-  '@azure/identity',
   '@opentelemetry/exporter-logs-otlp-grpc',
   '@opentelemetry/exporter-logs-otlp-http',
   '@opentelemetry/exporter-logs-otlp-proto',

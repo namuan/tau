@@ -16,10 +16,6 @@ import {
   setActiveProvider,
 } from '../utils/model/providers.js'
 import { hasAnyThirdPartyProviderConfigured } from '../services/api/auth/api_key_manager.js'
-import {
-  getClaudeAIOAuthTokens,
-  hasAnthropicApiKeyAuth,
-} from '../utils/auth.js'
 
 type Props = {
   onDone: () => void
@@ -35,21 +31,16 @@ type PickerState =
  * so the user never sees a "no provider" error at the first prompt.
  */
 export function hasAnyAuthConfigured(): boolean {
-  if (hasAnyThirdPartyProviderConfigured()) return true
-  if (hasAnthropicApiKeyAuth()) return true
-  if (getClaudeAIOAuthTokens()?.accessToken) return true
-  return false
+  return hasAnyThirdPartyProviderConfigured()
 }
 
 /**
  * A short list of providers surfaced on the first-run screen. Ordered by
- * ease-of-setup for non-technical users: Anthropic first (subscription +
- * OAuth), then OpenAI/Gemini (OAuth or key), then Ollama (local, zero-
- * config if installed), then "See all providers" which falls through to
- * the full /provider picker.
+ * ease-of-setup for non-technical users: OpenAI/Gemini (OAuth or key), then
+ * Ollama (local, zero-config if installed), then "See all providers" which
+ * falls through to the full /provider picker.
  */
 const FEATURED_PROVIDERS: APIProvider[] = [
-  'firstParty',
   'openai',
   'gemini',
   'ollama',

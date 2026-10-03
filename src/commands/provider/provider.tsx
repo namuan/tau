@@ -67,9 +67,6 @@ import {
 /**
  * Providers the user can connect via /provider.
  *
- * Anthropic (firstParty) delegates to /login so the OAuth choices stay
- * Tau-compatible.
- *
  * Excluded on purpose:
  *   - bedrock/vertex/foundry  → env/IAM-based, no credentials to manage here
  *
@@ -84,11 +81,6 @@ import {
 // CLI shutdown announcement on April 17, 2026. `modelrouter` is also hidden
 // from /provider while its auth/routing code stays wired for compatibility.
 const MANAGEABLE_PROVIDERS = [
-  // Anthropic surfaces here alongside the third-party providers. The
-  // configure view hands Anthropic off to the shared /login OAuth flow
-  // (subscription / console / 3rd-party platform) instead of a deactivate
-  // prompt, so the credentials path stays Tau-compatible.
-  'firstParty',
   'openai',
   'commandcode',
   'antigravity',
