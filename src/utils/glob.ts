@@ -14,7 +14,6 @@ import { isEnvTruthy } from './envUtils.js'
 import { getFileReadIgnorePatterns } from './permissions/filesystem.js'
 import { readDenyExclusionGlobs } from './permissions/readDenyGlobs.js'
 import { getPlatform } from './platform.js'
-import { getGlobExclusionsForPluginCache } from './plugins/orphanedPluginFilter.js'
 import { getRipgrepMajorVersion, ripGrep } from './ripgrep.js'
 import {
   fileNameFilterArgs,
@@ -269,9 +268,9 @@ export async function glob(
   const hidden = isEnvTruthy(process.env.CLAUDE_CODE_GLOB_HIDDEN || 'true')
   const base = ['--files', ...(hidden ? ['--hidden'] : [])]
 
-  // VCS metadata, read-deny rules and orphaned plugin versions. They follow
-  // the pattern's own --glob because the last matching glob wins, and they
-  // apply to the count too, so nothing they hide is reported as ignored.
+  // VCS metadata and read-deny rules follow the pattern's own --glob because
+  // the last matching glob wins, and apply to the count too so hidden paths
+  // are not reported as ignored.
   const exclusions = vcsExclusionArgs()
   for (const glob of readDenyExclusionGlobs(
     getFileReadIgnorePatterns(toolPermissionContext),
@@ -279,10 +278,6 @@ export async function glob(
   )) {
     exclusions.push('--glob', glob)
   }
-  for (const exclusion of await getGlobExclusionsForPluginCache(searchDir)) {
-    exclusions.push('--glob', exclusion)
-  }
-
   // Every match, ignored or not.
   const everyMatch = [
     ...base,

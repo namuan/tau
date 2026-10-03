@@ -14,8 +14,7 @@ export type AgentMemoryScope = 'user' | 'project' | 'local'
 
 /**
  * Sanitize an agent type name for use as a directory name.
- * Replaces colons (invalid on Windows, used in plugin-namespaced agent
- * types like "my-plugin:my-agent") with dashes.
+ * Replaces colons, which are invalid in Windows directory names, with dashes.
  */
 function sanitizeAgentTypeForPath(agentType: string): string {
   return agentType.replace(/:/g, '-')

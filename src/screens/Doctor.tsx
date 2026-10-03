@@ -18,7 +18,6 @@ import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeyb
 import { Box, Text } from '../ink.js';
 import { useKeybindings } from '../keybindings/useKeybinding.js';
 import { useAppState } from '../state/AppState.js';
-import { getPluginErrorMessage } from '../types/plugin.js';
 import { getGcsDistTags, getNpmDistTags, type NpmDistTags } from '../utils/autoUpdater.js';
 import { type ContextWarnings, checkContextWarnings } from '../utils/doctorContextWarnings.js';
 import { type DiagnosticInfo, getDoctorDiagnostic } from '../utils/doctorDiagnostic.js';
@@ -37,7 +36,7 @@ type Props = {
 type AgentInfo = {
   activeAgents: Array<{
     agentType: string;
-    source: SettingSource | 'built-in' | 'plugin';
+    source: SettingSource | 'built-in';
   }>;
   userAgentsDir: string;
   projectAgentsDir: string;
@@ -105,7 +104,6 @@ export function Doctor(t0) {
   const agentDefinitions = useAppState(_temp);
   const mcpTools = useAppState(_temp2);
   const toolPermissionContext = useAppState(_temp3);
-  const pluginsErrors = useAppState(_temp4);
   useExitOnCtrlCDWithKeybindings();
   let t1;
   if ($[0] !== mcpTools) {
@@ -453,14 +451,6 @@ export function Doctor(t0) {
   } else {
     t36 = $[68];
   }
-  let t37;
-  if ($[69] !== pluginsErrors) {
-    t37 = pluginsErrors.length > 0 && <Box flexDirection="column"><Text bold={true} color="error">Plugin Errors</Text><Text color="error">└ {pluginsErrors.length} plugin error(s) detected:</Text>{pluginsErrors.map(_temp14)}</Box>;
-    $[69] = pluginsErrors;
-    $[70] = t37;
-  } else {
-    t37 = $[70];
-  }
   let t38;
   if ($[71] !== contextWarnings) {
     t38 = contextWarnings?.unreachableRulesWarning && <Box flexDirection="column"><Text bold={true} color="warning">Unreachable Permission Rules</Text><Text>└{" "}<Text color="warning">{figures.warning}{" "}{contextWarnings.unreachableRulesWarning.message}</Text></Text>{contextWarnings.unreachableRulesWarning.details.map(_temp15)}</Box>;
@@ -485,13 +475,12 @@ export function Doctor(t0) {
     t40 = $[75];
   }
   let t41;
-  if ($[76] !== t23 || $[77] !== t30 || $[78] !== t35 || $[79] !== t36 || $[80] !== t37 || $[81] !== t38 || $[82] !== t39) {
-    t41 = <Pane>{t23}{t30}{t31}{t32}{t33}{t34}{t35}{t36}{t37}{t38}{t39}{t40}</Pane>;
+  if ($[76] !== t23 || $[77] !== t30 || $[78] !== t35 || $[79] !== t36 || $[81] !== t38 || $[82] !== t39) {
+    t41 = <Pane>{t23}{t30}{t31}{t32}{t33}{t34}{t35}{t36}{t38}{t39}{t40}</Pane>;
     $[76] = t23;
     $[77] = t30;
     $[78] = t35;
     $[79] = t36;
-    $[80] = t37;
     $[81] = t38;
     $[82] = t39;
     $[83] = t41;
@@ -511,9 +500,6 @@ function _temp16(detail_0, i_6) {
 }
 function _temp15(detail, i_5) {
   return <Text key={i_5} dimColor={true}>{"  "}└ {detail}</Text>;
-}
-function _temp14(error_0, i_4) {
-  return <Text key={i_4} dimColor={true}>{"  "}└ {error_0.source || "unknown"}{"plugin" in error_0 && error_0.plugin ? ` [${error_0.plugin}]` : ""}:{" "}{getPluginErrorMessage(error_0)}</Text>;
 }
 function _temp13(file, i_3) {
   return <Text key={i_3} dimColor={true}>{"  "}└ {file.path}: {file.error}</Text>;
@@ -559,9 +545,6 @@ function _temp5() {
     latest: null,
     stable: null
   };
-}
-function _temp4(s_2) {
-  return s_2.plugins.errors;
 }
 function _temp3(s_1) {
   return s_1.toolPermissionContext;

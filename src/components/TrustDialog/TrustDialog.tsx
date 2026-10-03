@@ -276,7 +276,7 @@ function _temp5(current) {
   };
 }
 function _temp4(command_0) {
-  return command_0.type === "prompt" && (command_0.loadedFrom === "skills" || command_0.loadedFrom === "plugin") && (command_0.source === "projectSettings" || command_0.source === "localSettings" || command_0.source === "plugin") && command_0.allowedTools?.some(_temp3);
+  return command_0.type === "prompt" && command_0.loadedFrom === "skills" && (command_0.source === "projectSettings" || command_0.source === "localSettings") && command_0.allowedTools?.some(_temp3);
 }
 function _temp3(tool_0) {
   return tool_0 === BASH_TOOL_NAME || tool_0.startsWith(BASH_TOOL_NAME + "(");

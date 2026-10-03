@@ -47,10 +47,10 @@ export function isEnvDefinedFalsy(
 }
 
 /**
- * --bare / CLAUDE_CODE_SIMPLE — skip hooks, plugin sync, skill dir-walk,
- * attribution, background prefetches, and ALL keychain/credential reads.
- * Auth is strictly ANTHROPIC_API_KEY env or apiKeyHelper from --settings.
- * Explicit CLI flags (--plugin-dir, --add-dir, --mcp-config) still honored.
+ * --bare / CLAUDE_CODE_SIMPLE — skip hooks, skill dir-walk, attribution,
+ * background prefetches, and ALL keychain/credential reads. Auth is strictly
+ * ANTHROPIC_API_KEY env or apiKeyHelper from --settings. Explicit CLI flags
+ * (--add-dir, --mcp-config) are still honored.
  * ~30 gates across the codebase.
  *
  * Checks argv directly (in addition to the env var) because several gates

@@ -5,11 +5,11 @@ import type { SettingsJson } from './settings/types.js'
  * Power modes control how much machinery the session loads and exposes:
  *
  * - `cheap`: minimal footprint. Every optional prebuilt tool toggle is forced
- *   off, skills/agents/plugins are not loaded (even when present in the
+ *   off, skills and agents are not loaded (even when present in the
  *   project folder), and no MCP server is read or connected. Only the core
  *   file/shell/search/task tools remain.
  * - `normal`: current default behavior. The user's own /tools toggles apply;
- *   MCP/skills/agents/plugins load as configured.
+ *   MCP, skills, and agents load as configured.
  * - `full`: everything on. All optional prebuilt tool toggles are forced on
  *   regardless of saved /tools state; MCP/skills/agents behave as in normal
  *   mode.
@@ -160,7 +160,7 @@ export const POWER_MODE_LABELS: Record<PowerMode, string> = {
 
 export const POWER_MODE_DESCRIPTIONS: Record<PowerMode, string> = {
   cheap:
-    'Core tools only — optional tools, skills, agents, plugins, and MCP are off and hidden from the model (folder configs are ignored; /tools hidden)',
+    'Core tools only — optional tools, skills, agents, and MCP are off and hidden from the model (folder configs are ignored; /tools hidden)',
   normal:
     'Default behavior — your /tools toggles apply; MCP, skills, and agents load as configured',
   full: 'Everything on — all optional tools forced on; /tools hidden (your saved toggles return in normal mode)',

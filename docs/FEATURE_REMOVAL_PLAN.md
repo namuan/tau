@@ -57,19 +57,17 @@ Removed `src/services/lsp`, LSP settings and UI, language-server startup/cleanup
 
 **Verification:** Build succeeds at 17.1 MB; production shrinkwrap and `git diff --check` pass. Focused file-read, file-edit, shell, and grep-ignore tests pass. The larger real-ripgrep `GrepTool.test.ts` suite fails in Bun with an unnamed `AssertionError` before reporting any assertions. The language-server process check found no server processes, and `npm ls --depth=0` confirms direct language-server packages are absent.
 
-## Phase 7: Plugins and marketplaces
+## Phase 7: Plugins and marketplaces — completed
 
-**Likely scope:** `src/plugins`, plugin services and utilities, plugin commands/UI, bundled plugins, marketplace/install/update logic, related schemas/tests/docs, and plugin-only dependencies.
+Removed plugin commands and UI, loading and startup checks, marketplace/install/update logic, bundled plugin contributions, plugin state and telemetry, plugin-only MCP integration, channel notifications/permissions, and plugin-specific keybindings and guidance. User/project skills, ordinary hooks, and generic MCP configuration and transports remain supported. Legacy managed plugin-only customization policy remains fail-closed for backward-compatible security behavior.
 
-**Check before deleting:** Skills, MCP configuration, and ordinary project-local hooks may exist independently of the plugin marketplace. Decide whether user-authored skills/hooks remain supported; do not remove them merely because plugin code can also provide them. This phase precedes MCP removal so plugin-specific behavior is isolated first.
-
-**Verify:** Build; test retained project-local skills/hooks if applicable; confirm plugin commands, marketplace downloads, plugin startup scans, and plugin-specific dependencies are gone.
+**Verification:** Production build, shrinkwrap check, and `git diff --check` pass. Real-ripgrep GrepTool tests pass (45); focused agent tests pass (31), skill tests pass (4), and focused MCP suites pass (43, 1 skipped).
 
 ## Phase 8: MCP
 
 **Likely scope:** `src/services/mcp`, MCP tools/commands/components, MCP server startup and registries, MCP config and persistence, MCP-specific migrations/tests/docs, and `@modelcontextprotocol/sdk` plus other dependencies used only by MCP.
 
-**Check before deleting:** MCP may underpin plugin-provided tools, IDE integrations, external resources, and optional browser/computer integrations. Phases 3, 5, and 7 should already have removed those consumers. Check remaining MCP imports across `src` before removing the shared layer; preserve generic local tools and their command execution.
+**Check before deleting:** MCP may underpin IDE integrations, external resources, and optional browser/computer integrations. Phases 3, 5, and 7 should already have removed those consumers. Check remaining MCP imports across `src` before removing the shared layer; preserve generic local tools and their command execution.
 
 **Verify:** Build; test the retained core agent tools and provider flow; confirm startup makes no MCP discovery/connection attempts and no MCP-only command, server config, package, or UI remains.
 

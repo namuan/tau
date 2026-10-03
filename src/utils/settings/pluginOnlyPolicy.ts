@@ -4,14 +4,12 @@ import type { CUSTOMIZATION_SURFACES } from './types.js'
 export type CustomizationSurface = (typeof CUSTOMIZATION_SURFACES)[number]
 
 /**
- * Check whether a customization surface is locked to plugin-only sources
- * by the managed `strictPluginOnlyCustomization` policy.
+ * Check whether a customization surface is restricted by the legacy managed
+ * `strictPluginOnlyCustomization` policy.
  *
- * "Locked" means user-level (~/.claude/*) and project-level (.claude/*)
- * sources are skipped for that surface. Managed (policySettings) and
- * plugin-provided sources always load regardless — the policy is admin-set,
- * so managed sources are already admin-controlled, and plugins are gated
- * separately via `strictKnownMarketplaces`.
+ * Restricted user-level and project-level sources are skipped. Managed and
+ * built-in sources remain available. The setting is retained for backward
+ * compatibility and preserves its fail-closed behavior.
  *
  * `true` locks all four surfaces; array form locks only those listed.
  * Absent/undefined → nothing locked (the default).
@@ -28,7 +26,6 @@ export function isRestrictedToPluginOnly(
 
 /**
  * Sources that bypass strictPluginOnlyCustomization. Admin-trusted because:
- *   plugin — gated separately by strictKnownMarketplaces
  *   policySettings — from managed settings, admin-controlled by definition
  *   built-in / builtin / bundled — ship with the CLI, not user-authored
  *

@@ -17,7 +17,6 @@ import {
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { readDenyExclusionGlobs } from '../../utils/permissions/readDenyGlobs.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
-import { getGlobExclusionsForPluginCache } from '../../utils/plugins/orphanedPluginFilter.js'
 import { getRipgrepMajorVersion, ripGrep } from '../../utils/ripgrep.js'
 import {
   fileNameFilterArgs,
@@ -439,13 +438,6 @@ export const GrepTool = buildTool({
       absolutePath,
     )) {
       args.push('--glob', denyGlob)
-    }
-
-    // Exclude orphaned plugin version directories
-    for (const exclusion of await getGlobExclusionsForPluginCache(
-      absolutePath,
-    )) {
-      args.push('--glob', exclusion)
     }
 
     // WSL has severe performance penalty for file reads (3-5x slower on WSL2)

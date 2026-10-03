@@ -4,14 +4,13 @@
  * The launch barrier has to answer one question: is startup MCP discovery
  * settled? AppState cannot answer it. A source that is still enumerating has
  * registered no clients yet, so an empty `mcp.clients` is indistinguishable
- * from "no servers configured" — that is exactly the 12:31 case in
- * docs/mcp-tool-loading-investigation.md, where a check for pending clients
- * alone released the wait before the claude.ai connectors were even known.
+ * from "no servers configured" — a check for pending clients alone can
+ * release the wait before asynchronous config discovery has finished.
  *
  * So readiness is tracked here, in a React-independent registry that the hook,
  * print mode and main.tsx all report into, in two parts:
  *
- * - **Sources** (local config, plugin and dynamic/SDK config): each
+ * - **Sources** (local config and dynamic/SDK config): each
  *   is registered as enumerating *before* its fetch starts and settles when it
  *   has finished handing over the servers it found. Registration of a source's
  *   servers and completion of that source are one transition (`settleSource`).

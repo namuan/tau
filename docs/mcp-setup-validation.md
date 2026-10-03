@@ -101,7 +101,7 @@ node test/helpers/derive-mcp-test-build.mjs . tmp/mcp-setup-build
 node tmp/mcp-setup-build/build-derived.mjs
 $env:TAU_MCP_TEST_BUNDLE = (Resolve-Path tmp/mcp-setup-build/tau.mjs).Path
 node test/mcp-setup-launch.test.mjs
-node --test test/mcp-plugin-setup-guidance.test.mjs test/mcp-setup-scopes.test.mjs test/mcp-lifecycle-boundaries.test.mjs test/mcp-discovery.test.mjs
+node --test test/mcp-setup-scopes.test.mjs test/mcp-lifecycle-boundaries.test.mjs test/mcp-discovery.test.mjs
 
 # Optional: real MSYS shell test, if Git for Windows is installed here.
 $env:TAU_MCP_SETUP_BASH = 'C:\Program Files\Git\bin\bash.exe'

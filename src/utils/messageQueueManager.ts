@@ -1,4 +1,3 @@
-import { feature } from 'bun:bundle'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { isHiddenBashInput } from 'src/components/PromptInput/inputModes.js'
 import type { Permutations } from 'src/types/utils.js'
@@ -354,8 +353,7 @@ export function isPromptInputModeEditable(
 /**
  * Whether this queued command can be pulled into the input buffer via UP/ESC.
  * System-generated commands (proactive ticks, scheduled tasks, plan
- * verification, channel messages) contain raw XML and must not leak into
- * the user's input.
+ * verification) contain raw XML and must not leak into the user's input.
  */
 export function isQueuedCommandEditable(cmd: QueuedCommand): boolean {
   return (
@@ -380,15 +378,9 @@ function isQueuedHiddenBashCommand(cmd: QueuedCommand): boolean {
 
 /**
  * Whether this queued command should render in the queue preview under the
- * prompt. Superset of editable — channel messages and `!!cmd` show (so the
- * keyboard user sees what is pending) but stay non-editable.
+ * prompt. Superset of editable — `!!cmd` remains visible but non-editable.
  */
 export function isQueuedCommandVisible(cmd: QueuedCommand): boolean {
-  if (
-    (feature('KAIROS') || feature('KAIROS_CHANNELS')) &&
-    cmd.origin?.kind === 'channel'
-  )
-    return true
   return isQueuedCommandEditable(cmd) || isQueuedHiddenBashCommand(cmd)
 }
 

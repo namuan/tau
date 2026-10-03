@@ -144,7 +144,7 @@ export function shouldDisableToolDeferralForProvider(
   powerMode: PowerMode,
 ): boolean {
   // Cheap mode never defers, on any provider. Its toolset is already the
-  // compact core set — cheap loads no MCP servers, skills, agents, or plugins,
+  // compact core set — cheap loads no MCP servers, skills, or agents,
   // so the whole deferrable surface is a few KB, and paying it up front
   // buys three things deferral cannot: the model always has real parameter
   // schemas (weaker cheap-mode models guess worst), the front-of-request tool

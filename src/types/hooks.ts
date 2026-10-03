@@ -228,7 +228,6 @@ export type HookCallback = {
 export type HookCallbackMatcher = {
   matcher?: string
   hooks: HookCallback[]
-  pluginName?: string
 }
 
 export type HookProgress = {

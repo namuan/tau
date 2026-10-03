@@ -1541,8 +1541,8 @@ export function getDeferredToolsDeltaAttachment(
  * attachments). Returns [] if nothing changed or the gate is off.
  *
  * The agent list was embedded in AgentTool's description, causing ~10.2% of
- * fleet cache_creation: MCP async connect, /reload-plugins, or
- * permission-mode change → description changes → full tool-schema cache bust.
+ * fleet cache_creation: MCP async connect or permission-mode changes alter
+ * the description and cause a full tool-schema cache bust.
  * Moving the list here keeps the tool description static.
  *
  * Exported for compact.ts — re-announces the full set after compaction eats
@@ -2761,7 +2761,7 @@ async function getSkillListingAttachments(
 
   // Resume path: prior process already injected a listing; it's in the
   // transcript. Mark everything current as sent so only post-resume deltas
-  // (skills loaded later via /reload-plugins etc) get announced.
+  // (skills loaded later during the session) get announced.
   if (suppressNext) {
     suppressNext = false
     for (const cmd of allCommands) {

@@ -12,7 +12,7 @@
 
 ## What is Tau?
 
-Tau is an adaptive coding harness that is simple to use. It costs less to run, gives you higher quality output, and lets you follow what the agent is doing with better monitoring and visuals. You don't have to go hunting for tools and plugins, because Tau brings the ecosystem to you: prebuilt integrations that cover most of your use cases, ready from the first run. Getting started is plug and play. Install it, type `/login`, pick a provider, and start working. Tau has native adapters for 28 providers, so it talks to each provider API directly with no proxy in between. The full list is in [PROVIDERS.md](PROVIDERS.md).
+Tau is a lightweight coding assistant with a transparent agent loop, guarded shell execution, file and search tools, and support for 28 provider APIs. Install it, type `/login`, choose a provider, and start working. Tau also supports user- and project-authored skills and hooks. The full provider list is in [PROVIDERS.md](PROVIDERS.md).
 
 ---
 

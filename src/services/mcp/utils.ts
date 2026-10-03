@@ -45,7 +45,7 @@ export function filterToolsByServer(tools: Tool[], serverName: string): Tool[] {
  * True when a command belongs to the given MCP server.
  *
  * MCP **prompts** are named `mcp__<server>__<prompt>` (wire-format constraint);
- * MCP **skills** are named `<server>:<skill>` (matching plugin/nested-dir skill
+ * MCP **skills** are named `<server>:<skill>` (matching namespaced skill
  * naming). Both live in `mcp.commands`, so cleanup and filtering must match
  * either shape.
  */
@@ -149,7 +149,7 @@ export function excludeResourcesByServer(
 }
 
 /**
- * Stable hash of an MCP server config for change detection on /reload-plugins.
+ * Stable hash of an MCP server config for change detection on reconnect.
  * Excludes `scope` (provenance, not content — moving a server from .mcp.json
  * to settings.json shouldn't reconnect it). Keys sorted so `{a:1,b:2}` and
  * `{b:2,a:1}` hash the same.
@@ -171,18 +171,18 @@ export function hashMcpConfig(config: ScopedMcpServerConfig): string {
 /**
  * Remove stale MCP clients and their tools/commands/resources. A client is
  * stale if:
- *   - scope 'dynamic' and name no longer in configs (plugin disabled), or
+ *   - scope 'dynamic' and name no longer in current configs, or
  *   - config hash changed (args/url/env edited in .mcp.json) — any scope
  *
- * The removal case is scoped to 'dynamic' so /reload-plugins can't
- * accidentally disconnect a user-configured server that's just temporarily
- * absent from the in-memory config (e.g. during a partial reload). The
+ * The removal case is scoped to 'dynamic' so a reload can't accidentally
+ * disconnect a user-configured server that's just temporarily absent from the
+ * in-memory config. The
  * config-changed case applies to all scopes — if the config actually changed
  * on disk, reconnecting is what you want.
  *
  * Returns the stale clients so the caller can disconnect them (clearServerCache).
  */
-export function excludeStalePluginClients(
+export function excludeStaleMcpClients(
   mcp: {
     clients: MCPServerConnection[]
     tools: Tool[]

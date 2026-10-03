@@ -19,7 +19,7 @@ Choose the appropriate file based on scope:
 | File | Scope | Git | Use For |
 |------|-------|-----|---------|
 | \`~/.claude/settings.json\` | Global | N/A | Personal preferences for all projects |
-| \`.claude/settings.json\` | Project | Commit | Team-wide hooks, permissions, plugins |
+| \`.claude/settings.json\` | Project | Commit | Team-wide hooks and permissions |
 | \`.claude/settings.local.json\` | Project | Gitignore | Personal overrides for this project |
 
 Settings load in order: user → project → local (later overrides earlier).
@@ -82,16 +82,6 @@ Set \`commit\` or \`pr\` to empty string \`""\` to hide that attribution.
   "disabledMcpjsonServers": ["blocked-server"]
 }
 \`\`\`
-
-### Plugins
-\`\`\`json
-{
-  "enabledPlugins": {
-    "formatter@anthropic-tools": true
-  }
-}
-\`\`\`
-Plugin syntax: \`plugin-name@source\` where source is \`claude-code-marketplace\`, \`claude-plugins-official\`, or \`builtin\`.
 
 ### Other Settings
 - \`language\`: Preferred response language (e.g., "japanese")
@@ -343,7 +333,6 @@ When the user's request is ambiguous, use AskUserQuestion to clarify:
 - Complex permission rules (allow/deny arrays)
 - Environment variables
 - MCP server configuration
-- Plugin configuration
 
 ## Workflow
 

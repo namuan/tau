@@ -116,8 +116,8 @@ export const init = memoize(async (): Promise<void> => {
     // Detect GitHub repository asynchronously (populates cache for gitDiff PR linking)
     void detectCurrentRepository()
 
-    // Initialize the loading promise early so that other systems (like plugin hooks)
-    // can await remote settings loading. The promise includes a timeout to prevent
+    // Initialize the loading promise early so that startup systems can await
+    // remote settings loading. The promise includes a timeout to prevent
     // deadlocks if loadRemoteManagedSettings() is never called (e.g., Agent SDK tests).
     if (isEligibleForRemoteManagedSettings()) {
       initializeRemoteManagedSettingsLoadingPromise()
@@ -220,8 +220,7 @@ export const init = memoize(async (): Promise<void> => {
   } catch (error) {
     if (error instanceof ConfigParseError) {
       // Skip the interactive Ink dialog when we can't safely render it.
-      // The dialog breaks JSON consumers (e.g. desktop marketplace plugin
-      // manager running `plugin marketplace list --json` in a VM sandbox).
+      // The dialog breaks non-interactive JSON consumers.
       if (getIsNonInteractiveSession()) {
         process.stderr.write(
           `Configuration error in ${error.filePath}: ${error.message}\n`,

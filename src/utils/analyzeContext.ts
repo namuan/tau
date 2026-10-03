@@ -197,7 +197,7 @@ export interface SystemPromptSectionDetail {
 
 interface Agent {
   agentType: string
-  source: SettingSource | 'built-in' | 'plugin'
+  source: SettingSource | 'built-in'
   tokens: number
 }
 
@@ -210,7 +210,7 @@ interface SlashCommandInfo {
 /** Individual skill detail for context display */
 interface SkillFrontmatter {
   name: string
-  source: SettingSource | 'plugin'
+  source: SettingSource | 'mcp' | 'bundled'
   tokens: number
 }
 
@@ -640,9 +640,11 @@ async function countSkillTokens(
     // (name, description, whenToUse) since full content is only loaded on invocation
     const skillFrontmatter: SkillFrontmatter[] = skills.map(skill => ({
       name: getCommandName(skill),
-      source: (skill.type === 'prompt' ? skill.source : 'plugin') as
-        | SettingSource
-        | 'plugin',
+      source: (skill.type === 'prompt'
+        ? skill.source
+        : skill.isMcp
+          ? 'mcp'
+          : 'bundled') as SettingSource | 'mcp' | 'bundled',
       tokens: estimateSkillFrontmatterTokens(skill),
     }))
 

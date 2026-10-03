@@ -3,8 +3,6 @@ import memoize from 'lodash-es/memoize.js'
 import { getOutputStyleDirStyles } from '../outputStyles/loadOutputStylesDir.js'
 import type { OutputStyle } from '../utils/config.js'
 import { getCwd } from '../utils/cwd.js'
-import { logForDebugging } from '../utils/debug.js'
-import { loadPluginOutputStyles } from '../utils/plugins/loadPluginOutputStyles.js'
 import type { SettingSource } from '../utils/settings/constants.js'
 import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
 
@@ -12,14 +10,8 @@ export type OutputStyleConfig = {
   name: string
   description: string
   prompt: string
-  source: SettingSource | 'built-in' | 'plugin'
+  source: SettingSource | 'built-in'
   keepCodingInstructions?: boolean
-  /**
-   * If true, this output style will be automatically applied when the plugin is enabled.
-   * Only applicable to plugin output styles.
-   * When multiple plugins have forced output styles, only one is chosen (logged via debug).
-   */
-  forceForPlugin?: boolean
 }
 
 export type OutputStyles = {
@@ -138,8 +130,6 @@ export const getAllOutputStyles = memoize(async function getAllOutputStyles(
   cwd: string,
 ): Promise<{ [styleName: string]: OutputStyleConfig | null }> {
   const customStyles = await getOutputStyleDirStyles(cwd)
-  const pluginStyles = await loadPluginOutputStyles()
-
   // Start with built-in modes
   const allStyles = {
     ...OUTPUT_STYLE_CONFIG,
@@ -155,8 +145,7 @@ export const getAllOutputStyles = memoize(async function getAllOutputStyles(
     style => style.source === 'projectSettings',
   )
 
-  // Add styles in priority order (lowest to highest): built-in, plugin, managed, user, project
-  const styleGroups = [pluginStyles, userStyles, projectStyles, managedStyles]
+  const styleGroups = [userStyles, projectStyles, managedStyles]
 
   for (const styles of styleGroups) {
     for (const style of styles) {
@@ -166,7 +155,6 @@ export const getAllOutputStyles = memoize(async function getAllOutputStyles(
         prompt: style.prompt,
         source: style.source,
         keepCodingInstructions: style.keepCodingInstructions,
-        forceForPlugin: style.forceForPlugin,
       }
     }
   }
@@ -180,28 +168,6 @@ export function clearAllOutputStylesCache(): void {
 
 export async function getOutputStyleConfig(): Promise<OutputStyleConfig | null> {
   const allStyles = await getAllOutputStyles(getCwd())
-
-  // Check for forced plugin output styles
-  const forcedStyles = Object.values(allStyles).filter(
-    (style): style is OutputStyleConfig =>
-      style !== null &&
-      style.source === 'plugin' &&
-      style.forceForPlugin === true,
-  )
-
-  const firstForcedStyle = forcedStyles[0]
-  if (firstForcedStyle) {
-    if (forcedStyles.length > 1) {
-      logForDebugging(
-        `Multiple plugins have forced output styles: ${forcedStyles.map(s => s.name).join(', ')}. Using: ${firstForcedStyle.name}`,
-        { level: 'warn' },
-      )
-    }
-    logForDebugging(
-      `Using forced plugin output style: ${firstForcedStyle.name}`,
-    )
-    return firstForcedStyle
-  }
 
   const settings = getSettings_DEPRECATED()
   const outputStyle = (settings?.outputStyle ||

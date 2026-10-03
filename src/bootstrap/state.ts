@@ -20,24 +20,13 @@ import { randomUUID } from 'src/utils/crypto.js'
 import type { ModelSetting } from 'src/utils/model/model.js'
 import type { ModelStrings } from 'src/utils/model/modelStrings.js'
 import type { SettingSource } from 'src/utils/settings/constants.js'
-import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
-import type { PluginHookMatcher } from 'src/utils/settings/types.js'
 import { createSignal } from 'src/utils/signal.js'
 
-// Union type for registered hooks - can be SDK callbacks or native plugin hooks
-type RegisteredHookMatcher = HookCallbackMatcher | PluginHookMatcher
+type RegisteredHookMatcher = HookCallbackMatcher
 
 import type { SessionId } from 'src/types/ids.js'
 
 // DO NOT ADD MORE STATE HERE - BE JUDICIOUS WITH GLOBAL STATE
-
-// dev: true on entries that came via --dangerously-load-development-channels.
-// The allowlist gate checks this per-entry (not the session-wide
-// hasDevChannels bit) so passing both flags doesn't let the dev dialog's
-// acceptance leak allowlist-bypass to the --channels entries.
-export type ChannelEntry =
-  | { kind: 'plugin'; name: string; marketplace: string; dev?: boolean }
-  | { kind: 'server'; name: string; dev?: boolean }
 
 export type AttributedCounter = {
   add(value: number, additionalAttributes?: Attributes): void
@@ -134,12 +123,8 @@ type State = {
   cachedClaudeMdContent: string | null
   // In-memory error log for recent errors
   inMemoryErrorLog: Array<{ error: string; timestamp: string }>
-  // Session-only plugins from --plugin-dir flag
-  inlinePlugins: Array<string>
   // Explicit --chrome / --no-chrome flag value (undefined = not set on CLI)
   chromeFlagOverride: boolean | undefined
-  // Use cowork_plugins directory instead of plugins (--cowork flag or env var)
-  useCoworkPlugins: boolean
   // Session-only bypass permissions mode flag (not persisted)
   sessionBypassPermissionsMode: boolean
   // Session-only flag gating the .claude/scheduled_tasks.json watcher
@@ -172,7 +157,7 @@ type State = {
   needsAutoModeExitAttachment: boolean
   // SDK init event state - jsonSchema for structured output
   initJsonSchema: Record<string, unknown> | null
-  // Registered hooks - SDK callbacks and plugin native hooks
+  // Registered SDK callback hooks
   registeredHooks: Partial<Record<HookEvent, RegisteredHookMatcher[]>> | null
   // Cache for plan slugs: sessionId -> wordSlug
   planSlugCache: Map<string, string>
@@ -212,16 +197,6 @@ type State = {
   lastEmittedDate: string | null
   // Additional directories from --add-dir flag (for CLAUDE.md loading)
   additionalDirectoriesForClaudeMd: string[]
-  // Channel server allowlist from --channels flag (servers whose channel
-  // notifications should register this session). Parsed once in main.tsx —
-  // the tag decides trust model: 'plugin' → marketplace verification +
-  // allowlist, 'server' → allowlist always fails (schema is plugin-only).
-  // Either kind needs entry.dev to bypass allowlist.
-  allowedChannels: ChannelEntry[]
-  // True if any entry in allowedChannels came from
-  // --dangerously-load-development-channels (so ChannelsNotice can name the
-  // right flag in policy-blocked messages)
-  hasDevChannels: boolean
   // Dir containing the session's `.jsonl`; null = derive from originalCwd.
   sessionProjectDir: string | null
   // Cached prompt cache 1h TTL allowlist from GrowthBook (session-stable)
@@ -357,12 +332,8 @@ function getInitialState(): State {
     cachedClaudeMdContent: null,
     // In-memory error log for recent errors
     inMemoryErrorLog: [],
-    // Session-only plugins from --plugin-dir flag
-    inlinePlugins: [],
     // Explicit --chrome / --no-chrome flag value (undefined = not set on CLI)
     chromeFlagOverride: undefined,
-    // Use cowork_plugins directory instead of plugins
-    useCoworkPlugins: false,
     // Session-only bypass permissions mode flag (not persisted)
     sessionBypassPermissionsMode: false,
     // Scheduled tasks disabled until flag or dialog enables them
@@ -406,9 +377,6 @@ function getInitialState(): State {
     lastEmittedDate: null,
     // Additional directories from --add-dir flag (for CLAUDE.md loading)
     additionalDirectoriesForClaudeMd: [],
-    // Channel server allowlist from --channels flag
-    allowedChannels: [],
-    hasDevChannels: false,
     // Session project dir (null = derive from originalCwd)
     sessionProjectDir: null,
     // Prompt cache 1h allowlist (null = not yet fetched from GrowthBook)
@@ -1285,29 +1253,12 @@ export function preferThirdPartyAuthentication(): boolean {
   return getIsNonInteractiveSession()
 }
 
-export function setInlinePlugins(plugins: Array<string>): void {
-  STATE.inlinePlugins = plugins
-}
-
-export function getInlinePlugins(): Array<string> {
-  return STATE.inlinePlugins
-}
-
 export function setChromeFlagOverride(value: boolean | undefined): void {
   STATE.chromeFlagOverride = value
 }
 
 export function getChromeFlagOverride(): boolean | undefined {
   return STATE.chromeFlagOverride
-}
-
-export function setUseCoworkPlugins(value: boolean): void {
-  STATE.useCoworkPlugins = value
-  resetSettingsCache()
-}
-
-export function getUseCoworkPlugins(): boolean {
-  return STATE.useCoworkPlugins
 }
 
 export function setSessionBypassPermissionsMode(enabled: boolean): void {
@@ -1481,23 +1432,6 @@ export function getRegisteredHooks(): Partial<
 
 export function clearRegisteredHooks(): void {
   STATE.registeredHooks = null
-}
-
-export function clearRegisteredPluginHooks(): void {
-  if (!STATE.registeredHooks) {
-    return
-  }
-
-  const filtered: Partial<Record<HookEvent, RegisteredHookMatcher[]>> = {}
-  for (const [event, matchers] of Object.entries(STATE.registeredHooks)) {
-    // Keep only callback hooks (those without pluginRoot)
-    const callbackHooks = matchers.filter(m => !('pluginRoot' in m))
-    if (callbackHooks.length > 0) {
-      filtered[event as HookEvent] = callbackHooks
-    }
-  }
-
-  STATE.registeredHooks = Object.keys(filtered).length > 0 ? filtered : null
 }
 
 export function resetSdkInitState(): void {
@@ -1715,22 +1649,6 @@ export function setAdditionalDirectoriesForClaudeMd(
   directories: string[],
 ): void {
   STATE.additionalDirectoriesForClaudeMd = directories
-}
-
-export function getAllowedChannels(): ChannelEntry[] {
-  return STATE.allowedChannels
-}
-
-export function setAllowedChannels(entries: ChannelEntry[]): void {
-  STATE.allowedChannels = entries
-}
-
-export function getHasDevChannels(): boolean {
-  return STATE.hasDevChannels
-}
-
-export function setHasDevChannels(value: boolean): void {
-  STATE.hasDevChannels = value
 }
 
 export function getPromptCache1hAllowlist(): string[] | null {

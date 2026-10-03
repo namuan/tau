@@ -6,7 +6,6 @@ import type { AgentMemoryScope } from '../../tools/AgentTool/agentMemory.js'
 import {
   type AgentDefinition,
   isBuiltInAgent,
-  isPluginAgent,
 } from '../../tools/AgentTool/loadAgentsDir.js'
 import { getCwd } from '../../utils/cwd.js'
 import type { EffortValue } from '../../utils/effort.js'
@@ -69,10 +68,6 @@ export function getActualAgentFilePath(agent: AgentDefinition): string {
   if (agent.source === 'built-in') {
     return 'Built-in'
   }
-  if (agent.source === 'plugin') {
-    throw new Error('Cannot get file path for plugin agents')
-  }
-
   const dirPath = getAgentDirectoryPath(agent.source)
   const filename = agent.filename || agent.agentType
   return join(dirPath, `${filename}.md`)
@@ -99,9 +94,6 @@ export function getNewRelativeAgentFilePath(agent: {
 export function getActualRelativeAgentFilePath(agent: AgentDefinition): string {
   if (isBuiltInAgent(agent)) {
     return 'Built-in'
-  }
-  if (isPluginAgent(agent)) {
-    return `Plugin: ${agent.plugin || 'Unknown'}`
   }
   if (agent.source === 'flagSettings') {
     return 'CLI argument'

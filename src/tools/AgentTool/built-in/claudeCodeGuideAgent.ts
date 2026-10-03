@@ -46,7 +46,7 @@ function getClaudeCodeGuideBasePrompt(): string {
   - MCP server configuration
   - Settings files and configuration
   - Keyboard shortcuts and hotkeys
-  - Subagents and plugins
+  - Subagents
   - Sandboxing and security
 
 - **Claude Agent SDK docs** (${CDP_DOCS_MAP_URL}): Fetch this for questions about building agents with the SDK, including:
@@ -155,17 +155,6 @@ export const CLAUDE_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
         .map((client: { name: string }) => `- ${client.name}`)
         .join('\n')
       contextSections.push(`**Configured MCP servers:**\n${mcpList}`)
-    }
-
-    // 4. Plugin commands
-    const pluginCommands = commands.filter(
-      cmd => cmd.type === 'prompt' && cmd.source === 'plugin',
-    )
-    if (pluginCommands.length > 0) {
-      const pluginList = pluginCommands
-        .map(cmd => `- /${cmd.name}: ${cmd.description}`)
-        .join('\n')
-      contextSections.push(`**Available plugin skills:**\n${pluginList}`)
     }
 
     // 5. User settings

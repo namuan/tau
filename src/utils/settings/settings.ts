@@ -6,13 +6,12 @@ import {
   getFlagSettingsInline,
   getFlagSettingsPath,
   getOriginalCwd,
-  getUseCoworkPlugins,
 } from '../../bootstrap/state.js'
 import { getRemoteManagedSettingsSyncFromCache } from '../../services/remoteManagedSettings/syncCacheState.js'
 import { uniq } from '../array.js'
 import { logForDebugging } from '../debug.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
-import { getClaudeConfigHomeDir, isEnvTruthy } from '../envUtils.js'
+import { getClaudeConfigHomeDir } from '../envUtils.js'
 import { getErrnoCode, isENOENT } from '../errors.js'
 import { writeFileSyncAndFlush_DEPRECATED } from '../file.js'
 import { readFileSync } from '../fileRead.js'
@@ -37,7 +36,6 @@ import { getHkcuSettings, getMdmSettings } from './mdm/settings.js'
 import {
   getCachedParsedFile,
   getCachedSettingsForSource,
-  getPluginSettingsBase,
   getSessionSettingsCache,
   resetSettingsCache,
   setCachedParsedFile,
@@ -252,25 +250,6 @@ export function getSettingsRootPathForSource(source: SettingSource): string {
   }
 }
 
-/**
- * Get the user settings filename based on cowork mode.
- * Returns 'cowork_settings.json' when in cowork mode, 'settings.json' otherwise.
- *
- * Priority:
- * 1. Session state (set by CLI flag --cowork)
- * 2. Environment variable CLAUDE_CODE_USE_COWORK_PLUGINS
- * 3. Default: 'settings.json'
- */
-function getUserSettingsFilePath(): string {
-  if (
-    getUseCoworkPlugins() ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_COWORK_PLUGINS)
-  ) {
-    return 'cowork_settings.json'
-  }
-  return 'settings.json'
-}
-
 export function getSettingsFilePathForSource(
   source: SettingSource,
 ): string | undefined {
@@ -278,7 +257,7 @@ export function getSettingsFilePathForSource(
     case 'userSettings':
       return join(
         getSettingsRootPathForSource(source),
-        getUserSettingsFilePath(),
+        'settings.json',
       )
     case 'projectSettings':
     case 'localSettings': {
@@ -409,7 +388,7 @@ export function getPolicySettingsOrigin():
 /**
  * Merges `settings` into the existing settings for `source` using lodash mergeWith.
  *
- * To delete a key from a record field (e.g. enabledPlugins, extraKnownMarketplaces),
+ * To delete a key from a record field,
  * set it to `undefined` — do NOT use `delete`. mergeWith only detects deletion when
  * the key is present with an explicit `undefined` value.
  */
@@ -654,18 +633,7 @@ function loadSettingsFromDisk(): SettingsWithErrors {
 
   isLoadingSettings = true
   try {
-    // Start with plugin settings as the lowest priority base.
-    // All file-based sources (user, project, local, flag, policy) override these.
-    // Plugin settings only contain allowlisted keys (e.g., agent) that are valid SettingsJson fields.
-    const pluginSettings = getPluginSettingsBase()
     let mergedSettings: SettingsJson = {}
-    if (pluginSettings) {
-      mergedSettings = mergeWith(
-        mergedSettings,
-        pluginSettings,
-        settingsMergeCustomizer,
-      )
-    }
     const allErrors: ValidationError[] = []
     const seenErrors = new Set<string>()
     const seenFiles = new Set<string>()

@@ -8,7 +8,7 @@ import { Box, Text } from '../../ink.js';
 import { useKeybinding } from '../../keybindings/useKeybinding.js';
 import type { Tools } from '../../Tool.js';
 import { type AgentColorName, setAgentColor } from '../../tools/AgentTool/agentColorManager.js';
-import { type AgentDefinition, getActiveAgentsFromList, isCustomAgent, isPluginAgent } from '../../tools/AgentTool/loadAgentsDir.js';
+import { type AgentDefinition, getActiveAgentsFromList, isCustomAgent } from '../../tools/AgentTool/loadAgentsDir.js';
 import { editFileInEditor } from '../../utils/promptEditor.js';
 import type { APIProvider } from '../../utils/model/providers.js';
 import { getActualAgentFilePath, updateAgentFile } from './agentFileUtils.js';
@@ -66,9 +66,7 @@ export function AgentEditor({
       return false;
     }
     try {
-      // Only custom/plugin agents can be edited
-      // this is for type safety; the UI shouldn't allow editing otherwise
-      if (!isCustomAgent(agent) && !isPluginAgent(agent)) {
+      if (!isCustomAgent(agent)) {
         return false;
       }
       await updateAgentFile(agent, agent.whenToUse, newTools ?? agent.tools, agent.getSystemPrompt(), finalColor, newModel ?? agent.model, agent.memory, agent.effort, finalProvider);

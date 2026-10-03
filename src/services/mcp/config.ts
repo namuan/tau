@@ -3,8 +3,6 @@ import { chmod, open, rename, stat, unlink } from 'fs/promises'
 import mapValues from 'lodash-es/mapValues.js'
 import memoize from 'lodash-es/memoize.js'
 import { dirname, join, parse } from 'path'
-import type { PluginError } from '../../types/plugin.js'
-import { getPluginErrorMessage } from '../../types/plugin.js'
 import { isClaudeInChromeMCPServer } from '../../utils/claudeInChrome/common.js'
 import {
   getCurrentProjectConfig,
@@ -18,8 +16,6 @@ import { getErrnoCode } from '../../utils/errors.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { logError } from '../../utils/log.js'
-import { getPluginMcpServers } from '../../utils/plugins/mcpPluginIntegration.js'
-import { loadAllPluginsCacheOnly } from '../../utils/plugins/pluginLoader.js'
 import { getPowerModeFromSettings } from '../../utils/powerMode.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { getManagedFilePath } from '../../utils/settings/managedPath.js'
@@ -175,7 +171,7 @@ const CCR_PROXY_PATH_MARKERS = [
 /**
  * If the URL is a CCR proxy URL, extract the original vendor URL from the
  * mcp_url query parameter. Otherwise return the URL unchanged. This lets
- * signature-based dedup match a plugin's raw vendor URL against a connector's
+ * signature-based dedup match a manual server's raw vendor URL against a connector's
  * rewritten proxy URL when both point at the same MCP server.
  */
 export function unwrapCcrProxyUrl(url: string): string {
@@ -194,7 +190,7 @@ export function unwrapCcrProxyUrl(url: string): string {
 /**
  * Compute a dedup signature for an MCP server config.
  * Two configs with the same signature are considered "the same server" for
- * plugin deduplication. Ignores env (plugins always inject CLAUDE_PLUGIN_ROOT)
+ * manual server deduplication. Ignores env (managed configs may expand it)
  * and headers (same URL = same server regardless of auth).
  * Returns null only for configs with neither command nor url (sdk type).
  */
@@ -208,60 +204,6 @@ export function getMcpServerSignature(config: McpServerConfig): string | null {
     return `url:${unwrapCcrProxyUrl(url)}`
   }
   return null
-}
-
-/**
- * Filter plugin MCP servers, dropping any whose signature matches a
- * manually-configured server or an earlier-loaded plugin server.
- * Manual wins over plugin; between plugins, first-loaded wins.
- *
- * Plugin servers are namespaced `plugin:name:server` so they never key-collide
- * with manual servers in the merge — this content-based check catches the case
- * where both actually launch the same underlying process/connection.
- */
-export function dedupPluginMcpServers(
-  pluginServers: Record<string, ScopedMcpServerConfig>,
-  manualServers: Record<string, ScopedMcpServerConfig>,
-): {
-  servers: Record<string, ScopedMcpServerConfig>
-  suppressed: Array<{ name: string; duplicateOf: string }>
-} {
-  // Map signature -> server name so we can report which server a dup matches
-  const manualSigs = new Map<string, string>()
-  for (const [name, config] of Object.entries(manualServers)) {
-    const sig = getMcpServerSignature(config)
-    if (sig && !manualSigs.has(sig)) manualSigs.set(sig, name)
-  }
-
-  const servers: Record<string, ScopedMcpServerConfig> = {}
-  const suppressed: Array<{ name: string; duplicateOf: string }> = []
-  const seenPluginSigs = new Map<string, string>()
-  for (const [name, config] of Object.entries(pluginServers)) {
-    const sig = getMcpServerSignature(config)
-    if (sig === null) {
-      servers[name] = config
-      continue
-    }
-    const manualDup = manualSigs.get(sig)
-    if (manualDup !== undefined) {
-      logForDebugging(
-        `Suppressing plugin MCP server "${name}": duplicates manually-configured "${manualDup}"`,
-      )
-      suppressed.push({ name, duplicateOf: manualDup })
-      continue
-    }
-    const pluginDup = seenPluginSigs.get(sig)
-    if (pluginDup !== undefined) {
-      logForDebugging(
-        `Suppressing plugin MCP server "${name}": duplicates earlier plugin server "${pluginDup}"`,
-      )
-      suppressed.push({ name, duplicateOf: pluginDup })
-      continue
-    }
-    seenPluginSigs.set(sig, name)
-    servers[name] = config
-  }
-  return { servers, suppressed }
 }
 
 /**
@@ -520,7 +462,7 @@ function isMcpServerAllowedByPolicy(
  * network connection for them; tool calls route back to the SDK via
  * mcp_tool_call. URL/command-based allowlist entries are meaningless for them
  * (no url, no command), and gating by name would silently drop them during
- * installPluginsAndApplyMcpInBackground's sdkMcpConfigs carry-forward.
+ * SDK MCP config carry-forward.
  *
  * The generic has no type constraint because the two callsites use different
  * config type families: main.tsx uses ScopedMcpServerConfig (service type,
@@ -1028,8 +970,7 @@ export function getMcpConfigsByScope(
 export function getMcpConfigByName(name: string): ScopedMcpServerConfig | null {
   const { servers: enterpriseServers } = getMcpConfigsByScope('enterprise')
 
-  // When MCP is locked to plugin-only, only enterprise servers are reachable
-  // by name. User/project/local servers are blocked — same as getClaudeCodeMcpConfigs().
+  // Managed policy may restrict MCP to enterprise servers only.
   if (isRestrictedToPluginOnly('mcp')) {
     return enterpriseServers[name] ?? null
   }
@@ -1055,53 +996,30 @@ export function getMcpConfigByName(name: string): ScopedMcpServerConfig | null {
 }
 
 /**
- * Get Tau MCP configurations (excludes claude.ai servers from the
- * returned set — they're fetched separately and merged by callers).
- * This is fast: only local file reads; no awaited network calls on the
- * critical path. The optional extraDedupTargets promise (e.g. the in-flight
- * claude.ai connector fetch) is awaited only after loadAllPluginsCacheOnly() completes,
- * so the two overlap rather than serialize.
- * @returns Tau server configurations with appropriate scopes
+ * Get Tau MCP configurations from user, project, local, and enterprise sources.
  */
-export async function getClaudeCodeMcpConfigs(
-  dynamicServers: Record<string, ScopedMcpServerConfig> = {},
-  extraDedupTargets: Promise<
-    Record<string, ScopedMcpServerConfig>
-  > = Promise.resolve({}),
-): Promise<{
+export async function getClaudeCodeMcpConfigs(): Promise<{
   servers: Record<string, ScopedMcpServerConfig>
-  errors: PluginError[]
+  errors: []
 }> {
-  // Cheap power mode ignores every MCP source (project .mcp.json, user,
-  // plugin, enterprise, CLI --mcp-config): no configs, no connections.
   if (getPowerModeFromSettings(getInitialSettings()) === 'cheap') {
     return { servers: {}, errors: [] }
   }
 
   const { servers: enterpriseServers } = getMcpConfigsByScope('enterprise')
 
-  // If an enterprise mcp config exists, do not use any others; this has exclusive control over all MCP servers
-  // (enterprise customers often do not want their users to be able to add their own MCP servers).
   if (doesEnterpriseMcpConfigExist()) {
-    // Apply policy filtering to enterprise servers
     const filtered: Record<string, ScopedMcpServerConfig> = {}
-
     for (const [name, serverConfig] of Object.entries(enterpriseServers)) {
-      if (!isMcpServerAllowedByPolicy(name, serverConfig)) {
-        continue
+      if (isMcpServerAllowedByPolicy(name, serverConfig)) {
+        filtered[name] = serverConfig
       }
-      filtered[name] = serverConfig
     }
-
     return { servers: filtered, errors: [] }
   }
 
-  // Load other scopes — unless the managed policy locks MCP to plugin-only.
-  // Unlike the enterprise-exclusive block above, this keeps plugin servers.
   const mcpLocked = isRestrictedToPluginOnly('mcp')
-  const noServers: { servers: Record<string, ScopedMcpServerConfig> } = {
-    servers: {},
-  }
+  const noServers = { servers: {} }
   const { servers: userServers } = mcpLocked
     ? noServers
     : getMcpConfigsByScope('user')
@@ -1112,57 +1030,6 @@ export async function getClaudeCodeMcpConfigs(
     ? noServers
     : getMcpConfigsByScope('local')
 
-  // Load plugin MCP servers
-  const pluginMcpServers: Record<string, ScopedMcpServerConfig> = {}
-
-  const pluginResult = await loadAllPluginsCacheOnly()
-
-  // Collect MCP-specific errors during server loading
-  const mcpErrors: PluginError[] = []
-
-  // Log any plugin loading errors - NEVER silently fail in production
-  if (pluginResult.errors.length > 0) {
-    for (const error of pluginResult.errors) {
-      // Only log as MCP error if it's actually MCP-related
-      // Otherwise just log as debug since the plugin might not have MCP servers
-      if (
-        error.type === 'mcp-config-invalid' ||
-        error.type === 'mcpb-download-failed' ||
-        error.type === 'mcpb-extract-failed' ||
-        error.type === 'mcpb-invalid-manifest'
-      ) {
-        const errorMessage = `Plugin MCP loading error - ${error.type}: ${getPluginErrorMessage(error)}`
-        logError(new Error(errorMessage))
-      } else {
-        // Plugin doesn't exist or isn't available - this is common and not necessarily an error
-        // The plugin system will handle installing it if possible
-        const errorType = error.type
-        logForDebugging(
-          `Plugin not available for MCP: ${error.source} - error type: ${errorType}`,
-        )
-      }
-    }
-  }
-
-  // Process enabled plugins for MCP servers in parallel
-  const pluginServerResults = await Promise.all(
-    pluginResult.enabled.map(plugin => getPluginMcpServers(plugin, mcpErrors)),
-  )
-  for (const servers of pluginServerResults) {
-    if (servers) {
-      Object.assign(pluginMcpServers, servers)
-    }
-  }
-
-  // Add any MCP-specific errors from server loading to plugin errors
-  if (mcpErrors.length > 0) {
-    for (const error of mcpErrors) {
-      const errorMessage = `Plugin MCP server error - ${error.type}: ${getPluginErrorMessage(error)}`
-      logError(new Error(errorMessage))
-    }
-  }
-
-  // Filter project servers to only include approved ones
   const approvedProjectServers: Record<string, ScopedMcpServerConfig> = {}
   for (const [name, config] of Object.entries(projectServers)) {
     if (getProjectMcpServerStatus(name) === 'approved') {
@@ -1170,94 +1037,29 @@ export async function getClaudeCodeMcpConfigs(
     }
   }
 
-  // Dedup plugin servers against manually-configured ones (and each other).
-  // Plugin server keys are namespaced `plugin:x:y` so they never collide with
-  // manual keys in the merge below — this content-based filter catches the case
-  // where both would launch the same underlying process/connection.
-  // Only servers that will actually connect are valid dedup targets — a
-  // disabled manual server mustn't suppress a plugin server, or neither runs
-  // (manual is skipped by name at connection time; plugin was removed here).
-  const extraTargets = await extraDedupTargets
-  const enabledManualServers: Record<string, ScopedMcpServerConfig> = {}
-  for (const [name, config] of Object.entries({
-    ...userServers,
-    ...approvedProjectServers,
-    ...localServers,
-    ...dynamicServers,
-    ...extraTargets,
-  })) {
-    if (
-      !isMcpServerDisabled(name) &&
-      isMcpServerAllowedByPolicy(name, config)
-    ) {
-      enabledManualServers[name] = config
-    }
-  }
-  // Split off disabled/policy-blocked plugin servers so they don't win the
-  // first-plugin-wins race against an enabled duplicate — same invariant as
-  // above. They're merged back after dedup so they still appear in /mcp
-  // (policy filtering at the end of this function drops blocked ones).
-  const enabledPluginServers: Record<string, ScopedMcpServerConfig> = {}
-  const disabledPluginServers: Record<string, ScopedMcpServerConfig> = {}
-  for (const [name, config] of Object.entries(pluginMcpServers)) {
-    if (
-      isMcpServerDisabled(name) ||
-      !isMcpServerAllowedByPolicy(name, config)
-    ) {
-      disabledPluginServers[name] = config
-    } else {
-      enabledPluginServers[name] = config
-    }
-  }
-  const { servers: dedupedPluginServers, suppressed } = dedupPluginMcpServers(
-    enabledPluginServers,
-    enabledManualServers,
-  )
-  Object.assign(dedupedPluginServers, disabledPluginServers)
-  // Surface suppressions in /plugin UI. Pushed AFTER the logError loop above
-  // so these don't go to the error log — they're informational, not errors.
-  for (const { name, duplicateOf } of suppressed) {
-    // name is "plugin:${pluginName}:${serverName}" from addPluginScopeToServers
-    const parts = name.split(':')
-    if (parts[0] !== 'plugin' || parts.length < 3) continue
-    mcpErrors.push({
-      type: 'mcp-server-suppressed-duplicate',
-      source: name,
-      plugin: parts[1]!,
-      serverName: parts.slice(2).join(':'),
-      duplicateOf,
-    })
-  }
-
-  // Merge in order of precedence: plugin < user < project < local
   const configs = Object.assign(
     {},
-    dedupedPluginServers,
     userServers,
     approvedProjectServers,
     localServers,
   )
-
-  // Apply policy filtering to merged configs
   const filtered: Record<string, ScopedMcpServerConfig> = {}
-
   for (const [name, serverConfig] of Object.entries(configs)) {
-    if (!isMcpServerAllowedByPolicy(name, serverConfig as McpServerConfig)) {
-      continue
+    if (isMcpServerAllowedByPolicy(name, serverConfig as McpServerConfig)) {
+      filtered[name] = serverConfig as ScopedMcpServerConfig
     }
-    filtered[name] = serverConfig as ScopedMcpServerConfig
   }
 
-  return { servers: filtered, errors: mcpErrors }
+  return { servers: filtered, errors: [] }
 }
 
 /**
- * Get configured MCP servers from user, project, enterprise and plugin scopes.
+ * Get configured MCP servers from user, project, local, and enterprise scopes.
  * Claude.ai account connectors are not imported into Tau.
  */
 export async function getAllMcpConfigs(): Promise<{
   servers: Record<string, ScopedMcpServerConfig>
-  errors: PluginError[]
+  errors: []
 }> {
   return getClaudeCodeMcpConfigs()
 }

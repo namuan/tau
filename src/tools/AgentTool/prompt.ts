@@ -62,7 +62,7 @@ export function formatAgentLine(agent: AgentDefinition): string {
  * description and attachments.ts emits an agent_listing_delta attachment.
  *
  * The dynamic agent list was ~10.2% of fleet cache_creation tokens: MCP async
- * connect, /reload-plugins, or permission-mode changes mutate the list →
+ * connect or permission-mode changes mutate the list →
  * description changes → full tool-schema cache bust.
  *
  * Override with CLAUDE_CODE_AGENT_LIST_IN_MESSAGES=true/false for testing.
@@ -214,7 +214,7 @@ assistant: "I'm going to use the ${AGENT_TOOL_NAME} tool to launch the greeting-
 
   // When the gate is on, the agent list lives in an agent_listing_delta
   // attachment (see attachments.ts) instead of inline here. This keeps the
-  // tool description static across MCP/plugin/permission changes so the
+  // tool description static across MCP/permission changes so the
   // tools-block prompt cache doesn't bust every time an agent loads.
   const listViaAttachment = shouldInjectAgentListInMessages()
 

@@ -286,7 +286,7 @@ export async function setup(
 
   // Background jobs - only critical registrations that must happen before first query
   logForDiagnosticsNoPII('info', 'setup_background_jobs_starting')
-  // Bundled skills/plugins are registered in main.tsx before the parallel
+  // Bundled skills are registered in main.tsx before the parallel
   // getCommands() kick — see comment there. Moved out of setup() because
   // the await points above (startUdsMessaging, ~20ms) meant getCommands()
   // raced ahead and memoized an empty bundledSkills list.
@@ -306,27 +306,9 @@ export async function setup(
   profileCheckpoint('setup_before_prefetch')
   // Pre-fetch promises - only items needed before render
   logForDiagnosticsNoPII('info', 'setup_prefetch_starting')
-  // When CLAUDE_CODE_SYNC_PLUGIN_INSTALL is set, skip all plugin prefetch.
-  // The sync install path in print.ts calls refreshPluginState() after
-  // installing, which reloads commands, hooks, and agents. Prefetching here
-  // races with the install (concurrent copyPluginToVersionedCache / cachePlugin
-  // on the same directories), and the hot-reload handler fires clearPluginCache()
-  // mid-install when policySettings arrives.
-  const skipPluginPrefetch =
-    (getIsNonInteractiveSession() &&
-      isEnvTruthy(process.env.CLAUDE_CODE_SYNC_PLUGIN_INSTALL)) ||
-    // --bare: loadPluginHooks → loadAllPlugins is filesystem work that's
-    // wasted when executeHooks early-returns under --bare anyway.
-    isBareMode()
-  if (!skipPluginPrefetch) {
+  if (!isBareMode()) {
     void getCommands(getProjectRoot())
   }
-  void import('./utils/plugins/loadPluginHooks.js').then(m => {
-    if (!skipPluginPrefetch) {
-      void m.loadPluginHooks() // Pre-load plugin hooks (consumed by processSessionStartHooks before render)
-      m.setupPluginHookHotReload() // Set up hot reload for plugin hooks when settings change
-    }
-  })
   // --bare: skip attribution hook install + repo classification +
   // session-file-access analytics + team memory watcher. These are background
   // bookkeeping for commit attribution + usage metrics — scripted calls don't

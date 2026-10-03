@@ -40,11 +40,11 @@ export function getSettingSourceName(source: SettingSource): string {
 
 /**
  * Get short display name for a setting source (capitalized, for context/skills UI)
- * @param source The setting source or 'plugin'/'built-in'
- * @returns Short capitalized display name like 'User', 'Project', 'Plugin'
+ * @param source The setting source or an internal skill/agent source
+ * @returns Short capitalized display name like 'User', 'Project', or 'Built-in'
  */
 export function getSourceDisplayName(
-  source: SettingSource | 'plugin' | 'built-in',
+  source: SettingSource | 'built-in' | 'mcp' | 'bundled',
 ): string {
   switch (source) {
     case 'userSettings':
@@ -57,10 +57,12 @@ export function getSourceDisplayName(
       return 'Flag'
     case 'policySettings':
       return 'Managed'
-    case 'plugin':
-      return 'Plugin'
     case 'built-in':
       return 'Built-in'
+    case 'mcp':
+      return 'MCP'
+    case 'bundled':
+      return 'Bundled'
   }
 }
 

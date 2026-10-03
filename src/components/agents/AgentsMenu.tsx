@@ -111,16 +111,8 @@ export function AgentsMenu(t0) {
   } else {
     t8 = $[13];
   }
-  let t9;
-  if ($[14] !== allAgents) {
-    t9 = allAgents.filter(_temp0);
-    $[14] = allAgents;
-    $[15] = t9;
-  } else {
-    t9 = $[15];
-  }
   let t10;
-  if ($[16] !== allAgents || $[17] !== t3 || $[18] !== t4 || $[19] !== t5 || $[20] !== t6 || $[21] !== t7 || $[22] !== t8 || $[23] !== t9) {
+  if ($[16] !== allAgents || $[17] !== t3 || $[18] !== t4 || $[19] !== t5 || $[20] !== t6 || $[21] !== t7 || $[22] !== t8) {
     t10 = {
       "built-in": t3,
       userSettings: t4,
@@ -128,7 +120,6 @@ export function AgentsMenu(t0) {
       policySettings: t6,
       localSettings: t7,
       flagSettings: t8,
-      plugin: t9,
       all: allAgents
     };
     $[16] = allAgents;
@@ -138,7 +129,6 @@ export function AgentsMenu(t0) {
     $[20] = t6;
     $[21] = t7;
     $[22] = t8;
-    $[23] = t9;
     $[24] = t10;
   } else {
     t10 = $[24];
@@ -196,7 +186,7 @@ export function AgentsMenu(t0) {
       {
         let t13;
         if ($[28] !== agentsBySource || $[29] !== modeState.source) {
-          t13 = modeState.source === "all" ? [...agentsBySource["built-in"], ...agentsBySource.userSettings, ...agentsBySource.projectSettings, ...agentsBySource.localSettings, ...agentsBySource.policySettings, ...agentsBySource.flagSettings, ...agentsBySource.plugin] : agentsBySource[modeState.source];
+          t13 = modeState.source === "all" ? [...agentsBySource["built-in"], ...agentsBySource.userSettings, ...agentsBySource.projectSettings, ...agentsBySource.localSettings, ...agentsBySource.policySettings, ...agentsBySource.flagSettings] : agentsBySource[modeState.source];
           $[28] = agentsBySource;
           $[29] = modeState.source;
           $[30] = t13;
@@ -325,7 +315,7 @@ export function AgentsMenu(t0) {
         }
         const freshAgent_1 = t13;
         const agentToUse = freshAgent_1 || modeState.agent;
-        const isEditable = agentToUse.source !== "built-in" && agentToUse.source !== "plugin" && agentToUse.source !== "flagSettings";
+        const isEditable = agentToUse.source !== "built-in" && agentToUse.source !== "flagSettings";
         let t14;
         if ($[60] === Symbol.for("react.memo_cache_sentinel")) {
           t14 = {
@@ -766,9 +756,6 @@ export function AgentsMenu(t0) {
         return null;
       }
   }
-}
-function _temp0(a_5) {
-  return a_5.source === "plugin";
 }
 function _temp9(a_4) {
   return a_4.source === "flagSettings";

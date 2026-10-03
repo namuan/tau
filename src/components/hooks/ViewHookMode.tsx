@@ -62,22 +62,13 @@ export function ViewHookMode(t0) {
   } else {
     t5 = $[10];
   }
-  let t6;
-  if ($[11] !== selectedHook.pluginName) {
-    t6 = selectedHook.pluginName && <Text>Plugin: <Text dimColor={true}>{selectedHook.pluginName}</Text></Text>;
-    $[11] = selectedHook.pluginName;
-    $[12] = t6;
-  } else {
-    t6 = $[12];
-  }
   let t7;
-  if ($[13] !== t1 || $[14] !== t2 || $[15] !== t3 || $[16] !== t5 || $[17] !== t6) {
-    t7 = <Box flexDirection="column">{t1}{t2}{t3}{t5}{t6}</Box>;
+  if ($[13] !== t1 || $[14] !== t2 || $[15] !== t3 || $[16] !== t5) {
+    t7 = <Box flexDirection="column">{t1}{t2}{t3}{t5}</Box>;
     $[13] = t1;
     $[14] = t2;
     $[15] = t3;
     $[16] = t5;
-    $[17] = t6;
     $[18] = t7;
   } else {
     t7 = $[18];

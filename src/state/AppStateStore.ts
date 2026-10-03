@@ -1,7 +1,6 @@
 import type { Notification } from 'src/context/notifications.js'
 import type { TodoList } from 'src/utils/todo/types.js'
 import type { Command } from '../commands.js'
-import type { ChannelPermissionCallbacks } from '../services/mcp/channelPermissions.js'
 import type { ElicitationRequestEvent } from '../services/mcp/elicitationHandler.js'
 import type {
   MCPServerConnection,
@@ -19,7 +18,6 @@ import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js
 import type { AllowedPrompt } from '../tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import type { AgentId } from '../types/ids.js'
 import type { Message, UserMessage } from '../types/message.js'
-import type { LoadedPlugin, PluginError } from '../types/plugin.js'
 import type { DeepImmutable } from '../types/utils.js'
 import {
   type AttributionState,
@@ -149,44 +147,6 @@ export type AppState = DeepImmutable<{
     tools: Tool[]
     commands: Command[]
     resources: Record<string, ServerResource[]>
-    /**
-     * Incremented by /reload-plugins to trigger MCP effects to re-run
-     * and pick up newly-enabled plugin MCP servers. Effects read this
-     * as a dependency; the value itself is not consumed.
-     */
-    pluginReconnectKey: number
-  }
-  plugins: {
-    enabled: LoadedPlugin[]
-    disabled: LoadedPlugin[]
-    commands: Command[]
-    /**
-     * Plugin system errors collected during loading and initialization.
-     * See {@link PluginError} type documentation for complete details on error
-     * structure, context fields, and display format.
-     */
-    errors: PluginError[]
-    // Installation status for background plugin/marketplace installation
-    installationStatus: {
-      marketplaces: Array<{
-        name: string
-        status: 'pending' | 'installing' | 'installed' | 'failed'
-        error?: string
-      }>
-      plugins: Array<{
-        id: string
-        name: string
-        status: 'pending' | 'installing' | 'installed' | 'failed'
-        error?: string
-      }>
-    }
-    /**
-     * Set to true when plugin state on disk has changed (background reconcile,
-     * /plugin menu install, external settings edit) and active components are
-     * stale. In interactive mode, user runs /reload-plugins to consume. In
-     * headless mode, refreshPluginState() auto-consumes via refreshActivePlugins().
-     */
-    needsRefresh: boolean
   }
   agentDefinitions: AgentDefinitionsResult
   fileHistory: FileHistoryState
@@ -417,10 +377,6 @@ export type AppState = DeepImmutable<{
   // Remote-harness side: set via set_permission_mode control_request,
   // pushed to CCR external_metadata.is_ultraplan_mode by onChangeAppState.
   isUltraplanMode?: boolean
-  // Channel permission callbacks — permission prompts over Telegram/iMessage/etc.
-  // Races against local UI + bridge + hooks + classifier via claim() in
-  // interactiveHandler.ts. Constructed once in useManageMCPConnections.
-  channelPermissionCallbacks?: ChannelPermissionCallbacks
 }
 
 export type AppStateStore = Store<AppState>
@@ -481,18 +437,6 @@ export function getDefaultAppState(): AppState {
       tools: [],
       commands: [],
       resources: {},
-      pluginReconnectKey: 0,
-    },
-    plugins: {
-      enabled: [],
-      disabled: [],
-      commands: [],
-      errors: [],
-      installationStatus: {
-        marketplaces: [],
-        plugins: [],
-      },
-      needsRefresh: false,
     },
     todos: {},
     remoteAgentTaskSuggestions: [],

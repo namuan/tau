@@ -1,19 +1,7 @@
 import { feature } from 'bun:bundle'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { logForDebugging } from 'src/utils/debug.js'
-import { getAllowedChannels } from '../../../bootstrap/state.js'
 import { getTerminalFocused } from '../../../ink/terminal-focus-state.js'
-import {
-  CHANNEL_PERMISSION_REQUEST_METHOD,
-  type ChannelPermissionRequestParams,
-  findChannelEntry,
-} from '../../../services/mcp/channelNotification.js'
-import type { ChannelPermissionCallbacks } from '../../../services/mcp/channelPermissions.js'
-import {
-  filterPermissionRelayClients,
-  shortRequestId,
-  truncateForPreview,
-} from '../../../services/mcp/channelPermissions.js'
 import { executeAsyncClassifierCheck } from '../../../tools/BashTool/bashPermissions.js'
 import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
 import {
@@ -34,7 +22,6 @@ type InteractivePermissionParams = {
   description: string
   result: PermissionDecision & { behavior: 'ask' }
   awaitAutomatedChecksBeforeDialog: boolean | undefined
-  channelCallbacks?: ChannelPermissionCallbacks
 }
 
 /**
@@ -60,7 +47,6 @@ function handleInteractivePermission(
     description,
     result,
     awaitAutomatedChecksBeforeDialog,
-    channelCallbacks,
   } = params
 
   const { resolve: resolveOnce, isResolved, claim } = createResolveOnce(resolve)
@@ -69,13 +55,6 @@ function handleInteractivePermission(
   // Hoisted so onDismissCheckmark (Esc during checkmark window) can also
   // remove the abort listener — not just the timer callback.
   let checkmarkAbortHandler: (() => void) | undefined
-  // Hoisted so local/hook/classifier wins can remove the pending channel
-  // entry before a stale reply is consumed as normal chat.
-  let channelUnsubscribe: (() => void) | undefined
-  function cleanupChannelPermissionRequest(): void {
-    channelUnsubscribe?.()
-  }
-
   const permissionPromptStartTimeMs = Date.now()
   const displayInput = result.updatedInput ?? ctx.input
 
@@ -132,7 +111,6 @@ function handleInteractivePermission(
     },
     onAbort() {
       if (!claim()) return
-      cleanupChannelPermissionRequest()
       ctx.logCancelled()
       ctx.logDecision(
         { decision: 'reject', source: { type: 'user_abort' } },
@@ -148,8 +126,6 @@ function handleInteractivePermission(
     ) {
       if (!claim()) return // atomic check-and-mark before await
 
-      cleanupChannelPermissionRequest()
-
       resolveOnce(
         await ctx.handleUserAllow(
           updatedInput,
@@ -163,8 +139,6 @@ function handleInteractivePermission(
     },
     onReject(feedback?: string, contentBlocks?: ContentBlockParam[]) {
       if (!claim()) return
-
-      cleanupChannelPermissionRequest()
 
       ctx.logDecision(
         {
@@ -194,117 +168,12 @@ function handleInteractivePermission(
         // a CCR-initiated mode switch, the very case this callback exists
         // for after useReplBridge started calling it).
         if (!claim()) return
-        cleanupChannelPermissionRequest()
         ctx.removeFromQueue()
         ctx.logDecision({ decision: 'accept', source: 'config' })
         resolveOnce(ctx.buildAllow(freshResult.updatedInput ?? ctx.input))
       }
     },
   })
-
-  // Channel permission relay — send a permission prompt to every active
-  // channel (Telegram, iMessage, etc.) via its MCP send_message tool, then
-  // race the reply against local/hook/classifier. The inbound "yes abc123" is intercepted in the notification
-  // handler (useManageMCPConnections.ts) BEFORE enqueue, so it never reaches
-  // Claude as a conversation turn.
-  //
-  // This still guards on `requiresUserInteraction` —
-  // channel replies are pure yes/no with no `updatedInput` path. In practice
-  // the guard is dead code today: all three `requiresUserInteraction` tools
-  // (ExitPlanMode, AskUserQuestion, ReviewArtifact) return `isEnabled()===false`
-  // when channels are configured, so they never reach this handler.
-  //
-  // Fire-and-forget send: if callTool fails (channel down, tool missing),
-  // the subscription never fires and another racer wins. Graceful degradation
-  // — the local dialog is always there as the floor.
-  if (
-    (feature('KAIROS') || feature('KAIROS_CHANNELS')) &&
-    channelCallbacks &&
-    !ctx.tool.requiresUserInteraction?.()
-  ) {
-    const channelRequestId = shortRequestId(ctx.toolUseID)
-    const allowedChannels = getAllowedChannels()
-    const channelClients = filterPermissionRelayClients(
-      ctx.toolUseContext.getAppState().mcp.clients,
-      name => findChannelEntry(name, allowedChannels) !== undefined,
-    )
-
-    if (channelClients.length > 0) {
-      // Outbound is structured too (Kenneth's symmetry ask) — server owns
-      // message formatting for its platform (Telegram markdown, iMessage
-      // rich text, Discord embed). CC sends the RAW parts; server composes.
-      // The old callTool('send_message', {text,content,message}) triple-key
-      // hack is gone — no more guessing which arg name each plugin takes.
-      const params: ChannelPermissionRequestParams = {
-        request_id: channelRequestId,
-        tool_name: ctx.tool.name,
-        description,
-        input_preview: truncateForPreview(displayInput),
-      }
-
-      for (const client of channelClients) {
-        if (client.type !== 'connected') continue // refine for TS
-        void client.client
-          .notification({
-            method: CHANNEL_PERMISSION_REQUEST_METHOD,
-            params,
-          })
-          .catch(e => {
-            logForDebugging(
-              `Channel permission_request failed for ${client.name}: ${errorMessage(e)}`,
-              { level: 'error' },
-            )
-          })
-      }
-
-      const channelSignal = ctx.toolUseContext.abortController.signal
-      // Wrap so BOTH the map delete AND the abort-listener teardown happen
-      // at every call site. cleanupChannelPermissionRequest() sites after local/
-      // hook/classifier wins previously only deleted the map entry — the
-      // dead closure stayed registered on the session-scoped abort signal
-      // until the session ended. Not a functional bug (Map.delete is
-      // idempotent), but it held the closure alive.
-      const mapUnsub = channelCallbacks.onResponse(
-        channelRequestId,
-        response => {
-          if (!claim()) return // Another racer won
-          cleanupChannelPermissionRequest()
-          clearClassifierChecking(ctx.toolUseID)
-          clearClassifierIndicator()
-          ctx.removeFromQueue()
-          if (response.behavior === 'allow') {
-            ctx.logDecision(
-              {
-                decision: 'accept',
-                source: { type: 'user', permanent: false },
-              },
-              { permissionPromptStartTimeMs },
-            )
-            resolveOnce(ctx.buildAllow(displayInput))
-          } else {
-            ctx.logDecision(
-              {
-                decision: 'reject',
-                source: { type: 'user_reject', hasFeedback: false },
-              },
-              { permissionPromptStartTimeMs },
-            )
-            resolveOnce(
-              ctx.cancelAndAbort(`Denied via channel ${response.fromServer}`),
-            )
-          }
-        },
-      )
-      channelUnsubscribe = () => {
-        mapUnsub()
-        channelSignal.removeEventListener('abort', channelUnsubscribe!)
-      }
-
-      channelSignal.addEventListener('abort', channelUnsubscribe, {
-        once: true,
-      })
-    }
-  }
 
   // Skip hooks if they were already awaited in the coordinator branch above
   if (!awaitAutomatedChecksBeforeDialog) {
@@ -320,7 +189,6 @@ function handleInteractivePermission(
         permissionPromptStartTimeMs,
       )
       if (!hookDecision || !claim()) return
-      cleanupChannelPermissionRequest()
       ctx.removeFromQueue()
       resolveOnce(hookDecision)
     })()
@@ -349,7 +217,6 @@ function handleInteractivePermission(
         },
         onAllow: decisionReason => {
           if (!claim()) return
-          cleanupChannelPermissionRequest()
           clearClassifierChecking(ctx.toolUseID)
 
           const matchedRule =

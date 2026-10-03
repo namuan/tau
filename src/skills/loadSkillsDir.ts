@@ -70,7 +70,6 @@ import { registerMCPSkillBuilders } from './mcpSkillBuilders.js'
 export type LoadedFrom =
   | 'commands_DEPRECATED'
   | 'skills'
-  | 'plugin'
   | 'managed'
   | 'bundled'
   | 'mcp'
@@ -79,7 +78,7 @@ export type LoadedFrom =
  * Returns a claude config directory path for a given source.
  */
 export function getSkillsPath(
-  source: SettingSource | 'plugin',
+  source: SettingSource,
   dir: 'skills' | 'commands',
 ): string {
   switch (source) {
@@ -89,8 +88,6 @@ export function getSkillsPath(
       return join(getClaudeConfigHomeDir(), dir)
     case 'projectSettings':
       return `.claude/${dir}`
-    case 'plugin':
-      return 'plugin'
     default:
       return ''
   }
@@ -709,10 +706,6 @@ export const getSkillDirCommands = memoize(
             ),
           )
         : Promise.resolve([]),
-      // Legacy commands-as-skills goes through markdownConfigLoader with
-      // subdir='commands', which our agents-only guard there skips. Block
-      // here when skills are locked — these ARE skills, regardless of the
-      // directory they load from.
       skillsLocked ? Promise.resolve([]) : loadSkillsFromCommandsDir(cwd),
     ])
 
@@ -738,7 +731,7 @@ export const getSkillDirCommands = memoize(
 
     const seenFileIds = new Map<
       string,
-      SettingSource | 'builtin' | 'mcp' | 'plugin' | 'bundled'
+      SettingSource | 'builtin' | 'mcp' | 'bundled'
     >()
     const deduplicatedSkills: Command[] = []
 

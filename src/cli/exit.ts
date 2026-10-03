@@ -2,7 +2,7 @@
  * CLI exit helpers for subcommand handlers.
  *
  * Consolidates the 4-5 line "print + lint-suppress + exit" block that was
- * copy-pasted ~60 times across `tau mcp *` / `tau plugin *` handlers.
+ * copy-pasted across CLI subcommand handlers.
  * The `: never` return type lets TypeScript narrow control flow at call sites
  * without a trailing `return`.
  */

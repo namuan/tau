@@ -28,11 +28,6 @@ import type {
 import { logForDebugging } from 'src/utils/debug.js'
 import type { PermissionDecision } from 'src/utils/permissions/PermissionResult.js'
 import { getRuleByContentsForTool } from 'src/utils/permissions/permissions.js'
-import {
-  isOfficialMarketplaceName,
-  parsePluginIdentifier,
-} from 'src/utils/plugins/pluginIdentifier.js'
-import { buildPluginCommandTelemetryFields } from 'src/utils/telemetry/pluginTelemetry.js'
 import { z } from 'zod/v4'
 import {
   addInvokedSkill,
@@ -134,10 +129,9 @@ async function executeForkedSkill(
   const startTime = Date.now()
   const agentId = createAgentId()
   const isBuiltIn = builtInCommandNames().has(commandName)
-  const isOfficialSkill = isOfficialMarketplaceSkill(command)
   const isBundled = command.source === 'bundled'
   const forkedSanitizedName =
-    isBuiltIn || isBundled || isOfficialSkill ? commandName : 'custom'
+    isBuiltIn || isBundled ? commandName : 'custom'
 
   const wasDiscoveredField =
     feature('EXPERIMENTAL_SKILL_SEARCH') &&
@@ -147,9 +141,6 @@ async function executeForkedSkill(
             context.discoveredSkillNames?.has(commandName) ?? false,
         }
       : {}
-  const pluginMarketplace = command.pluginInfo
-    ? parsePluginIdentifier(command.pluginInfo.repository).marketplace
-    : undefined
   const queryDepth = context.queryTracking?.depth ?? 0
   const parentAgentId = getAgentContext()?.agentId
   logEvent('tengu_skill_tool_invocation', {
@@ -184,24 +175,6 @@ async function executeForkedSkill(
         skill_kind:
           command.kind as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-    }),
-    ...(command.pluginInfo && {
-      // _PROTO_* routes to PII-tagged plugin_name/marketplace_name BQ columns
-      // (unredacted, all users); plugin_name/plugin_repository stay in
-      // additional_metadata as redacted variants.
-      _PROTO_plugin_name: command.pluginInfo.pluginManifest
-        .name as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-      ...(pluginMarketplace && {
-        _PROTO_marketplace_name:
-          pluginMarketplace as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-      }),
-      plugin_name: (isOfficialSkill
-        ? command.pluginInfo.pluginManifest.name
-        : 'third-party') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      plugin_repository: (isOfficialSkill
-        ? command.pluginInfo.repository
-        : 'third-party') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...buildPluginCommandTelemetryFields(command.pluginInfo),
     }),
   })
 
@@ -657,10 +630,8 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
 
     const isBuiltIn = builtInCommandNames().has(commandName)
     const isBundled = command?.type === 'prompt' && command.source === 'bundled'
-    const isOfficialSkill =
-      command?.type === 'prompt' && isOfficialMarketplaceSkill(command)
     const sanitizedCommandName =
-      isBuiltIn || isBundled || isOfficialSkill ? commandName : 'custom'
+      isBuiltIn || isBundled ? commandName : 'custom'
 
     const wasDiscoveredField =
       feature('EXPERIMENTAL_SKILL_SEARCH') &&
@@ -670,10 +641,6 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
               context.discoveredSkillNames?.has(commandName) ?? false,
           }
         : {}
-    const pluginMarketplace =
-      command?.type === 'prompt' && command.pluginInfo
-        ? parsePluginIdentifier(command.pluginInfo.repository).marketplace
-        : undefined
     const queryDepth = context.queryTracking?.depth ?? 0
     const parentAgentId = getAgentContext()?.agentId
     logEvent('tengu_skill_tool_invocation', {
@@ -711,22 +678,6 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
             command.kind as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }),
       }),
-      ...(command?.type === 'prompt' &&
-        command.pluginInfo && {
-          _PROTO_plugin_name: command.pluginInfo.pluginManifest
-            .name as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-          ...(pluginMarketplace && {
-            _PROTO_marketplace_name:
-              pluginMarketplace as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-          }),
-          plugin_name: (isOfficialSkill
-            ? command.pluginInfo.pluginManifest.name
-            : 'third-party') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          plugin_repository: (isOfficialSkill
-            ? command.pluginInfo.repository
-            : 'third-party') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          ...buildPluginCommandTelemetryFields(command.pluginInfo),
-        }),
     })
 
     // Get the tool use ID from the parent message for linking newMessages
@@ -891,7 +842,6 @@ const SAFE_SKILL_PROPERTIES = new Set([
   'model',
   'effort',
   'source',
-  'pluginInfo',
   'disableNonInteractive',
   'skillRoot',
   'context',
@@ -940,15 +890,6 @@ function skillHasOnlySafeProperties(command: Command): boolean {
     return false
   }
   return true
-}
-
-function isOfficialMarketplaceSkill(command: PromptCommand): boolean {
-  if (command.source !== 'plugin' || !command.pluginInfo?.repository) {
-    return false
-  }
-  return isOfficialMarketplaceName(
-    parsePluginIdentifier(command.pluginInfo.repository).marketplace,
-  )
 }
 
 /**

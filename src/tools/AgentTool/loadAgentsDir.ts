@@ -32,10 +32,6 @@ import {
   PERMISSION_MODES,
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
-import {
-  clearPluginAgentCache,
-  loadPluginAgents,
-} from '../../utils/plugins/loadPluginAgents.js'
 import { getPowerModeFromSettings } from '../../utils/powerMode.js'
 import {
   listAPIProviderNames,
@@ -207,19 +203,8 @@ export type CustomAgentDefinition = BaseAgentDefinition & {
   baseDir?: string
 }
 
-// Plugin agents - similar to custom but with plugin metadata, prompt stored via closure
-export type PluginAgentDefinition = BaseAgentDefinition & {
-  getSystemPrompt: () => string
-  source: 'plugin'
-  filename?: string
-  plugin: string
-}
-
 // Union type for all agent types
-export type AgentDefinition =
-  | BuiltInAgentDefinition
-  | CustomAgentDefinition
-  | PluginAgentDefinition
+export type AgentDefinition = BuiltInAgentDefinition | CustomAgentDefinition
 
 // Type guards for runtime type checking
 export function isBuiltInAgent(
@@ -231,13 +216,7 @@ export function isBuiltInAgent(
 export function isCustomAgent(
   agent: AgentDefinition,
 ): agent is CustomAgentDefinition {
-  return agent.source !== 'built-in' && agent.source !== 'plugin'
-}
-
-export function isPluginAgent(
-  agent: AgentDefinition,
-): agent is PluginAgentDefinition {
-  return agent.source === 'plugin'
+  return agent.source !== 'built-in'
 }
 
 export type AgentDefinitionsResult = {
@@ -251,7 +230,6 @@ export function getActiveAgentsFromList(
   allAgents: AgentDefinition[],
 ): AgentDefinition[] {
   const builtInAgents = allAgents.filter(a => a.source === 'built-in')
-  const pluginAgents = allAgents.filter(a => a.source === 'plugin')
   const userAgents = allAgents.filter(a => a.source === 'userSettings')
   const projectAgents = allAgents.filter(a => a.source === 'projectSettings')
   const managedAgents = allAgents.filter(a => a.source === 'policySettings')
@@ -259,7 +237,6 @@ export function getActiveAgentsFromList(
 
   const agentGroups = [
     builtInAgents,
-    pluginAgents,
     userAgents,
     projectAgents,
     flagAgents,
@@ -353,7 +330,7 @@ async function initializeAgentMemorySnapshots(
 export const getAgentDefinitionsWithOverrides = memoize(
   async (cwd: string): Promise<AgentDefinitionsResult> => {
     // Simple mode: skip custom agents, only return built-ins.
-    // Cheap power mode does the same — folder/plugin agents are ignored
+    // Cheap power mode does the same — folder agents are ignored
     // (the Agent tool itself is also removed from the pool in cheap mode).
     if (
       isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE) ||
@@ -403,24 +380,13 @@ export const getAgentDefinitionsWithOverrides = memoize(
         })
         .filter(agent => agent !== null)
 
-      // Kick off plugin agent loading concurrently with memory snapshot init —
-      // loadPluginAgents is memoized and takes no args, so it's independent.
-      // Join both so neither becomes a floating promise if the other throws.
-      let pluginAgentsPromise = loadPluginAgents()
       if (feature('AGENT_MEMORY_SNAPSHOT') && isAutoMemoryEnabled()) {
-        const [pluginAgents_] = await Promise.all([
-          pluginAgentsPromise,
-          initializeAgentMemorySnapshots(customAgents),
-        ])
-        pluginAgentsPromise = Promise.resolve(pluginAgents_)
+        await initializeAgentMemorySnapshots(customAgents)
       }
-      const pluginAgents = await pluginAgentsPromise
 
       const builtInAgents = getBuiltInAgents()
-
       const allAgentsList: AgentDefinition[] = [
         ...builtInAgents,
-        ...pluginAgents,
         ...customAgents,
       ]
 
@@ -456,7 +422,6 @@ export const getAgentDefinitionsWithOverrides = memoize(
 
 export function clearAgentDefinitionsCache(): void {
   getAgentDefinitionsWithOverrides.cache.clear?.()
-  clearPluginAgentCache()
 }
 
 /**

@@ -330,20 +330,7 @@ export function groupHooksByEventAndMatcher(
       for (const matcher of matchers) {
         const matcherKey = matcher.matcher || ''
 
-        // Only PluginHookMatcher has pluginRoot; HookCallbackMatcher (internal
-        // callbacks like attributionHooks, sessionFileAccessHooks) does not.
-        if ('pluginRoot' in matcher) {
-          eventGroup[matcherKey] ??= []
-          for (const hook of matcher.hooks) {
-            eventGroup[matcherKey].push({
-              event: hookEvent,
-              config: hook,
-              matcher: matcher.matcher,
-              source: 'pluginHook',
-              pluginName: matcher.pluginId,
-            })
-          }
-        } else if (process.env.USER_TYPE === 'ant') {
+        if (process.env.USER_TYPE === 'ant') {
           eventGroup[matcherKey] ??= []
           for (const _hook of matcher.hooks) {
             eventGroup[matcherKey].push({

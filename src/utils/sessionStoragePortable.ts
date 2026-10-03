@@ -304,8 +304,8 @@ function simpleHash(str: string): string {
  * For deeply nested paths that would exceed filesystem limits (255 bytes),
  * truncates and appends a hash suffix for uniqueness.
  *
- * @param name - The string to make safe (e.g., '/Users/foo/my-project' or 'plugin:name:server')
- * @returns A safe name (e.g., '-Users-foo-my-project' or 'plugin-name-server')
+ * @param name - The string to make safe (e.g., '/Users/foo/my-project' or 'server:skill')
+ * @returns A safe name (e.g., '-Users-foo-my-project' or 'server-skill')
  */
 export function sanitizePath(name: string): string {
   const sanitized = name.replace(/[^a-zA-Z0-9]/g, '-')

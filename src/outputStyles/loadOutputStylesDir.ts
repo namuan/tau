@@ -1,14 +1,12 @@
 import memoize from 'lodash-es/memoize.js'
 import { basename } from 'path'
 import type { OutputStyleConfig } from '../constants/outputStyles.js'
-import { logForDebugging } from '../utils/debug.js'
 import { coerceDescriptionToString } from '../utils/frontmatterParser.js'
 import { logError } from '../utils/log.js'
 import {
   extractDescriptionFromMarkdown,
   loadMarkdownFilesForSubdir,
 } from '../utils/markdownConfigLoader.js'
-import { clearPluginOutputStyleCache } from '../utils/plugins/loadPluginOutputStyles.js'
 
 /**
  * Loads markdown files from .claude/output-styles directories throughout the project
@@ -61,14 +59,6 @@ export const getOutputStyleDirStyles = memoize(
                   ? false
                   : undefined
 
-            // Warn if force-for-plugin is set on non-plugin output style
-            if (frontmatter['force-for-plugin'] !== undefined) {
-              logForDebugging(
-                `Output style "${name}" has force-for-plugin set, but this option only applies to plugin output styles. Ignoring.`,
-                { level: 'warn' },
-              )
-            }
-
             return {
               name,
               description,
@@ -94,5 +84,4 @@ export const getOutputStyleDirStyles = memoize(
 export function clearOutputStyleCaches(): void {
   getOutputStyleDirStyles.cache?.clear?.()
   loadMarkdownFilesForSubdir.cache?.clear?.()
-  clearPluginOutputStyleCache()
 }

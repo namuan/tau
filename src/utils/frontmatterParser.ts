@@ -299,12 +299,10 @@ export function parsePositiveIntFromFrontmatter(
  *
  * @param value - The raw frontmatter description value
  * @param componentName - The skill/command/agent/style name for log messages
- * @param pluginName - The plugin name, if this came from a plugin
  */
 export function coerceDescriptionToString(
   value: unknown,
   componentName?: string,
-  pluginName?: string,
 ): string | null {
   if (value == null) {
     return null
@@ -316,12 +314,10 @@ export function coerceDescriptionToString(
     return String(value)
   }
   // Non-scalar descriptions (arrays, objects) are invalid — log and omit
-  const source = pluginName
-    ? `${pluginName}:${componentName}`
-    : (componentName ?? 'unknown')
-  logForDebugging(`Description invalid for ${source} - omitting`, {
-    level: 'warn',
-  })
+  logForDebugging(
+    `Description invalid for ${componentName ?? 'unknown'} - omitting`,
+    { level: 'warn' },
+  )
   return null
 }
 

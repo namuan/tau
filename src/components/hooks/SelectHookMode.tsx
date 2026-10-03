@@ -103,7 +103,7 @@ function _temp2(hook, index) {
   return {
     label: `[${hook.config.type}] ${getHookDisplayText(hook.config)}`,
     value: index.toString(),
-    description: hook.source === "pluginHook" && hook.pluginName ? `${hookSourceHeaderDisplayString(hook.source)} (${hook.pluginName})` : hookSourceHeaderDisplayString(hook.source)
+    description: hookSourceHeaderDisplayString(hook.source)
   };
 }
 function _temp() {

@@ -15,7 +15,6 @@ import { getSessionHooks } from './sessionHooks.js'
 export type HookSource =
   | EditableSettingSource
   | 'policySettings'
-  | 'pluginHook'
   | 'sessionHook'
   | 'builtinHook'
 
@@ -24,7 +23,6 @@ export interface IndividualHookConfig {
   config: HookCommand
   matcher?: string
   source: HookSource
-  pluginName?: string
 }
 
 /**
@@ -175,11 +173,6 @@ export function hookSourceDescriptionDisplayString(source: HookSource): string {
       return 'Project settings (.claude/settings.json)'
     case 'localSettings':
       return 'Local settings (.claude/settings.local.json)'
-    case 'pluginHook':
-      // TODO: Get the actual plugin hook file paths instead of using glob pattern
-      // We should capture the specific plugin paths during hook registration and display them here
-      // e.g., "Plugin hooks (~/.claude/plugins/repos/source/example-plugin/example-plugin/hooks/hooks.json)"
-      return 'Plugin hooks (~/.claude/plugins/*/hooks/hooks.json)'
     case 'sessionHook':
       return 'Session hooks (in-memory, temporary)'
     case 'builtinHook':
@@ -197,8 +190,6 @@ export function hookSourceHeaderDisplayString(source: HookSource): string {
       return 'Project Settings'
     case 'localSettings':
       return 'Local Settings'
-    case 'pluginHook':
-      return 'Plugin Hooks'
     case 'sessionHook':
       return 'Session Hooks'
     case 'builtinHook':
@@ -216,8 +207,6 @@ export function hookSourceInlineDisplayString(source: HookSource): string {
       return 'Project'
     case 'localSettings':
       return 'Local'
-    case 'pluginHook':
-      return 'Plugin'
     case 'sessionHook':
       return 'Session'
     case 'builtinHook':
@@ -252,9 +241,8 @@ export function sortMatchersByPriority(
     const bSources = Array.from(new Set(bHooks.map(h => h.source)))
 
     // Sort by highest priority source first (lowest priority number)
-    // Plugin hooks get lowest priority (highest number)
     const getSourcePriority = (source: HookSource) =>
-      source === 'pluginHook' || source === 'builtinHook'
+      source === 'builtinHook'
         ? 999
         : sourcePriority[source as EditableSettingSource]
 

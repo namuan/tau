@@ -30,7 +30,7 @@ This document groups Tau's source tree by purpose to support a gradual move towa
 | Paths | Responsibility | Cleanup priority |
 |---|---|---|
 | `src/services/mcp`, MCP tools and commands | Model Context Protocol clients, servers, and configuration | Optional if external MCP integrations are not a product requirement. |
-| `src/skills`, `src/plugins`, plugin services and commands | Skills, plugin loading, marketplaces, and lifecycle management | Optional; remove as a coherent feature rather than deleting individual modules. |
+| `src/skills`, plugin services and commands | User/project skills remain supported; plugin loading, marketplaces, and lifecycle management were removed in Phase 7. | Skills are retained independently of the marketplace.
 | `src/acp`, IDE-specific commands, UI, MCP transports, and editor bridges | ACP and IDE-specific integrations | Removed in Phase 5; generic MCP, provider APIs, and external editor support remain. |
 | `src/upstreamproxy` | Provider proxy modes | Retain with provider/API traffic. |
 | `src/remote` | Tau Web session APIs, resume, and remote model/provider traffic | Retain; this is separate from remote control of a local Tau session. |
@@ -72,7 +72,7 @@ A lightweight terminal coding agent could retain:
 - File read, write, edit, and basic file/content search
 - Essential Git support and build/test execution
 
-Remaining removal candidates, if out of scope, are browser/computer use, plugins/marketplaces, MCP, and specialized commands/tools.
+Remaining removal candidates, if out of scope, are browser/computer use, MCP, and specialized commands/tools.
 
 ## Cleanup approach
 

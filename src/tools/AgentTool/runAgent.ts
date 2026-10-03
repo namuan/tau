@@ -32,7 +32,6 @@ import type {
 } from '../../services/mcp/types.js'
 import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
-import type { Command } from '../../types/command.js'
 import type { AgentId } from '../../types/ids.js'
 import type {
   AssistantMessage,
@@ -174,15 +173,12 @@ async function initializeAgentMcpServers(
     }
   }
 
-  // When MCP is locked to plugin-only, skip frontmatter MCP servers for
-  // USER-CONTROLLED agents only. Plugin, built-in, and policySettings agents
-  // are admin-trusted — their frontmatter MCP is part of the admin-approved
-  // surface. Blocking them (as the first cut did) breaks plugin agents that
-  // legitimately need MCP, contradicting "plugin-provided always loads."
+  // The legacy managed customization policy limits MCP server additions to
+  // trusted sources. User-authored agents cannot bypass that restriction.
   const agentIsAdminTrusted = isSourceAdminTrusted(agentDefinition.source)
   if (isRestrictedToPluginOnly('mcp') && !agentIsAdminTrusted) {
     logForDebugging(
-      `[Agent: ${agentDefinition.agentType}] Skipping MCP servers: strictPluginOnlyCustomization locks MCP to plugin-only (agent source: ${agentDefinition.source})`,
+      `[Agent: ${agentDefinition.agentType}] Skipping MCP servers: strictPluginOnlyCustomization restricts MCP to trusted sources (agent source: ${agentDefinition.source})`,
     )
     return {
       clients: parentClients,
@@ -673,7 +669,7 @@ async function* runAgentWithoutProviderOverride({
   // (skills/agents not locked), user agents still load — block their
   // frontmatter-hook REGISTRATION here where source is known, rather than
   // blanket-blocking all session hooks at execution time (which would
-  // also kill plugin agents' hooks).
+  // also kill trusted agents' hooks).
   const hooksAllowedForThisAgent =
     !isRestrictedToPluginOnly('hooks') ||
     isSourceAdminTrusted(agentDefinition.source)
@@ -699,15 +695,9 @@ async function* runAgentWithoutProviderOverride({
     }> = []
 
     for (const skillName of skillsToPreload) {
-      // Resolve the skill name, trying multiple strategies:
-      // 1. Exact match (hasCommand checks name, userFacingName, aliases)
-      // 2. Fully-qualified with agent's plugin prefix (e.g., "my-skill" → "plugin:my-skill")
-      // 3. Suffix match on ":skillName" for plugin-namespaced skills
-      const resolvedName = resolveSkillName(
-        skillName,
-        allSkills,
-        agentDefinition,
-      )
+      const resolvedName = hasCommand(skillName, allSkills)
+        ? skillName
+        : null
       if (!resolvedName) {
         logForDebugging(
           `[Agent: ${agentDefinition.agentType}] Warning: Skill '${skillName}' specified in frontmatter was not found`,
@@ -1133,45 +1123,4 @@ async function getAgentSystemPrompt(
       enabledToolNames,
     )
   }
-}
-
-/**
- * Resolve a skill name from agent frontmatter to a registered command name.
- *
- * Plugin skills are registered with namespaced names (e.g., "my-plugin:my-skill")
- * but agents reference them with bare names (e.g., "my-skill"). This function
- * tries multiple resolution strategies:
- *
- * 1. Exact match via hasCommand (name, userFacingName, aliases)
- * 2. Prefix with agent's plugin name (e.g., "my-skill" → "my-plugin:my-skill")
- * 3. Suffix match — find any command whose name ends with ":skillName"
- */
-function resolveSkillName(
-  skillName: string,
-  allSkills: Command[],
-  agentDefinition: AgentDefinition,
-): string | null {
-  // 1. Direct match
-  if (hasCommand(skillName, allSkills)) {
-    return skillName
-  }
-
-  // 2. Try prefixing with the agent's plugin name
-  // Plugin agents have agentType like "pluginName:agentName"
-  const pluginPrefix = agentDefinition.agentType.split(':')[0]
-  if (pluginPrefix) {
-    const qualifiedName = `${pluginPrefix}:${skillName}`
-    if (hasCommand(qualifiedName, allSkills)) {
-      return qualifiedName
-    }
-  }
-
-  // 3. Suffix match — find a skill whose name ends with ":skillName"
-  const suffix = `:${skillName}`
-  const match = allSkills.find(cmd => cmd.name.endsWith(suffix))
-  if (match) {
-    return match.name
-  }
-
-  return null
 }

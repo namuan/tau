@@ -2,13 +2,9 @@ import { getMainThreadAgentType } from '../bootstrap/state.js'
 import type { HookResultMessage } from '../types/message.js'
 import { createAttachmentMessage } from './attachments.js'
 import { logForDebugging } from './debug.js'
-import { withDiagnosticsTiming } from './diagLogs.js'
 import { isBareMode } from './envUtils.js'
 import { updateWatchPaths } from './hooks/fileChangedWatcher.js'
-import { shouldAllowManagedHooksOnly } from './hooks/hooksConfigSnapshot.js'
 import { executeSessionStartHooks, executeSetupHooks } from './hooks.js'
-import { logError } from './log.js'
-import { loadPluginHooks } from './plugins/loadPluginHooks.js'
 
 type SessionStartHooksOptions = {
   sessionId?: string
@@ -41,9 +37,7 @@ export async function processSessionStartHooks(
     forceSyncExecution,
   }: SessionStartHooksOptions = {},
 ): Promise<HookResultMessage[]> {
-  // --bare skips all hooks. executeHooks already early-returns under --bare
-  // (hooks.ts:1861), but this skips the loadPluginHooks() await below too —
-  // no point loading plugin hooks that'll never run.
+  // --bare skips all hooks.
   if (isBareMode()) {
     return []
   }
@@ -51,80 +45,6 @@ export async function processSessionStartHooks(
   const additionalContexts: string[] = []
   const allWatchPaths: string[] = []
 
-  // Skip loading plugin hooks if restricted to managed hooks only
-  // Plugin hooks are untrusted external code that should be blocked by policy
-  if (shouldAllowManagedHooksOnly()) {
-    logForDebugging('Skipping plugin hooks - allowManagedHooksOnly is enabled')
-  } else {
-    // Ensure plugin hooks are loaded before executing SessionStart hooks.
-    // loadPluginHooks() may be called early during startup (fire-and-forget, non-blocking)
-    // to pre-load hooks, but we must guarantee hooks are registered before executing them.
-    // This function is memoized, so if hooks are already loaded, this returns immediately
-    // with negligible overhead (just a cache lookup).
-    try {
-      await withDiagnosticsTiming('load_plugin_hooks', () => loadPluginHooks())
-    } catch (error) {
-      // Log error but don't crash - continue with session start without plugin hooks
-      /* eslint-disable no-restricted-syntax -- both branches wrap with context, not a toError case */
-      const enhancedError =
-        error instanceof Error
-          ? new Error(
-              `Failed to load plugin hooks during ${source}: ${error.message}`,
-            )
-          : new Error(
-              `Failed to load plugin hooks during ${source}: ${String(error)}`,
-            )
-      /* eslint-enable no-restricted-syntax */
-
-      if (error instanceof Error && error.stack) {
-        enhancedError.stack = error.stack
-      }
-
-      logError(enhancedError)
-
-      // Provide specific guidance based on error type
-      const errorMessage =
-        error instanceof Error ? error.message : String(error)
-      let userGuidance = ''
-
-      if (
-        errorMessage.includes('Failed to clone') ||
-        errorMessage.includes('network') ||
-        errorMessage.includes('ETIMEDOUT') ||
-        errorMessage.includes('ENOTFOUND')
-      ) {
-        userGuidance =
-          'This appears to be a network issue. Check your internet connection and try again.'
-      } else if (
-        errorMessage.includes('Permission denied') ||
-        errorMessage.includes('EACCES') ||
-        errorMessage.includes('EPERM')
-      ) {
-        userGuidance =
-          'This appears to be a permissions issue. Check file permissions on ~/.claude/plugins/'
-      } else if (
-        errorMessage.includes('Invalid') ||
-        errorMessage.includes('parse') ||
-        errorMessage.includes('JSON') ||
-        errorMessage.includes('schema')
-      ) {
-        userGuidance =
-          'This appears to be a configuration issue. Check your plugin settings in .claude/settings.json'
-      } else {
-        userGuidance =
-          'Please fix the plugin configuration or remove problematic plugins from your settings.'
-      }
-
-      logForDebugging(
-        `Warning: Failed to load plugin hooks. SessionStart hooks from plugins will not execute. ` +
-          `Error: ${errorMessage}. ${userGuidance}`,
-        { level: 'warn' },
-      )
-
-      // Continue execution - plugin hooks won't be available, but project-level hooks
-      // from .claude/settings.json (loaded via captureHooksConfigSnapshot) will still work
-    }
-  }
 
   // Execute SessionStart hooks, ignoring blocking errors
   // Use the provided agentType or fall back to the one stored in bootstrap state
@@ -184,21 +104,6 @@ export async function processSetupHooks(
   }
   const hookMessages: HookResultMessage[] = []
   const additionalContexts: string[] = []
-
-  if (shouldAllowManagedHooksOnly()) {
-    logForDebugging('Skipping plugin hooks - allowManagedHooksOnly is enabled')
-  } else {
-    try {
-      await loadPluginHooks()
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error)
-      logForDebugging(
-        `Warning: Failed to load plugin hooks. Setup hooks from plugins will not execute. Error: ${errorMessage}`,
-        { level: 'warn' },
-      )
-    }
-  }
 
   for await (const hookResult of executeSetupHooks(
     trigger,

@@ -226,17 +226,13 @@ export function formatCommand(command: string): string {
  * Generates a deterministic unique ID for a command suggestion.
  * Commands with the same name from different sources get unique IDs.
  *
- * Only prompt commands can have duplicates (from user settings, project
- * settings, plugins, etc). Built-in commands (local, local-jsx) are
+ * Only prompt commands can have duplicates (from user settings and project
+ * settings). Built-in commands (local, local-jsx) are
  * defined once in code and can't have duplicates.
  */
 function getCommandId(cmd: Command): string {
   const commandName = getCommandName(cmd)
   if (cmd.type === 'prompt') {
-    // For plugin commands, include the repository to disambiguate
-    if (cmd.source === 'plugin' && cmd.pluginInfo?.repository) {
-      return `${commandName}:${cmd.source}:${cmd.pluginInfo.repository}`
-    }
     return `${commandName}:${cmd.source}`
   }
   // Built-in commands include type as fallback for future-proofing

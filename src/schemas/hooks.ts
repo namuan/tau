@@ -1,11 +1,8 @@
 /**
  * Hook Zod schemas extracted to break import cycles.
  *
- * This file contains hook-related schema definitions that were originally
- * in src/utils/settings/types.ts. By extracting them here, we break the
- * circular dependency between settings/types.ts and plugins/schemas.ts.
- *
- * Both files now import from this shared location instead of each other.
+ * This file contains hook-related schema definitions shared by settings and
+ * runtime hook handling.
  */
 
 import { HOOK_EVENTS, type HookEvent } from 'src/entrypoints/agentSdkTypes.js'

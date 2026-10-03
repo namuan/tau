@@ -5,7 +5,6 @@
 import {
   getChromeFlagOverride,
   getFlagSettingsPath,
-  getInlinePlugins,
   getMainLoopModelOverride,
   getSessionBypassPermissionsMode,
 } from '../../bootstrap/state.js'
@@ -29,8 +28,8 @@ export function getTeammateCommand(): string {
 
 /**
  * Builds CLI flags to propagate from the current session to spawned teammates.
- * This ensures teammates inherit important settings like permission mode,
- * model selection, and plugin configuration from their parent.
+ * This ensures teammates inherit important settings like permission mode
+ * and model selection from their parent.
  *
  * @param options.planModeRequired - If true, don't inherit bypass permissions (plan mode takes precedence)
  * @param options.permissionMode - Permission mode to propagate
@@ -65,12 +64,6 @@ export function buildInheritedCliFlags(options?: {
   const settingsPath = getFlagSettingsPath()
   if (settingsPath) {
     flags.push(`--settings ${quote([settingsPath])}`)
-  }
-
-  // Propagate --plugin-dir for each inline plugin
-  const inlinePlugins = getInlinePlugins()
-  for (const pluginDir of inlinePlugins) {
-    flags.push(`--plugin-dir ${quote([pluginDir])}`)
   }
 
   // Propagate --teammate-mode so tmux teammates use the same mode as leader

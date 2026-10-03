@@ -402,36 +402,6 @@ export const SDKControlMcpSetServersResponseSchema = lazySchema(() =>
     ),
 )
 
-export const SDKControlReloadPluginsRequestSchema = lazySchema(() =>
-  z
-    .object({
-      subtype: z.literal('reload_plugins'),
-    })
-    .describe(
-      'Reloads plugins from disk and returns the refreshed session components.',
-    ),
-)
-
-export const SDKControlReloadPluginsResponseSchema = lazySchema(() =>
-  z
-    .object({
-      commands: z.array(SlashCommandSchema()),
-      agents: z.array(AgentInfoSchema()),
-      plugins: z.array(
-        z.object({
-          name: z.string(),
-          path: z.string(),
-          source: z.string().optional(),
-        }),
-      ),
-      mcpServers: z.array(McpServerStatusSchema()),
-      error_count: z.number(),
-    })
-    .describe(
-      'Refreshed commands, agents, plugins, and MCP server status after reload.',
-    ),
-)
-
 export const SDKControlMcpReconnectRequestSchema = lazySchema(() =>
   z
     .object({
@@ -565,7 +535,6 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlCancelAsyncMessageRequestSchema(),
     SDKControlSeedReadStateRequestSchema(),
     SDKControlMcpSetServersRequestSchema(),
-    SDKControlReloadPluginsRequestSchema(),
     SDKControlMcpReconnectRequestSchema(),
     SDKControlMcpToggleRequestSchema(),
     SDKControlStopTaskRequestSchema(),

@@ -41,7 +41,7 @@ type OnDone = (
 
 const MODE_SUMMARY: Record<PowerMode, string> = {
   cheap:
-    'core tools only — optional tools, skills, agents, plugins, and MCP are off and hidden from the model',
+    'core tools only — optional tools, skills, agents, and MCP are off and hidden from the model',
   normal: 'default behavior — your /tools toggles, MCP, and skills apply',
   full: 'everything on — all optional tools enabled (/tools hidden; saved toggles return in normal mode)',
 }

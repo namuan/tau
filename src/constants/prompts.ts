@@ -422,7 +422,7 @@ function getUsingYourToolsSection(enabledTools: Set<string>): string {
 
 /**
  * Cheap power mode strips the optional prebuilt tools, subagents, skills,
- * plugins, and MCP — but KEEPS a fixed core (CHEAP_MODE_CORE_TOOL_NAME_SET),
+ * and MCP — but KEEPS a fixed core (CHEAP_MODE_CORE_TOOL_NAME_SET),
  * including the specialized-but-core tools models most often second-guess:
  * notebook editing, plan mode, and snapshots. Those reach the model in its
  * tool list exactly like any other tool, but on the native lanes (codex/Gemini)
@@ -441,7 +441,7 @@ function getCheapModeToolsSection(force = false): string | null {
   return [
     `# Power mode: cheap`,
     ...prependBullets([
-      `Only the tools listed in this request exist. Subagents/delegation, skills, plugins, and MCP are off; do not attempt them or ask the user to enable them.`,
+      `Only the tools listed in this request exist. Subagents/delegation, skills, and MCP are off; do not attempt them or ask the user to enable them.`,
       `When their matching tools are listed, core capabilities may include file read/write/edit, notebooks, shell, file/content search, tasks, plan mode, snapshots, web fetch, web search, and running Python in a persistent kernel that can call the other listed tools from inside the code. Provider names may differ; trust the actual list, never invent a missing capability, and never claim a listed one is unavailable.`,
       `Delegation is off, so the kernel is the only way left to keep bulk output out of this conversation. Any question that would otherwise mean reading many files, re-running a command, or parsing a large log belongs in a cell that prints only the answer.`,
     ]),
@@ -485,21 +485,20 @@ function getDiscoverSkillsGuidance(): string | null {
  * in the static intro pending eval.
  */
 /**
- * How MCP servers and plugins are actually installed here.
+ * How MCP servers are actually installed here.
  *
  * Without this, the model reconstructs a procedure from general knowledge and
  * gets it wrong in ways that fail the moment a user acts on them: hand-editing
  * `mcpServers` into settings.json (the wrong file — MCP config lives in
- * .mcp.json and .claude.json, so the edit silently does nothing), claiming
- * plugins are "just MCP servers" with no separate system, and inventing slash
- * commands and package names that do not exist.
+ * .mcp.json and .claude.json, so the edit silently does nothing), and
+ * inventing slash commands and package names that do not exist.
  *
  * Every command named here is real and was checked against the CLI.
  * Keep these rules independent of the current OS, provider, server catalog,
  * credentials and connection results: this section is cached for the session,
  * including sessions that install their first server after the first request.
  */
-function getMcpAndPluginSetupGuidance(): string {
+function getMcpSetupGuidance(): string {
   // Derived from PRODUCT_COMMAND, never spelled out, so renaming the binary
   // cannot leave the model describing a command that no longer exists.
   const cli = PRODUCT_COMMAND
@@ -512,7 +511,6 @@ function getMcpAndPluginSetupGuidance(): string {
     `For a remote server: \`${cli} mcp add --transport http <name> <url> -s <scope>\`, with \`--header\` for documented headers/auth. Use the server's documented transport; pass the URL once. Keep credentials out of shared project files and reports; use supported environment references or the documented auth flow, and redact secrets in displayed command output.`,
     `A successful add only saves configuration. Verify the effective entry from the intended project with \`${cli} mcp get <name>\`, or \`${cli} mcp list\` to check all enabled servers. "Connected" means an MCP initialize handshake succeeded; it does not prove every tool works or that this running session has refreshed its tools. Reconnect through /mcp after edits, inspect discovered tools, and when authorized exercise a harmless read-only tool before claiming end-to-end success. Report separately what was saved, connected, discovered and tested.`,
     `On failure, diagnose the actual error: executable/PATH, argv/quoting, missing environment, working directory, dependency download/startup, network/TLS, authentication or MCP protocol. A cold install may exceed MCP_TIMEOUT; adjust a timeout only with evidence, not by changing a working command. "Needs authentication" requires the documented OAuth flow via /mcp. Do not infer a broken runtime from a static warning, repeatedly reinstall, rewrite other scopes, disable TLS checks or broaden permissions as a workaround.`,
-    `Plugins are a SEPARATE system, not MCP servers: \`${cli} plugin install|list|enable|disable|uninstall <name>@<marketplace>\` and \`${cli} plugin marketplace add|list|remove\`. A plugin can bundle skills, agents, hooks and MCP servers, so it is not reducible to MCP config.`,
     `Never guess a package name, repo, marketplace or slash command. Resolve the identifier and setup contract from the supplied configuration or official documentation; ask the user only if ambiguity remains. Run the real command and report its result with secrets redacted.`,
   ].join(' ')
 }
@@ -557,7 +555,7 @@ function getSessionSpecificGuidanceSection(
   if (getPowerModeFromSettings(getInitialSettings()) === 'cheap') {
     const compactItems = [
       // Setup can be requested even when cheap mode has no connected MCP tools.
-      getMcpAndPluginSetupGuidance(),
+      getMcpSetupGuidance(),
       'Cheap mode does not connect MCP servers. Configuration can be saved here; switch to normal mode to verify connection and tool availability.',
       hasWebSearchTool
         ? `Use ${WEB_SEARCH_TOOL_NAME} automatically for current/changing public information; never claim live access is unavailable when it is listed, and answer from results with source URLs.`
@@ -598,7 +596,7 @@ function getSessionSpecificGuidanceSection(
     hasSkills
       ? `/<skill-name> (e.g., /commit) is shorthand for users to invoke a user-invocable skill. When executed, the skill gets expanded to a full prompt. Use the ${SKILL_TOOL_NAME} tool to execute them. IMPORTANT: Only use ${SKILL_TOOL_NAME} for skills listed in its user-invocable skills section - do not guess or use built-in CLI commands.`
       : null,
-    getMcpAndPluginSetupGuidance(),
+    getMcpSetupGuidance(),
     // Unconditional on purpose. This section is cached per session by name and
     // only rebuilt on /mode or post-compact, so gating it on "are MCP tools
     // present right now" would freeze the answer from the first build: a

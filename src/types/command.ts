@@ -10,7 +10,6 @@ import type { HooksSettings } from '../utils/settings/types.js'
 import type { ThemeName } from '../utils/theme.js'
 import type { LogOption } from './logs.js'
 import type { Message } from './message.js'
-import type { PluginManifest } from './plugin.js'
 
 export type LocalCommandResult =
   | { type: 'text'; value: string }
@@ -28,11 +27,7 @@ export type PromptCommand = {
   argNames?: string[]
   allowedTools?: string[]
   model?: string
-  source: SettingSource | 'builtin' | 'mcp' | 'plugin' | 'bundled'
-  pluginInfo?: {
-    pluginManifest: PluginManifest
-    repository: string
-  }
+  source: SettingSource | 'builtin' | 'mcp' | 'bundled'
   disableNonInteractive?: boolean
   // Hooks to register when this skill is invoked
   hooks?: HooksSettings
@@ -188,14 +183,13 @@ export type CommandBase = {
   loadedFrom?:
     | 'commands_DEPRECATED'
     | 'skills'
-    | 'plugin'
     | 'managed'
     | 'bundled'
     | 'mcp' // Where the command was loaded from
   kind?: 'workflow' // Distinguishes workflow-backed commands (badged in autocomplete)
   immediate?: boolean // If true, command executes immediately without waiting for a stop point (bypasses queue)
   isSensitive?: boolean // If true, args are redacted from the conversation history
-  /** Defaults to `name`. Only override when the displayed name differs (e.g. plugin prefix stripping). */
+  /** Defaults to `name`. Only override when the displayed name differs. */
   userFacingName?: () => string
 }
 

@@ -22,11 +22,6 @@ import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { DEFAULT_HOOK_SHELL } from './shell/shellProvider.js'
 import { buildPowerShellArgs } from './shell/powershellProvider.js'
 import {
-  loadPluginOptions,
-  substituteUserConfigVariables,
-} from './plugins/pluginOptionsStorage.js'
-import { getPluginDataDir } from './plugins/pluginDirectories.js'
-import {
   getSessionId,
   getProjectRoot,
   getIsNonInteractiveSession,
@@ -56,7 +51,6 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
 } from 'src/services/analytics/index.js'
 import { logOTelEvent } from './telemetry/events.js'
-import { ALLOWED_OFFICIAL_MARKETPLACE_NAMES } from './plugins/schemas.js'
 import {
   startHookSpan,
   endHookSpan,
@@ -115,7 +109,6 @@ import chalk from 'chalk'
 import type {
   HookMatcher,
   HookCommand,
-  PluginHookMatcher,
   SkillHookMatcher,
 } from './settings/types.js'
 import { getHookDisplayText } from './hooks/hooksSettings.js'
@@ -190,7 +183,6 @@ function executeInBackground({
   hookName,
   command,
   asyncRewake,
-  pluginId,
 }: {
   processId: string
   hookId: string
@@ -200,7 +192,6 @@ function executeInBackground({
   hookName: string
   command: string
   asyncRewake?: boolean
-  pluginId?: string
 }): boolean {
   if (asyncRewake) {
     // asyncRewake hooks bypass the registry entirely. On completion, if exit
@@ -258,7 +249,6 @@ function executeInBackground({
     hookName,
     command,
     shellCommand,
-    pluginId,
   })
 
   return true
@@ -752,8 +742,6 @@ async function execCommandHook(
   signal: AbortSignal,
   hookId: string,
   hookIndex?: number,
-  pluginRoot?: string,
-  pluginId?: string,
   skillRoot?: string,
   forceSyncExecution?: boolean,
   requestPrompt?: (request: PromptRequest) => Promise<PromptResponse>,
@@ -815,46 +803,7 @@ async function execCommandHook(
   // reference $CLAUDE_PROJECT_DIR always resolve relative to the real repo root.
   const projectDir = getProjectRoot()
 
-  // Substitute ${CLAUDE_PLUGIN_ROOT} and ${user_config.X} in the command string.
-  // Order matches MCP (plugin vars FIRST, then user config) so a user-
-  // entered value containing the literal text ${CLAUDE_PLUGIN_ROOT} is treated
-  // as opaque — not re-interpreted as a template.
   let command = hook.command
-  let pluginOpts: ReturnType<typeof loadPluginOptions> | undefined
-  if (pluginRoot) {
-    // Plugin directory gone (orphan GC race, concurrent session deleted it):
-    // throw so callers yield a non-blocking error. Running would fail — and
-    // `python3 <missing>.py` exits 2, the hook protocol's "block" code, which
-    // bricks UserPromptSubmit/Stop until restart. The pre-check is necessary
-    // because exit-2-from-missing-script is indistinguishable from an
-    // intentional block after spawn.
-    if (!(await pathExists(pluginRoot))) {
-      throw new Error(
-        `Plugin directory does not exist: ${pluginRoot}` +
-          (pluginId ? ` (${pluginId} — run /plugin to reinstall)` : ''),
-      )
-    }
-    // Inline both ROOT and DATA substitution instead of calling
-    // substitutePluginVariables(). That helper normalizes \ → / on Windows
-    // unconditionally — correct for bash (toHookPath already produced /c/...
-    // so it's a no-op) but wrong for PS where toHookPath is identity and we
-    // want native C:\... backslashes. Inlining also lets us use the function-
-    // form .replace() so paths containing $ aren't mangled by $-pattern
-    // interpretation (rare but possible: \\server\c$\plugin).
-    const rootPath = toHookPath(pluginRoot)
-    command = command.replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, () => rootPath)
-    if (pluginId) {
-      const dataPath = toHookPath(getPluginDataDir(pluginId))
-      command = command.replace(/\$\{CLAUDE_PLUGIN_DATA\}/g, () => dataPath)
-    }
-    if (pluginId) {
-      pluginOpts = loadPluginOptions(pluginId)
-      // Throws if a referenced key is missing — that means the hook uses a key
-      // that's either not declared in manifest.userConfig or not yet configured.
-      // Caught upstream like any other hook exec failure.
-      command = substituteUserConfigVariables(command, pluginOpts)
-    }
-  }
 
   // On Windows (bash only), auto-prepend `bash` for .sh scripts so they
   // execute instead of opening in the default file handler. PowerShell
@@ -884,26 +833,6 @@ async function execCommandHook(
     CLAUDE_PROJECT_DIR: toHookPath(projectDir),
   }
 
-  // Plugin and skill hooks both set CLAUDE_PLUGIN_ROOT (skills use the same
-  // name for consistency — skills can migrate to plugins without code changes)
-  if (pluginRoot) {
-    envVars.CLAUDE_PLUGIN_ROOT = toHookPath(pluginRoot)
-    if (pluginId) {
-      envVars.CLAUDE_PLUGIN_DATA = toHookPath(getPluginDataDir(pluginId))
-    }
-  }
-  // Expose plugin options as env vars too, so hooks can read them without
-  // ${user_config.X} in the command string. Sensitive values included — hooks
-  // run the user's own code, same trust boundary as reading keychain directly.
-  if (pluginOpts) {
-    for (const [key, value] of Object.entries(pluginOpts)) {
-      // Sanitize non-identifier chars (bash can't ref $FOO-BAR). The schema
-      // at schemas.ts:611 now constrains keys to /^[A-Za-z_]\w*$/ so this is
-      // belt-and-suspenders, but cheap insurance if someone bypasses the schema.
-      const envKey = key.replace(/[^A-Za-z0-9_]/g, '_').toUpperCase()
-      envVars[`CLAUDE_PLUGIN_OPTION_${envKey}`] = String(value)
-    }
-  }
   if (skillRoot) {
     envVars.CLAUDE_PLUGIN_ROOT = toHookPath(skillRoot)
   }
@@ -1016,7 +945,6 @@ async function execCommandHook(
       hookName,
       command: hook.command,
       asyncRewake: hook.asyncRewake,
-      pluginId,
     })
     if (backgrounded) {
       return {
@@ -1138,7 +1066,6 @@ async function execCommandHook(
             hookEvent,
             hookName,
             command: hook.command,
-            pluginId,
           })
           if (backgrounded) {
             shellCommandTransferred = true
@@ -1426,13 +1353,10 @@ type FunctionHookMatcher = {
 }
 
 /**
- * A hook paired with optional plugin context.
- * Used when returning matched hooks so we can apply plugin env vars at execution time.
+ * A hook paired with optional skill context.
  */
 type MatchedHook = {
   hook: HookCommand | HookCallback | FunctionHook
-  pluginRoot?: string
-  pluginId?: string
   skillRoot?: string
   hookSource?: string
 }
@@ -1444,39 +1368,13 @@ function isInternalHook(matched: MatchedHook): boolean {
 /**
  * Build a dedup key for a matched hook, namespaced by source context.
  *
- * Settings-file hooks (no pluginRoot/skillRoot) share the '' prefix so the
- * same command defined in user/project/local still collapses to one — the
- * original intent of the dedup. Plugin/skill hooks get their root as the
- * prefix, so two plugins sharing an unexpanded `${CLAUDE_PLUGIN_ROOT}/hook.sh`
- * template don't collapse: after expansion they point to different files.
+ * Settings-file hooks share the '' prefix so the same command defined in
+ * user/project/local still collapses to one. Skill hooks get their root as
+ * the prefix so equivalent commands in different skills remain distinct.
  */
 function hookDedupKey(m: MatchedHook, payload: string): string {
-  return `${m.pluginRoot ?? m.skillRoot ?? ''}\0${payload}`
+  return `${m.skillRoot ?? ''}\0${payload}`
 }
-
-/**
- * Build a map of {sanitizedPluginName: hookCount} from matched hooks.
- * Only logs actual names for official marketplace plugins; others become 'third-party'.
- */
-function getPluginHookCounts(
-  hooks: MatchedHook[],
-): Record<string, number> | undefined {
-  const pluginHooks = hooks.filter(h => h.pluginId)
-  if (pluginHooks.length === 0) {
-    return undefined
-  }
-  const counts: Record<string, number> = {}
-  for (const h of pluginHooks) {
-    const atIndex = h.pluginId!.lastIndexOf('@')
-    const isOfficial =
-      atIndex > 0 &&
-      ALLOWED_OFFICIAL_MARKETPLACE_NAMES.has(h.pluginId!.slice(atIndex + 1))
-    const key = isOfficial ? h.pluginId! : 'third-party'
-    counts[key] = (counts[key] || 0) + 1
-  }
-  return counts
-}
-
 
 /**
  * Build a map of {hookType: count} from matched hooks.
@@ -1497,7 +1395,6 @@ function getHooksConfig(
   | HookMatcher
   | HookCallbackMatcher
   | FunctionHookMatcher
-  | PluginHookMatcher
   | SkillHookMatcher
   | SessionDerivedHookMatcher
 > {
@@ -1507,7 +1404,6 @@ function getHooksConfig(
     | HookMatcher
     | HookCallbackMatcher
     | FunctionHookMatcher
-    | PluginHookMatcher
     | SkillHookMatcher
     | SessionDerivedHookMatcher
   > = [...(getHooksConfigFromSnapshot()?.[hookEvent] ?? [])]
@@ -1515,15 +1411,10 @@ function getHooksConfig(
   // Check if only managed hooks should run (used for both registered and session hooks)
   const managedOnly = shouldAllowManagedHooksOnly()
 
-  // Process registered hooks (SDK callbacks and plugin native hooks)
+  // Process registered SDK callback hooks
   const registeredHooks = getRegisteredHooks()?.[hookEvent]
   if (registeredHooks) {
     for (const matcher of registeredHooks) {
-      // Skip plugin hooks when restricted to managed hooks only
-      // Plugin hooks have pluginRoot set, SDK callbacks do not
-      if (managedOnly && 'pluginRoot' in matcher) {
-        continue
-      }
       hooks.push(matcher)
     }
   }
@@ -1534,9 +1425,8 @@ function getHooksConfig(
   // Skip session hooks entirely when allowManagedHooksOnly is set —
   // this prevents frontmatter hooks from agents/skills from bypassing the policy.
   // strictPluginOnlyCustomization does NOT block here — it gates at the
-  // REGISTRATION sites (runAgent.ts:526 for agent frontmatter hooks) where
-  // agentDefinition.source is known. A blanket block here would also kill
-  // plugin-provided agents' frontmatter hooks, which is too broad.
+  // registration sites where the setting source is known. A blanket block
+  // here would also disable hooks from trusted settings sources.
   // Also skip if appState not provided (for backwards compatibility)
   if (!managedOnly && appState !== undefined) {
     const sessionHooks = getSessionHooks(appState, sessionId, hookEvent).get(
@@ -1598,7 +1488,7 @@ function hasHookForEvent(
  * @param sessionId The current session ID (main session or agent ID)
  * @param hookEvent The hook event
  * @param hookInput The hook input for matching
- * @returns Array of matched hooks with optional plugin context
+ * @returns Array of matched hooks with optional skill context
  */
 export async function getMatchingHooks(
   appState: AppState | undefined,
@@ -1677,7 +1567,7 @@ export async function getMatchingHooks(
       level: 'verbose',
     })
 
-    // Extract hooks with their plugin context (if any)
+    // Extract hooks with their skill context (if any)
     const filteredMatchers = matchQuery
       ? hookMatchers.filter(
           matcher =>
@@ -1686,36 +1576,26 @@ export async function getMatchingHooks(
       : hookMatchers
 
     const matchedHooks: MatchedHook[] = filteredMatchers.flatMap(matcher => {
-      // Check if this is a PluginHookMatcher (has pluginRoot) or SkillHookMatcher (has skillRoot)
-      const pluginRoot =
-        'pluginRoot' in matcher ? matcher.pluginRoot : undefined
-      const pluginId = 'pluginId' in matcher ? matcher.pluginId : undefined
       const skillRoot = 'skillRoot' in matcher ? matcher.skillRoot : undefined
-      const hookSource = pluginRoot
-        ? 'pluginName' in matcher
-          ? `plugin:${matcher.pluginName}`
-          : 'plugin'
-        : skillRoot
-          ? 'skillName' in matcher
-            ? `skill:${matcher.skillName}`
-            : 'skill'
-          : 'settings'
+      const hookSource = skillRoot
+        ? 'skillName' in matcher
+          ? `skill:${matcher.skillName}`
+          : 'skill'
+        : 'settings'
       return matcher.hooks.map(hook => ({
         hook,
-        pluginRoot,
-        pluginId,
         skillRoot,
         hookSource,
       }))
     })
 
     // Deduplicate hooks by command/prompt/url within the same source context.
-    // Key is namespaced by pluginRoot/skillRoot (see hookDedupKey above) so
-    // cross-plugin template collisions don't drop hooks (gh-29724).
+    // Key is namespaced by skillRoot (see hookDedupKey above) so
+    // equivalent templates in different skills remain distinct.
     //
     // Note: new Map(entries) keeps the LAST entry on key collision, not first.
     // For settings hooks this means the last-merged scope wins; for
-    // same-plugin duplicates the pluginRoot is identical so it doesn't matter.
+    // duplicate settings hooks still resolve by their merged order.
     // Fast-path: callback/function hooks don't need dedup (each is unique).
     // Skip the 6-pass filter + 4×Map + 4×Array.from below when all hooks are
     // callback/function — the common case for internal hooks like
@@ -2018,7 +1898,6 @@ async function* executeHooks({
 
   const userHooks = matchingHooks.filter(h => !isInternalHook(h))
   if (userHooks.length > 0) {
-    const pluginHookCounts = getPluginHookCounts(userHooks)
     const hookTypeCounts = getHookTypeCounts(userHooks)
     logEvent(`tengu_run_hook`, {
       hookName:
@@ -2027,11 +1906,6 @@ async function* executeHooks({
       hookTypeCounts: jsonStringify(
         hookTypeCounts,
       ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...(pluginHookCounts && {
-        pluginHookCounts: jsonStringify(
-          pluginHookCounts,
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
     })
   } else {
     // Fast-path: all hooks are internal callbacks (sessionFileAccessHooks,
@@ -2141,7 +2015,7 @@ async function* executeHooks({
 
   // Run all hooks in parallel with individual timeouts
   const hookPromises = matchingHooks.map(async function* (
-    { hook, pluginRoot, pluginId, skillRoot },
+    { hook, skillRoot },
     hookIndex,
   ): AsyncGenerator<HookResult> {
     if (hook.type === 'callback') {
@@ -2453,8 +2327,6 @@ async function* executeHooks({
         abortSignal,
         hookId,
         hookIndex,
-        pluginRoot,
-        pluginId,
         skillRoot,
         forceSyncExecution,
         boundRequestPrompt,
@@ -3054,7 +2926,6 @@ async function executeHooksOutsideREPL({
 
   const userHooks = matchingHooks.filter(h => !isInternalHook(h))
   if (userHooks.length > 0) {
-    const pluginHookCounts = getPluginHookCounts(userHooks)
     const hookTypeCounts = getHookTypeCounts(userHooks)
     logEvent(`tengu_run_hook`, {
       hookName:
@@ -3063,11 +2934,6 @@ async function executeHooksOutsideREPL({
       hookTypeCounts: jsonStringify(
         hookTypeCounts,
       ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...(pluginHookCounts && {
-        pluginHookCounts: jsonStringify(
-          pluginHookCounts,
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
     })
   }
 
@@ -3082,7 +2948,7 @@ async function executeHooksOutsideREPL({
 
   // Run all hooks in parallel with individual timeouts
   const hookPromises = matchingHooks.map(
-    async ({ hook, pluginRoot, pluginId }, hookIndex) => {
+    async ({ hook }, hookIndex) => {
       // Handle callback hooks
       if (hook.type === 'callback') {
         const callbackTimeoutMs = hook.timeout ? hook.timeout * 1000 : timeoutMs
@@ -3291,8 +3157,6 @@ async function executeHooksOutsideREPL({
           abortSignal,
           randomUUID(),
           hookIndex,
-          pluginRoot,
-          pluginId,
         )
 
         // Clear timeout if hook completes
@@ -4308,8 +4172,8 @@ export type InstructionsMemoryType = 'User' | 'Project' | 'Local' | 'Managed'
  * building hook inputs for every instruction file when no hook is configured.
  *
  * Checks both settings-file hooks (getHooksConfigFromSnapshot) and registered
- * hooks (plugin hooks + SDK callback hooks via registerHookCallbacks). Session-
- * derived hooks (structured output enforcement etc.) are internal and not checked.
+ * hooks. Session-derived hooks (structured output enforcement etc.) are internal
+ * and not checked.
  */
 export function hasInstructionsLoadedHook(): boolean {
   const snapshotHooks = getHooksConfigFromSnapshot()?.['InstructionsLoaded']
@@ -4878,7 +4742,6 @@ async function executeHookCallback({
   const processed = processHookJSONOutput({
     json,
     command: 'callback',
-    // TODO: If the hook came from a plugin, use the full path to the plugin for easier debugging
     hookName: `${hookEvent}:Callback`,
     toolUseID,
     hookEvent,
@@ -4899,24 +4762,14 @@ async function executeHookCallback({
  * Check if WorktreeCreate hooks are configured (without executing them).
  *
  * Checks both settings-file hooks (getHooksConfigFromSnapshot) and registered
- * hooks (plugin hooks + SDK callback hooks via registerHookCallbacks).
- *
- * Must mirror the managedOnly filtering in getHooksConfig() — when
- * shouldAllowManagedHooksOnly() is true, plugin hooks (pluginRoot set) are
- * skipped at execution, so we must also skip them here. Otherwise this returns
- * true but executeWorktreeCreateHook() finds no matching hooks and throws,
- * blocking the git-worktree fallback.
+ * hooks registered through registerHookCallbacks().
  */
 export function hasWorktreeCreateHook(): boolean {
   const snapshotHooks = getHooksConfigFromSnapshot()?.['WorktreeCreate']
   if (snapshotHooks && snapshotHooks.length > 0) return true
   const registeredHooks = getRegisteredHooks()?.['WorktreeCreate']
   if (!registeredHooks || registeredHooks.length === 0) return false
-  // Mirror getHooksConfig(): skip plugin hooks in managed-only mode
-  const managedOnly = shouldAllowManagedHooksOnly()
-  return registeredHooks.some(
-    matcher => !(managedOnly && 'pluginRoot' in matcher),
-  )
+  return registeredHooks.length > 0
 }
 
 /**
@@ -4962,7 +4815,7 @@ export async function executeWorktreeCreateHook(
  * Returns true if hooks were configured and ran, false if no hooks are configured.
  *
  * Checks both settings-file hooks (getHooksConfigFromSnapshot) and registered
- * hooks (plugin hooks + SDK callback hooks via registerHookCallbacks).
+ * hooks.
  */
 export async function executeWorktreeRemoveHook(
   worktreePath: string,

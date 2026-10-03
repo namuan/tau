@@ -588,7 +588,7 @@ export function resetGitFileWatcher(): void {
 
 /**
  * Read the HEAD SHA for an arbitrary directory (not using the watcher).
- * Used by plugins that need the HEAD of a specific repo, not the CWD repo.
+ * Used by integrations that need the HEAD of a specific repo, not the CWD repo.
  */
 export async function getHeadForDir(cwd: string): Promise<string | null> {
   const gitDir = await resolveGitDir(cwd)

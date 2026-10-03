@@ -24,8 +24,8 @@ function connection(name, config, cleanup = async () => {}) {
 // Execute the actual hook body/handlers/reducer. Only React scheduling and external
 // services are substituted; cache and disposal use the shipped production bundle.
 function mountHook() {
-  let state = { authVersion: 0, settings: {}, plugins: { errors: [] },
-    mcp: { clients: [], tools: [], commands: [], resources: {}, pluginReconnectKey: 0 } }
+  let state = { authVersion: 0, settings: {},
+    mcp: { clients: [], tools: [], commands: [], resources: {} } }
   const callbacks = []
   let reconnects = 0
   const acknowledgements = []

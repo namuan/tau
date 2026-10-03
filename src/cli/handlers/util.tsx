@@ -8,7 +8,6 @@ import { c as _c } from "react/compiler-runtime";
 import { cwd } from 'process';
 import React from 'react';
 import { WelcomeV2 } from '../../components/LogoV2/WelcomeV2.js';
-import { useManagePlugins } from '../../hooks/useManagePlugins.js';
 import type { Root } from '../../ink.js';
 import { Box, Text } from '../../ink.js';
 import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js';
@@ -49,16 +48,15 @@ export async function setupTokenHandler(root: Root): Promise<void> {
   process.exit(0);
 }
 
-// DoctorWithPlugins wrapper + doctor handler
+// Lazy Doctor wrapper + doctor handler
 const DoctorLazy = React.lazy(() => import('../../screens/Doctor.js').then(m => ({
   default: m.Doctor
 })));
-function DoctorWithPlugins(t0) {
+function DoctorView(t0) {
   const $ = _c(2);
   const {
     onDone
   } = t0;
-  useManagePlugins();
   let t1;
   if ($[0] !== onDone) {
     t1 = <React.Suspense fallback={null}><DoctorLazy onDone={onDone} /></React.Suspense>;
@@ -75,7 +73,7 @@ export async function doctorHandler(root: Root): Promise<void> {
     root.render(<AppStateProvider>
         <KeybindingSetup>
           <MCPConnectionManager dynamicMcpConfig={undefined} isStrictMcpConfig={false}>
-            <DoctorWithPlugins onDone={() => {
+            <DoctorView onDone={() => {
             void resolve();
           }} />
           </MCPConnectionManager>

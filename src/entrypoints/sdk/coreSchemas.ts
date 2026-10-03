@@ -213,7 +213,7 @@ export const McpServerStatusSchema = lazySchema(() =>
         })
         .optional()
         .describe(
-          "@internal Server capabilities (available when connected). experimental['claude/channel'] is only present if the server's plugin is on the approved channels allowlist — use its presence to decide whether to show an Enable-channel prompt.",
+          "@internal Server capabilities (available when connected).",
         ),
     })
     .describe('Status information for an MCP server connection.'),
@@ -1208,19 +1208,6 @@ export const SettingSourceSchema = lazySchema(() =>
     ),
 )
 
-export const SdkPluginConfigSchema = lazySchema(() =>
-  z
-    .object({
-      type: z
-        .literal('local')
-        .describe("Plugin type. Currently only 'local' is supported"),
-      path: z
-        .string()
-        .describe('Absolute or relative path to the plugin directory'),
-    })
-    .describe('Configuration for loading a plugin.'),
-)
-
 // ============================================================================
 // Rewind Types
 // ============================================================================
@@ -1486,18 +1473,6 @@ export const SDKSystemMessageSchema = lazySchema(() =>
     slash_commands: z.array(z.string()),
     output_style: z.string(),
     skills: z.array(z.string()),
-    plugins: z.array(
-      z.object({
-        name: z.string(),
-        path: z.string(),
-        source: z
-          .string()
-          .optional()
-          .describe(
-            '@internal Plugin source identifier in "name\\@marketplace" format. Sentinels: "name\\@inline" for --plugin-dir, "name\\@builtin" for built-in plugins.',
-          ),
-      }),
-    ),
     fast_mode_state: FastModeStateSchema().optional(),
     uuid: UUIDPlaceholder(),
     session_id: z.string(),

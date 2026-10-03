@@ -40,7 +40,6 @@ import breakCache from './commands/break-cache/index.js'
 import mcp from './commands/mcp/index.js'
 import mobile from './commands/mobile/index.js'
 import onboarding from './commands/onboarding/index.js'
-import pr_comments from './commands/pr_comments/index.js'
 import releaseNotes from './commands/release-notes/index.js'
 import rename from './commands/rename/index.js'
 import report from './commands/report/index.js'
@@ -60,7 +59,6 @@ const agentsPlatform =
     ? require('./commands/agents-platform/index.js').default
     : null
 /* eslint-enable @typescript-eslint/no-require-imports */
-import securityReview from './commands/security-review.js'
 import safetest from './commands/safetest/index.js'
 import bughunter from './commands/bughunter/index.js'
 import terminalSetup from './commands/terminalSetup/index.js'
@@ -119,8 +117,6 @@ const buddy = feature('BUDDY')
     ).default
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
-import thinkback from './commands/thinkback/index.js'
-import thinkbackPlay from './commands/thinkback-play/index.js'
 import permissions from './commands/permissions/index.js'
 import plan from './commands/plan/index.js'
 import fast from './commands/fast/index.js'
@@ -131,8 +127,6 @@ import files from './commands/files/index.js'
 import branch from './commands/branch/index.js'
 import clone from './commands/clone/index.js'
 import agents from './commands/agents/index.js'
-import plugin from './commands/plugin/index.js'
-import reloadPlugins from './commands/reload-plugins/index.js'
 import rewind from './commands/rewind/index.js'
 import tree from './commands/tree/index.js'
 import heapDump from './commands/heapdump/index.js'
@@ -161,13 +155,6 @@ import {
 import { getPowerModeFromSettings } from './utils/powerMode.js'
 import { getInitialSettings } from './utils/settings/settings.js'
 import { getBundledSkills } from './skills/bundledSkills.js'
-import { getBuiltinPluginSkillCommands } from './plugins/builtinPlugins.js'
-import {
-  getPluginCommands,
-  clearPluginCommandCache,
-  getPluginSkills,
-  clearPluginSkillsCache,
-} from './utils/plugins/loadPluginCommands.js'
 import memoize from 'lodash-es/memoize.js'
 import { isUsing3PServices, isClaudeAISubscriber } from './utils/auth.js'
 import { isFirstPartyAnthropicBaseUrl } from './utils/model/providers.js'
@@ -312,11 +299,8 @@ const COMMANDS = memoize((): Command[] => [
   surf,
   outputStyle,
   remoteEnv,
-  plugin,
-  pr_comments,
   releaseNotes,
   report,
-  reloadPlugins,
   rename,
   resume,
   session,
@@ -336,7 +320,6 @@ const COMMANDS = memoize((): Command[] => [
   rewind,
   tree,
   safetest,
-  securityReview,
   terminalSetup,
   upgrade,
   extraUsage,
@@ -350,8 +333,6 @@ const COMMANDS = memoize((): Command[] => [
   ...(buddy ? [buddy] : []),
   ...(proactive ? [proactive] : []),
   ...(briefCommand ? [briefCommand] : []),
-  thinkback,
-  thinkbackPlay,
   permissions,
   pin,
   plan,
@@ -380,59 +361,29 @@ export const builtInCommandNames = memoize(
 
 async function getSkills(cwd: string): Promise<{
   skillDirCommands: Command[]
-  pluginSkills: Command[]
   bundledSkills: Command[]
-  builtinPluginSkills: Command[]
 }> {
   try {
-    // Cheap power mode ignores folder/plugin skills entirely — no directory
-    // scans, no plugin loads. Bundled built-in skills stay user-invocable
-    // (they cost nothing until invoked and back core commands).
     const cheapMode =
       getPowerModeFromSettings(getInitialSettings()) === 'cheap'
-    const [skillDirCommands, pluginSkills] = await Promise.all([
-      cheapMode
-        ? Promise.resolve([])
-        : getSkillDirCommands(cwd).catch(err => {
-            logError(toError(err))
-            logForDebugging(
-              'Skill directory commands failed to load, continuing without them',
-            )
-            return []
-          }),
-      cheapMode
-        ? Promise.resolve([])
-        : getPluginSkills().catch(err => {
-            logError(toError(err))
-            logForDebugging(
-              'Plugin skills failed to load, continuing without them',
-            )
-            return []
-          }),
-    ])
-    // Bundled skills are registered synchronously at startup
+    const skillDirCommands = cheapMode
+      ? []
+      : await getSkillDirCommands(cwd).catch(err => {
+          logError(toError(err))
+          logForDebugging(
+            'Skill directory commands failed to load, continuing without them',
+          )
+          return []
+        })
     const bundledSkills = getBundledSkills()
-    // Built-in plugin skills come from enabled built-in plugins
-    const builtinPluginSkills = getBuiltinPluginSkillCommands()
     logForDebugging(
-      `getSkills returning: ${skillDirCommands.length} skill dir commands, ${pluginSkills.length} plugin skills, ${bundledSkills.length} bundled skills, ${builtinPluginSkills.length} builtin plugin skills`,
+      `getSkills returning: ${skillDirCommands.length} skill dir commands, ${bundledSkills.length} bundled skills`,
     )
-    return {
-      skillDirCommands,
-      pluginSkills,
-      bundledSkills,
-      builtinPluginSkills,
-    }
+    return { skillDirCommands, bundledSkills }
   } catch (err) {
-    // This should never happen since we catch at the Promise level, but defensive
     logError(toError(err))
     logForDebugging('Unexpected error in getSkills, returning empty')
-    return {
-      skillDirCommands: [],
-      pluginSkills: [],
-      bundledSkills: [],
-      builtinPluginSkills: [],
-    }
+    return { skillDirCommands: [], bundledSkills: [] }
   }
 }
 
@@ -482,23 +433,15 @@ export function meetsAvailabilityRequirement(cmd: Command): boolean {
 }
 
 /**
- * Loads all command sources (skills, plugins, workflows). Memoized by cwd
- * because loading is expensive (disk I/O, dynamic imports).
+ * Loads all command sources (skills and workflows). Memoized by cwd because
+ * loading is expensive (disk I/O, dynamic imports).
  */
 const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
-  // Cheap power mode: external plugin commands are ignored along with
-  // plugin/folder skills (gated inside getSkills). /mode clears this memo
-  // on switch so the command list follows the mode.
-  const cheapMode = getPowerModeFromSettings(getInitialSettings()) === 'cheap'
-  const [
-    { skillDirCommands, pluginSkills, bundledSkills, builtinPluginSkills },
-    pluginCommands,
-    workflowCommands,
-  ] = await Promise.all([
-    getSkills(cwd),
-    cheapMode ? Promise.resolve([]) : getPluginCommands(),
-    getWorkflowCommands ? getWorkflowCommands(cwd) : Promise.resolve([]),
-  ])
+  const [{ skillDirCommands, bundledSkills }, workflowCommands] =
+    await Promise.all([
+      getSkills(cwd),
+      getWorkflowCommands ? getWorkflowCommands(cwd) : Promise.resolve([]),
+    ])
 
   const builtInCommands: Command[] = COMMANDS()
   const coreOverrideNames: Set<string> = new Set(
@@ -508,11 +451,8 @@ const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
   )
   const externalCommands = [
     ...bundledSkills,
-    ...builtinPluginSkills,
     ...skillDirCommands,
     ...workflowCommands,
-    ...pluginCommands,
-    ...pluginSkills,
   ].filter(command => !isCoreCommandOverride(command, coreOverrideNames))
 
   return [
@@ -571,7 +511,7 @@ export async function getCommands(cwd: string): Promise<Command[]> {
     return baseCommands
   }
 
-  // Insert dynamic skills after plugin skills but before built-in commands
+  // Insert dynamic skills before built-in commands
   const builtInNames = new Set(COMMANDS().map(c => c.name))
   const insertIndex = baseCommands.findIndex(c => builtInNames.has(c.name))
 
@@ -603,8 +543,6 @@ export function clearCommandMemoizationCaches(): void {
 
 export function clearCommandsCache(): void {
   clearCommandMemoizationCaches()
-  clearPluginCommandCache()
-  clearPluginSkillsCache()
   clearSkillCaches()
 }
 
@@ -640,7 +578,7 @@ export const getSkillToolCommands = memoize(
         cmd.source !== 'builtin' &&
         // Always include skills from /skills/ dirs, bundled skills, and legacy /commands/ entries
         // (they all get an auto-derived description from the first line if frontmatter is missing).
-        // Plugin/MCP commands still require an explicit description to appear in the listing.
+        // MCP commands still require an explicit description to appear in the listing.
         (cmd.loadedFrom === 'bundled' ||
           cmd.loadedFrom === 'skills' ||
           cmd.loadedFrom === 'commands_DEPRECATED' ||
@@ -652,7 +590,7 @@ export const getSkillToolCommands = memoize(
 
 // Filters commands to include only skills. Skills are commands that provide
 // specialized capabilities for the model to use. They are identified by
-// loadedFrom being 'skills', 'plugin', or 'bundled', or having disableModelInvocation set.
+// loadedFrom being 'skills' or 'bundled', or having disableModelInvocation set.
 export const getSlashCommandToolSkills = memoize(
   async (cwd: string): Promise<Command[]> => {
     try {
@@ -663,7 +601,6 @@ export const getSlashCommandToolSkills = memoize(
           cmd.source !== 'builtin' &&
           (cmd.hasUserSpecifiedDescription || cmd.whenToUse) &&
           (cmd.loadedFrom === 'skills' ||
-            cmd.loadedFrom === 'plugin' ||
             cmd.loadedFrom === 'bundled' ||
             cmd.disableModelInvocation),
       )
@@ -763,14 +700,6 @@ export function formatDescriptionWithSource(cmd: Command): string {
 
   if (cmd.kind === 'workflow') {
     return `${cmd.description} (workflow)`
-  }
-
-  if (cmd.source === 'plugin') {
-    const pluginName = cmd.pluginInfo?.pluginManifest.name
-    if (pluginName) {
-      return `(${pluginName}) ${cmd.description}`
-    }
-    return `${cmd.description} (plugin)`
   }
 
   if (cmd.source === 'builtin' || cmd.source === 'mcp') {
