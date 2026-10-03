@@ -53,7 +53,7 @@ import {
   saveE2BSecurityCredential,
 } from '../../utils/safetest/e2bSecurity.js'
 
-// ─── Post-login refresh (shared between Anthropic and 3P flows) ──
+// ─── Post-login refresh ──
 
 function runPostLoginRefresh(context: LocalJSXCommandContext) {
   resetCostState()
@@ -83,10 +83,7 @@ function runPostLoginRefresh(context: LocalJSXCommandContext) {
 
 // ─── Main login entry point ──────────────────────────────────────
 //
-// /login is the general provider login entry point. Selecting Anthropic from
-// here opens the native Claude OAuth flow (subscription / Console API /
-// platform). /provider reuses the exported Login component for the same
-// Anthropic-only screen.
+// /login is the general provider login entry point.
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
@@ -119,9 +116,6 @@ export async function call(
       finish(success)
     }
 
-    if (requestedProvider === 'firstParty') {
-      return <Login onDone={handleDirectLoginDone} />
-    }
     return (
       <ThirdPartyLogin
         provider={requestedProvider}
@@ -155,9 +149,6 @@ function resolveLoginProviderArg(args: string): APIProvider | null {
   const compact = normalized.replace(/[\s_-]+/g, '')
   const first = normalized.split(/\s+/)[0]?.replace(/[-_]+/g, '') ?? ''
   const aliases: Record<string, APIProvider> = {
-    anthropic: 'firstParty',
-    claude: 'firstParty',
-    firstparty: 'firstParty',
     commandcode: 'commandcode',
     cmd: 'commandcode',
     cmdcode: 'commandcode',
@@ -207,9 +198,6 @@ function getLoginTargetName(target: LoginTarget): string {
 function getProviderAuthTypeLabel(provider: LoginTarget): string {
   if (provider === E2B_SECURITY_LOGIN_TARGET) return 'E2B API key / auth token'
   if (provider === FIRECRAWL_LOGIN_TARGET) return 'Firecrawl API key'
-  if (provider === 'firstParty') {
-    return 'claude subscription / Console API / platform'
-  }
   if (provider === 'antigravity') return 'Google login'
   if (provider === 'cloudflare') return 'Account ID / API token'
 
@@ -284,9 +272,6 @@ function ProviderPickerLogin({
       setSelectedProvider(null)
     }
 
-    if (providerForLogin === 'firstParty') {
-      return <Login onDone={handleProviderDone} />
-    }
     if (providerForLogin === E2B_SECURITY_LOGIN_TARGET) {
       return <E2BSecurityLogin onDone={handleProviderDone} />
     }

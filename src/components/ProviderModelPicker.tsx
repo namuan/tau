@@ -1,11 +1,7 @@
 import * as React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Box, Text, useInput } from '../ink.js'
-import {
-  getClaudeAIOAuthTokens,
-  hasAnthropicApiKeyAuth,
-  validateProviderAuth,
-} from '../utils/auth.js'
+import { validateProviderAuth } from '../utils/auth.js'
 import {
   BROWSABLE_MODEL_PROVIDERS,
   getProviderBrowseLabel,
@@ -128,12 +124,6 @@ const SECTION_ACCENT: Record<NonNullable<ProviderModelSection['accent']>, string
 }
 
 function getProviderStatusLabel(provider: BrowsableModelProvider): string {
-  if (provider === 'firstParty') {
-    return getClaudeAIOAuthTokens()?.accessToken || hasAnthropicApiKeyAuth()
-      ? 'configured'
-      : 'optional login'
-  }
-
   const authStatus = validateProviderAuth(provider)
   if ((provider === 'ollama' || provider === 'lmstudio') && authStatus.method === 'none') return 'local'
   if (authStatus.valid) return 'configured'
@@ -738,7 +728,7 @@ export function ProviderModelPicker({
         <Box marginTop={1} flexDirection="column">
           <Text color="error">{loadError}</Text>
           <Text dimColor>
-            Run /provider if this provider is not configured yet, or /login for Anthropic.
+            Run /provider to configure this provider, or /login to connect it.
           </Text>
         </Box>
       )}

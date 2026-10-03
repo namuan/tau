@@ -59,7 +59,7 @@ export function getDefaultBrowsableProvider(
 
   return (
     BROWSABLE_MODEL_PROVIDERS.find(provider => validateProviderAuth(provider).valid) ??
-    'firstParty'
+    'openai'
   )
 }
 
@@ -68,10 +68,6 @@ function normalizeProviderQueryToken(
 ): BrowsableModelProvider | null {
   const normalized = token.trim().toLowerCase()
   const alias: Record<string, BrowsableModelProvider> = {
-    anthropic: 'firstParty',
-    claude: 'firstParty',
-    firstparty: 'firstParty',
-    'first-party': 'firstParty',
     kimi: 'moonshot',
     moonshotai: 'moonshot',
     'moonshot-ai': 'moonshot',
@@ -225,17 +221,6 @@ export async function refreshProviderContextWindows(): Promise<void> {
 export async function loadProviderModels(
   provider: BrowsableModelProvider,
 ): Promise<ModelInfo[]> {
-  if (provider === 'firstParty') {
-    const models = ANTHROPIC_MODELS.map(model => ({
-      id: model.id,
-      name: model.name,
-      tags: model.tags,
-      contextWindow: model.contextWindow,
-    }))
-    recordProviderModelContextWindows(provider, models)
-    return models
-  }
-
   await resolveProviderAuth(provider)
 
   const [upstreamModels] = await Promise.all([
@@ -334,106 +319,10 @@ export type ModelTag =
   | 'pulled'
   | 'missing'
 
-type AnthropicModelInfo = {
-  id: string
-  name: string
-  tags: readonly ModelTag[]
-  effortLevels?: readonly EffortLevel[]
-  defaultEffort?: EffortLevel
-  contextWindow?: number
-}
-
-const ANTHROPIC_EFFORT_SEPARATOR = '::effort='
-const ANTHROPIC_STANDARD_EFFORTS = [
-  'low',
-  'medium',
-  'high',
-  'max',
-] as const satisfies readonly EffortLevel[]
-const ANTHROPIC_EXTENDED_EFFORTS = [
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-] as const satisfies readonly EffortLevel[]
-
-// Opus 4.8 adds the 'ultracode' top tier (native Anthropic path only — selecting
-// an Anthropic model here switches the active provider to firstParty, where
-// modelSupportsUltracodeEffort() is satisfied and it maps to 'max' on the wire).
-const ANTHROPIC_OPUS_48_EFFORTS = [
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-  'ultracode',
-] as const satisfies readonly EffortLevel[]
-
-const ANTHROPIC_MODELS: readonly AnthropicModelInfo[] = [
-  {
-    // Thinking is always on for Opus 5.5 (disabling it is a 400), so effort is
-    // its only control; the API applies `medium` when a request names none.
-    id: 'claude-opus-5-5',
-    name: 'Claude Opus 5.5',
-    tags: ['recommended', 'reasoning'],
-    effortLevels: ANTHROPIC_EXTENDED_EFFORTS,
-    defaultEffort: 'medium',
-    contextWindow: 1_000_000,
-  },
-  {
-    id: 'claude-opus-5',
-    name: 'Claude Opus 5',
-    tags: ['reasoning'],
-    effortLevels: ANTHROPIC_EXTENDED_EFFORTS,
-    defaultEffort: 'high',
-    contextWindow: 1_000_000,
-  },
-  {
-    id: 'claude-opus-4-8',
-    name: 'Claude Opus 4.8',
-    tags: ['reasoning'],
-    effortLevels: ANTHROPIC_OPUS_48_EFFORTS,
-    defaultEffort: 'medium',
-    contextWindow: 1_000_000,
-  },
-  {
-    id: 'claude-sonnet-5',
-    name: 'Claude Sonnet 5',
-    tags: ['reasoning'],
-    effortLevels: ANTHROPIC_EXTENDED_EFFORTS,
-    defaultEffort: 'high',
-    contextWindow: 1_000_000,
-  },
-  {
-    id: 'claude-sonnet-4-6',
-    name: 'Claude Sonnet 4.6',
-    tags: ['reasoning'],
-    effortLevels: ANTHROPIC_STANDARD_EFFORTS,
-    defaultEffort: 'high',
-  },
-  {
-    id: 'claude-haiku-4-5',
-    name: 'Claude Haiku 4.5',
-    tags: ['fast'],
-  },
-]
-
 export type ProviderModelSelection = {
   modelId: string
   effort?: EffortLevel
   clineEffort?: ClineEffort
-}
-
-function encodeAnthropicEffortVariant(
-  modelId: string,
-  effort: EffortLevel,
-): string {
-  return `${modelId}${ANTHROPIC_EFFORT_SEPARATOR}${effort}`
-}
-
-function isAnthropicEffortLevel(value: string): value is EffortLevel {
-  return (ANTHROPIC_OPUS_48_EFFORTS as readonly string[]).includes(value)
 }
 
 export function resolveProviderModelSelection(
@@ -448,27 +337,7 @@ export function resolveProviderModelSelection(
     }
   }
 
-  if (provider !== 'firstParty') {
-    return { modelId: selectedModelId }
-  }
-
-  const markerIndex = selectedModelId.lastIndexOf(ANTHROPIC_EFFORT_SEPARATOR)
-  if (markerIndex < 0) {
-    return { modelId: selectedModelId }
-  }
-
-  const modelId = selectedModelId.slice(0, markerIndex)
-  const effort = selectedModelId.slice(
-    markerIndex + ANTHROPIC_EFFORT_SEPARATOR.length,
-  )
-  if (!modelId || !isAnthropicEffortLevel(effort)) {
-    return { modelId: selectedModelId }
-  }
-  const model = ANTHROPIC_MODELS.find(candidate => candidate.id === modelId)
-  if (!model?.effortLevels?.includes(effort)) {
-    return { modelId }
-  }
-  return { modelId, effort }
+  return { modelId: selectedModelId }
 }
 
 /**
@@ -479,10 +348,6 @@ export function resolveProviderModelSelection(
 export async function loadProviderModelSections(
   provider: BrowsableModelProvider,
 ): Promise<ProviderModelSection[]> {
-  if (provider === 'firstParty') {
-    return buildAnthropicSections()
-  }
-
   if (provider === 'ollama') {
     const catalog = await getOllamaCatalog()
     return buildOllamaSections(catalog)
@@ -569,42 +434,6 @@ const CURSOR_SECTION_TITLES: Record<CursorModelSection, string> = {
   anthropic: 'Claude',
   openai: 'OpenAI / Codex',
   other: 'Others',
-}
-
-function buildAnthropicSections(): ProviderModelSection[] {
-  return [
-    {
-      id: 'claude',
-      title: 'Claude models  <- -> effort',
-      models: ANTHROPIC_MODELS.map(toAnthropicSectionedModel),
-    },
-  ]
-}
-
-function toAnthropicSectionedModel(model: AnthropicModelInfo): SectionedModelInfo {
-  const base: SectionedModelInfo = {
-    id: model.id,
-    name: model.name,
-    tags: model.tags,
-  }
-
-  if (!model.effortLevels || !model.defaultEffort) {
-    return base
-  }
-
-  return {
-    ...base,
-    defaultVariantId: encodeAnthropicEffortVariant(
-      model.id,
-      model.defaultEffort,
-    ),
-    variants: model.effortLevels.map(effort => ({
-      id: encodeAnthropicEffortVariant(model.id, effort),
-      name: `${model.name} (${effort} effort)`,
-      label: `${effort} effort`,
-      tags: ['reasoning'] as const,
-    })),
-  }
 }
 
 function buildClinePassSections(models: readonly ModelInfo[]): ProviderModelSection[] {

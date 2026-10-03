@@ -45,17 +45,6 @@ function main(): void {
     )
   })
 
-  test('first-party Claude Sonnet 5 uses a friendly display name', () => {
-    assert(
-      getProviderModelDisplayName('firstParty', 'claude-sonnet-5') === 'Claude Sonnet 5',
-      'expected Sonnet 5 label',
-    )
-    assert(
-      getProviderModelDisplayName('firstParty', 'claude-sonnet-5::effort=xhigh') === 'Claude Sonnet 5',
-      'expected Sonnet 5 effort variant label',
-    )
-  })
-
   test('antigravity uses clean provider-owned labels', () => {
     assert(
       getProviderModelDisplayName('antigravity', 'gemini-3.5-flash-high') === 'Gemini 3.5 Flash (High)',

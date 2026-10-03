@@ -13,7 +13,9 @@ import {
 export type { APIProvider } from './providerRegistry.js'
 export { API_PROVIDERS, SELECTABLE_PROVIDERS } from './providerRegistry.js'
 
-const VALID_PROVIDERS: readonly APIProvider[] = API_PROVIDERS
+const VALID_PROVIDERS: readonly APIProvider[] = API_PROVIDERS.filter(
+  provider => !REMOVED_CLAUDE_INFERENCE_PROVIDERS.includes(provider),
+)
 
 export function isAPIProvider(value: string): value is APIProvider {
   return VALID_PROVIDERS.includes(value as APIProvider)
@@ -99,7 +101,12 @@ export function getAPIProvider(): APIProvider {
   // bypass so an agent spawned with provider='kiro' routes through Kiro
   // regardless of what the user has globally selected via /provider.
   const forced = getForcedProvider()
-  if (forced !== undefined) return forced
+  if (forced !== undefined) {
+    if (REMOVED_CLAUDE_INFERENCE_PROVIDERS.includes(forced)) {
+      throw new Error(`${forced} inference support has been removed.`)
+    }
+    return forced
+  }
 
   if (process.env.NODE_ENV === 'test') return _resolveAPIProvider()
   if (_sessionActiveProvider !== null) return _sessionActiveProvider
@@ -122,6 +129,9 @@ export const subscribeActiveProviderChange = activeProviderChanged.subscribe
  * when the provider actually changed.
  */
 export function setActiveProvider(provider: APIProvider): void {
+  if (REMOVED_CLAUDE_INFERENCE_PROVIDERS.includes(provider)) {
+    throw new Error(`${provider} inference support has been removed.`)
+  }
   const changed = _sessionActiveProvider !== provider
   _sessionActiveProvider = provider
   saveGlobalConfig(current => ({

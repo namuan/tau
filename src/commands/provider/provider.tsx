@@ -16,8 +16,7 @@
  *   - OAuth flow is one step: browser opens, user picks account, done.
  *   - API Key flow: prompt → paste → validate → done.
  *
- * This command generally manages credentials. The Anthropic login path also
- * switches routing to firstParty after a successful login.
+ * This command manages credentials for selectable providers.
  */
 
 import * as React from 'react'
@@ -44,15 +43,8 @@ import {
   saveProviderKey,
 } from '../../services/api/auth/api_key_manager.js'
 import TextInput from '../../components/TextInput.js'
-import {
-  getClaudeAIOAuthTokens,
-  hasAnthropicApiKeyAuth,
-} from '../../utils/auth.js'
 import { performLogout } from '../logout/logout.js'
-import {
-  E2BSecurityLogin,
-  Login as AnthropicLogin,
-} from '../login/login.js'
+import { E2BSecurityLogin } from '../login/login.js'
 import { ProviderLoginFlow } from '../../components/ProviderLoginFlow.js'
 import {
   E2B_SECURITY_DISPLAY_NAME,
@@ -128,7 +120,6 @@ type KeyedProvider = Exclude<
   ManageableProvider,
   | 'ollama'
   | 'lmstudio'
-  | 'firstParty'
   | typeof E2B_SECURITY_PROVIDER
 >
 
@@ -140,16 +131,6 @@ function getManageableProviderName(provider: ManageableProvider): string {
 // ─── Auth state helpers ──────────────────────────────────────────
 
 type AuthState = 'oauth' | 'api_key' | 'inactive'
-
-function getFirstPartyAuthState(): AuthState {
-  if (getClaudeAIOAuthTokens()?.accessToken) return 'oauth'
-  if (hasAnthropicApiKeyAuth()) return 'api_key'
-  return 'inactive'
-}
-
-function hasFirstPartyAuth(): boolean {
-  return getFirstPartyAuthState() !== 'inactive'
-}
 
 function getAuthState(provider: KeyedProvider): AuthState {
   // Gemini row = CLI-tier OAuth (free flash/lite) or AI Studio API key.
@@ -300,7 +281,6 @@ type View =
       error?: string
     }
   | { kind: 'provider_login'; provider: KeyedProvider }
-  | { kind: 'anthropic_login' }
   | { kind: 'e2b_login' }
   | {
       kind: 'result'
@@ -382,17 +362,6 @@ function buildConfigureOptions(
     return options
   }
 
-  // Anthropic (firstParty): hand off to the shared /login OAuth flow.
-  if (provider === 'firstParty') {
-    const options: ConfigureOption[] = []
-    options.push({ kind: 'login' })
-    if (hasFirstPartyAuth()) {
-      options.push({ kind: 'deactivate' })
-    }
-    options.push({ kind: 'back' })
-    return options
-  }
-
   const options: ConfigureOption[] = []
 
   if (usesEmbeddedProviderLogin(provider)) {
@@ -433,9 +402,7 @@ function labelConfigureOption(
         ? 'Activate AgentRouter'
         : `Activate ${getManageableProviderName(provider)}`
     case 'login':
-      return provider === 'firstParty'
-        ? 'Log in with Anthropic (subscription / Console API / platform)'
-        : provider === E2B_SECURITY_PROVIDER
+      return provider === E2B_SECURITY_PROVIDER
         ? 'Log in with E2B API key or auth token'
         : 'Log in'
     case 'deactivate':
@@ -577,39 +544,6 @@ function ProviderManager({
       provider: 'lmstudio',
       tone: 'success',
       message: 'LM Studio activated.',
-    })
-  }
-
-  // ─── Anthropic (firstParty) handlers ──────────────────────────
-
-  function handleAnthropicLoginDone(success: boolean) {
-    if (success) {
-      setActiveProvider('firstParty')
-      // Strip any thinking-block signatures bound to the previously-active
-      // provider so the next turn doesn't 400 with "Invalid signature".
-      setMessages(stripSignatureBlocks)
-      refresh()
-      setView({
-        kind: 'result',
-        provider: 'firstParty',
-        tone: 'success',
-        message: `${PROVIDER_DISPLAY_NAMES.firstParty} connected.`,
-      })
-      return
-    }
-    // Cancelled: return to the Anthropic configure screen.
-    setView({ kind: 'configure', provider: 'firstParty', selectedIndex: 0 })
-  }
-
-  function handleAnthropicDeactivate() {
-    void performLogout({ provider: 'firstParty' }).finally(() => {
-      refresh()
-      setView({
-        kind: 'result',
-        provider: 'firstParty',
-        tone: 'success',
-        message: `${PROVIDER_DISPLAY_NAMES.firstParty} disconnected.`,
-      })
     })
   }
 
@@ -869,9 +803,6 @@ function ProviderManager({
             }
             return
           case 'login':
-            if (view.provider === 'firstParty') {
-              setView({ kind: 'anthropic_login' })
-            }
             if (view.provider === E2B_SECURITY_PROVIDER) {
               setView({ kind: 'e2b_login' })
             }
@@ -880,10 +811,6 @@ function ProviderManager({
             }
             return
           case 'deactivate':
-            if (view.provider === 'firstParty') {
-              handleAnthropicDeactivate()
-              return
-            }
             if (view.provider === E2B_SECURITY_PROVIDER) {
               handleE2BDeactivate()
               return
@@ -961,9 +888,7 @@ function ProviderManager({
                 ? formatLmStudioBadge(lmStudioStatus)
                 : provider === 'gemini'
                   ? formatGeminiBadge()
-                  : provider === 'firstParty'
-                    ? formatBadge(getFirstPartyAuthState())
-                    : formatBadge(getAuthState(provider))
+                  : formatBadge(getAuthState(provider))
             return (
               <Box key={provider}>
                 <Text
@@ -1000,9 +925,7 @@ function ProviderManager({
         ? formatLmStudioBadge(lmStudioStatus)
         : provider === 'gemini'
           ? formatGeminiBadge()
-          : provider === 'firstParty'
-            ? formatBadge(getFirstPartyAuthState())
-            : formatBadge(getAuthState(provider))
+          : formatBadge(getAuthState(provider))
     const currentUrl =
       provider === 'ollama'
         ? getOllamaBaseUrl()
@@ -1117,10 +1040,6 @@ function ProviderManager({
         </Box>
       </Box>
     )
-  }
-
-  if (view.kind === 'anthropic_login') {
-    return <AnthropicLogin onDone={handleAnthropicLoginDone} />
   }
 
   if (view.kind === 'e2b_login') {

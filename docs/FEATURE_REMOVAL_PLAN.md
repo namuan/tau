@@ -71,11 +71,11 @@ Removed MCP clients/servers, connection startup, tools/resources, settings and p
 
 Remove first-party Anthropic inference and Claude-specific Bedrock, Vertex AI, and Foundry routes. Preserve the Anthropic SDK only where it remains a shared message/error contract for other providers, and preserve unrelated Tau Web/session APIs and provider adapters.
 
-The provider picker no longer offers these backends, saved selections are ignored, first-run setup no longer treats Anthropic credentials as a configured provider, and the shared client rejects legacy native-provider selections before making a request. The SDK-compatible AgentRouter route remains supported.
+The provider picker no longer offers these backends, legacy selections and provider aliases are rejected, first-run setup no longer treats Anthropic credentials as a configured inference provider, and the shared client rejects removed native-provider selections before making a request. The Anthropic model catalog and Bedrock token-count route are removed. SDK-compatible AgentRouter routing and shared Anthropic message types remain. OAuth-backed Tau product/session APIs are intentionally retained and are no longer used by the inference client.
 
-**Remaining scope:** Remove remaining direct Claude login entrypoints and provider-specific settings/model paths, then remove unused Anthropic cloud SDK dependencies and verify OAuth-backed Tau services that are intentionally retained.
+**Remaining scope:** Remove first-party model defaults, settings, and cloud-provider model helpers that have no surviving consumer. Remove only AWS/GCP/Azure dependencies proven exclusive to those inference routes; preserve any Tau product/session API auth dependencies.
 
-**Verification so far:** Production build succeeds; focused provider routing tests pass. The standalone provider-name test remains blocked under Bun by the missing `src/entrypoints/sdk/runtimeTypes.js` module. A Node regression test covers provider-picker exclusion and the client rejection guard.
+**Verification so far:** Production build and shrinkwrap checks pass; focused provider routing and inference-removal tests pass. The standalone provider-name test remains blocked under Bun by the missing `src/entrypoints/sdk/runtimeTypes.js` module. Node regression tests cover provider-picker exclusion and client rejection.
 
 ## Clean-checkout verification and footprint
 

@@ -64,8 +64,6 @@ test('case, spacing, dashes and underscores are tolerated', () => {
   const cases: Array<[string, string]> = [
     ['FIREWORKS', 'fireworks'],
     ['Anti-Gravity', 'antigravity'],
-    ['first_party', 'firstParty'],
-    ['Anthropic', 'firstParty'],
     ['NVIDIA NIM', 'nim'],
     ['open router', 'openrouter'],
     ['LM Studio', 'lmstudio'],
@@ -80,6 +78,15 @@ test('case, spacing, dashes and underscores are tolerated', () => {
   }
 })
 
+test('removed Claude providers are no longer valid provider names', () => {
+  for (const input of ['firstParty', 'Anthropic', 'Claude', 'bedrock', 'vertex', 'foundry']) {
+    assert(
+      resolveAPIProviderName(input) === undefined,
+      `removed provider "${input}" should not resolve`,
+    )
+  }
+})
+
 test('unknown and empty values stay unresolved', () => {
   for (const input of ['', '   ', 'fireworks ai gateway', 'not-a-provider']) {
     assert(
@@ -90,7 +97,6 @@ test('unknown and empty values stay unresolved', () => {
 })
 
 test('display names never shadow a canonical id', () => {
-  // "Anthropic" maps to firstParty; no canonical id may be stolen by a label.
   for (const provider of listAPIProviderNames()) {
     assert(
       resolveAPIProviderName(provider) === provider,
