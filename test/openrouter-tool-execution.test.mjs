@@ -170,7 +170,7 @@ for (const route of ['native', 'legacy']) {
     assert.deepEqual(again.body().messages, result.body().messages)
     assert.deepEqual(again.body().tools, result.body().tools)
     assert.equal(again.body().prompt_cache_key, result.body().prompt_cache_key)
-    for (const provider of ['firstParty', 'openai', 'deepseek']) {
+    for (const provider of ['agentrouter', 'openai', 'deepseek']) {
       const switched = normalize(provider)
       assert.equal(JSON.stringify(switched).includes('_openrouter_tool_call_id'), false)
       assert.deepEqual(switched.flatMap(record => record.message.content ?? [])
@@ -204,7 +204,7 @@ for (const route of ['native', 'legacy']) {
       subject: `Reasoning ${route}`, description: 'Isolated reasoning round trip',
     })
     assert.equal(JSON.stringify(next.body()).includes('_openrouter_reasoning'), false)
-    for (const provider of ['firstParty', 'openai', 'deepseek']) {
+    for (const provider of ['agentrouter', 'openai', 'deepseek']) {
       const switched = r.runWithForcedProvider({ provider }, () => r.normalizeMessagesForAPI(records, source))
       assert.equal(JSON.stringify(switched).includes('_openrouter_reasoning'), false)
       assert.equal(JSON.stringify(switched).includes('_openrouter_tool_call_id'), false)
