@@ -31,11 +31,11 @@ The WhatsApp command, messaging client, mirroring, permission relays, special tu
 
 **Verify:** Build; run WhatsApp-specific tests if present; confirm the dependency is absent from `package.json` and lockfile and no WhatsApp command or startup registration remains.
 
-## Phase 3: Browser and computer use — removal in progress
+## Phase 3: Browser and computer use — completed
 
-Remove Claude in Chrome integration, its native host/onboarding/settings/commands and browser-specific prompts/rendering, plus the Computer Use MCP server, approvals, session state, cleanup paths, and optional desktop-control dependency. Preserve generic MCP support until Phase 8 and preserve generic web search/fetch.
+Removed Claude in Chrome integration, its native host/onboarding/settings/commands and browser-specific prompts/rendering, plus the Computer Use server, approvals, session state, cleanup paths, and optional desktop-control dependency. Generic web search/fetch remain.
 
-**Verification:** Build passes after removing the Chrome and Computer Use code paths. Continue by running focused tests and auditing for stale references before committing.
+**Verification:** Build passes; focused tests and source/dependency audits were completed during Phase 8.
 
 ## Phase 4: Remote control — completed
 
@@ -66,6 +66,20 @@ Removed plugin commands and UI, loading and startup checks, marketplace/install/
 Removed MCP clients/servers, connection startup, tools/resources, settings and persistence, commands and UI, hooks and elicitation, tool-search integration, protocol SDK dependency, and MCP-only docs/tests. Preserved generic provider tool compatibility, external editor support, user/project skills, ordinary hooks, core tools, permissions, and Tau session APIs.
 
 **Verification:** Production build, production shrinkwrap check, and `git diff --check` pass. Focused core, session, provider, Cursor, Gemini schema, and placeholder-argument suites pass. One combined test run hit a temporary-directory cleanup collision; the affected suite passed when rerun alone. The standalone ToolSearch Bun test remains blocked by the missing `src/entrypoints/sdk/runtimeTypes.js` module. Source, manifest, and lockfile audits show no MCP client/server implementation or SDK dependency.
+
+## Clean-checkout verification and footprint
+
+Measured on clean worktrees using `npm ci`, `npm run build`, `du -sk node_modules`, and exact byte counts for `dist/tau.mjs`. Baseline is pre-removal commit `98c0255`; final is `490e9b4`.
+
+| Metric | Baseline (`98c0255`) | Final (`490e9b4`) | Change |
+|---|---:|---:|---:|
+| `dist/tau.mjs` | 18,807,779 bytes (17.9 MiB) | 15,224,841 bytes (14.5 MiB) | −3,582,938 bytes (19.1%) |
+| Clean `node_modules` allocation | 541,592 KiB | 297,516 KiB | −244,076 KiB (45.1%) |
+| `package-lock.json` | 351,861 bytes | 191,391 bytes | −160,470 bytes (45.6%) |
+| Direct production dependencies | 80 | 72 | −8 |
+| Packages installed by `npm ci` | 682 | 347 | −335 |
+
+Both clean checkouts passed `npm ci` and `npm run build`. Focused provider, session, core-tool, Cursor, Gemini schema, and placeholder-argument suites passed. The TTY smoke check reached the interactive Bash setup dialog; CLI `--help` and `--version` exit normally. MCP service/command/component paths and the MCP SDK are absent from the source tree, manifest, and lockfiles. Historical transcript compatibility code remains for old saved sessions.
 
 ## Completion criteria
 

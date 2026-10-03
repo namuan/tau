@@ -1347,7 +1347,7 @@ const BLOCKED_NODE_TASKKILL_COMMAND =
 
 /**
  * Block broad Windows process kills that target every `node.exe` by image
- * name. On Windows the CLI itself, MCP helpers, frontend dev servers, and
+ * name. On Windows the CLI itself, helper processes, frontend dev servers, and
  * package scripts commonly all run as node.exe, so `taskkill /IM node.exe /F`
  * can terminate the active session instead of only cleaning up a project
  * server. PID-scoped taskkill commands are intentionally left alone.
