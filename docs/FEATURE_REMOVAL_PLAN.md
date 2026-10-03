@@ -69,17 +69,17 @@ Removed MCP clients/servers, connection startup, tools/resources, settings and p
 
 ## Clean-checkout verification and footprint
 
-Measured on clean worktrees using `npm ci`, `npm run build`, `du -sk node_modules`, and exact byte counts for `dist/tau.mjs`. Baseline is pre-removal commit `98c0255`; final is `490e9b4`.
+Measured on clean worktrees using `npm ci`, `npm run build`, `du -sk node_modules`, and exact byte counts for `dist/tau.mjs`. Baseline is pre-removal commit `98c0255`; final is `50f48f9`.
 
 | Metric | Baseline (`98c0255`) | Final (`490e9b4`) | Change |
 |---|---:|---:|---:|
 | `dist/tau.mjs` | 18,807,779 bytes (17.9 MiB) | 15,224,841 bytes (14.5 MiB) | −3,582,938 bytes (19.1%) |
-| Clean `node_modules` allocation | 541,592 KiB | 297,516 KiB | −244,076 KiB (45.1%) |
-| `package-lock.json` | 351,861 bytes | 191,391 bytes | −160,470 bytes (45.6%) |
-| Direct production dependencies | 80 | 72 | −8 |
-| Packages installed by `npm ci` | 682 | 347 | −335 |
+| Clean `node_modules` allocation | 541,592 KiB | 298,728 KiB | −242,864 KiB (44.8%) |
+| `package-lock.json` | 351,861 bytes | 191,871 bytes | −159,990 bytes (45.5%) |
+| Direct production dependencies | 80 | 73 | −7 |
+| Packages installed by `npm ci` | 682 | 348 | −334 |
 
-Both clean checkouts passed `npm ci` and `npm run build`. Focused provider, session, core-tool, Cursor, Gemini schema, and placeholder-argument suites passed. The TTY smoke check reached the interactive Bash setup dialog; CLI `--help` and `--version` exit normally. MCP service/command/component paths and the MCP SDK are absent from the source tree, manifest, and lockfiles. Historical transcript compatibility code remains for old saved sessions.
+Both clean checkouts passed `npm ci` and `npm run build`. Focused provider, session, core-tool, Cursor, Gemini schema, placeholder-argument, and Node YAML runtime tests passed. The TTY smoke check reached the interactive Bash setup dialog; CLI `--help` and `--version` exit normally. MCP service/command/component paths and the MCP SDK are absent from the source tree, manifest, and lockfiles. Historical transcript compatibility code remains for old saved sessions. The `yaml` runtime dependency is explicitly declared so installed Node builds can load user/project skill frontmatter.
 
 ## Completion criteria
 
