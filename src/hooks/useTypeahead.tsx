@@ -1060,12 +1060,6 @@ export function useTypeahead({
           applyTriggerSuggestion(suggestion, input, cursorOffset, DM_MEMBER_RE, onInputChange, setCursorOffset);
           clearSuggestions();
         }
-      } else if (suggestionType === 'slack-channel' && suggestions.length > 0) {
-        const suggestion = suggestions[index];
-        if (suggestion) {
-          applyTriggerSuggestion(suggestion, input, cursorOffset, HASH_CHANNEL_RE, onInputChange, setCursorOffset);
-          clearSuggestions();
-        }
       } else if (suggestionType === 'file' && suggestions.length > 0) {
         const selectedItem = suggestions[index];
         if (isDirectMessageSuggestion(selectedItem)) {
@@ -1217,11 +1211,6 @@ export function useTypeahead({
       applyTriggerSuggestion(suggestion, input, cursorOffset, DM_MEMBER_RE, onInputChange, setCursorOffset);
       debouncedFetchFileSuggestions.cancel();
       clearSuggestions();
-    } else if (suggestionType === 'slack-channel' && selectedSuggestion < suggestions.length) {
-      if (suggestion) {
-        applyTriggerSuggestion(suggestion, input, cursorOffset, HASH_CHANNEL_RE, onInputChange, setCursorOffset);
-          clearSuggestions();
-      }
     } else if (suggestionType === 'file' && selectedSuggestion < suggestions.length) {
       if (isDirectMessageSuggestion(suggestion)) {
         applyTriggerSuggestion(suggestion, input, cursorOffset, DM_MEMBER_RE, onInputChange, setCursorOffset);
@@ -1275,7 +1264,7 @@ export function useTypeahead({
         clearSuggestions();
       }
     }
-  }, [suggestions, selectedSuggestion, suggestionType, commands, input, cursorOffset, mode, onInputChange, setCursorOffset, onSubmit, clearSuggestions, debouncedFetchFileSuggestions, debouncedFetchSlackChannels]);
+  }, [suggestions, selectedSuggestion, suggestionType, commands, input, cursorOffset, mode, onInputChange, setCursorOffset, onSubmit, clearSuggestions, debouncedFetchFileSuggestions]);
 
   // Handler for autocomplete:accept - accepts current suggestion via Tab or Right Arrow
   const handleAutocompleteAccept = useCallback(() => {
@@ -1285,7 +1274,6 @@ export function useTypeahead({
   // Handler for autocomplete:dismiss - clears suggestions and prevents re-triggering
   const handleAutocompleteDismiss = useCallback(() => {
     debouncedFetchFileSuggestions.cancel();
-    debouncedFetchSlackChannels.cancel();
     clearSuggestions();
     // Remember the input when dismissed to prevent immediate re-triggering
     dismissedForInputRef.current = input;
