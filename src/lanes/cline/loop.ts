@@ -37,7 +37,7 @@ import { loadProviderKey } from '../../services/api/auth/api_key_manager.js'
 import { refreshClineOAuth } from '../../services/api/auth/oauth_services.js'
 import {
   OPENAI_COMPAT_TOOL_USAGE_RULES,
-} from '../shared/mcp_bridge.js'
+} from '../shared/providerToolCompat.js'
 import {
   createRetryableConnectionError,
   isAbortError,

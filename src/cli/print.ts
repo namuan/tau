@@ -1478,10 +1478,7 @@ function runHeadlessStreaming(
     const managedServers = new Set(
       [...mcpClients, ...appState.mcp.clients].map(c => c.name),
     )
-    const assembledTools = assembleToolPool(
-      appState.toolPermissionContext,
-      appState.mcp.tools,
-    )
+    const assembledTools = assembleToolPool(appState.toolPermissionContext)
     let allTools = uniqBy(
       mergeAndFilterTools(
         [

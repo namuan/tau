@@ -64,7 +64,7 @@ import { loadProviderKey } from '../../services/api/auth/api_key_manager.js'
 import {
   OPENAI_COMPAT_TOOL_USAGE_RULES,
   appendStrictParamsHint,
-} from '../shared/mcp_bridge.js'
+} from '../shared/providerToolCompat.js'
 import {
   KILO_FALLBACK_MODELS,
   KILO_FALLBACK_FREE_IDS,

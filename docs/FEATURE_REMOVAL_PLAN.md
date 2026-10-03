@@ -31,13 +31,11 @@ The WhatsApp command, messaging client, mirroring, permission relays, special tu
 
 **Verify:** Build; run WhatsApp-specific tests if present; confirm the dependency is absent from `package.json` and lockfile and no WhatsApp command or startup registration remains.
 
-## Phase 3: Browser and computer use
+## Phase 3: Browser and computer use — removal in progress
 
-**Likely scope:** `src/services/browser`, browser and computer-use tools, `src/utils/computerUse`, browser/Chrome setup and commands, related components/tests, and optional computer-use packages such as `@computer-use/nut-js`.
+Remove Claude in Chrome integration, its native host/onboarding/settings/commands and browser-specific prompts/rendering, plus the Computer Use MCP server, approvals, session state, cleanup paths, and optional desktop-control dependency. Preserve generic MCP support until Phase 8 and preserve generic web search/fetch.
 
-**Check before deleting:** Browser automation, Chrome-specific integration, and desktop computer use may have separate registries and permissions. Trace each from tool registration and remove all three only if all are out of scope. Preserve generic web search/fetch unless separately unwanted.
-
-**Verify:** Build; run affected browser/computer tests during removal; confirm no browser/computer tools or onboarding remain and generic web search/fetch still works.
+**Verification:** Build passes after removing the Chrome and Computer Use code paths. Continue by running focused tests and auditing for stale references before committing.
 
 ## Phase 4: Remote control — completed
 
@@ -67,7 +65,7 @@ Removed plugin commands and UI, loading and startup checks, marketplace/install/
 
 **Likely scope:** `src/services/mcp`, MCP tools/commands/components, MCP server startup and registries, MCP config and persistence, MCP-specific migrations/tests/docs, and `@modelcontextprotocol/sdk` plus other dependencies used only by MCP.
 
-**Check before deleting:** MCP may underpin IDE integrations, external resources, and optional browser/computer integrations. Phases 3, 5, and 7 should already have removed those consumers. Check remaining MCP imports across `src` before removing the shared layer; preserve generic local tools and their command execution.
+**Check before deleting:** MCP may underpin external resources and retained integrations. Check remaining MCP imports across `src` before removing the shared layer; preserve generic local tools and their command execution.
 
 **Verify:** Build; test the retained core agent tools and provider flow; confirm startup makes no MCP discovery/connection attempts and no MCP-only command, server config, package, or UI remains.
 

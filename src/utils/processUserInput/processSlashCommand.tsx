@@ -753,7 +753,7 @@ function formatCommandLoadingMetadata(command: CommandBase & PromptCommand, args
     return formatSlashCommandLoadingMetadata(command.name, args);
   }
   // Model-only skills (userInvocable: false) show as "The X skill is running"
-  if (command.loadedFrom === 'skills' || command.loadedFrom === 'mcp') {
+  if (command.loadedFrom === 'skills') {
     return formatSkillLoadingMetadata(command.name, command.progressMessage);
   }
   return formatSlashCommandLoadingMetadata(command.name, args);

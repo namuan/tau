@@ -1,5 +1,4 @@
 import { z } from 'zod/v4'
-import { mcpInfoFromString } from '../../services/mcp/mcpStringUtils.js'
 import { lazySchema } from '../lazySchema.js'
 import { permissionRuleValueFromString } from '../permissions/permissionRuleParser.js'
 import { capitalize } from '../stringUtils.js'
@@ -99,37 +98,7 @@ export function validatePermissionRule(rule: string): {
   // Parse the rule
   const parsed = permissionRuleValueFromString(rule)
 
-  // MCP validation - must be done before general tool validation
-  const mcpInfo = mcpInfoFromString(parsed.toolName)
-  if (mcpInfo) {
-    // MCP rules support server-level, tool-level, and wildcard permissions
-    // Valid formats:
-    // - mcp__server (server-level, all tools)
-    // - mcp__server__* (wildcard, all tools - equivalent to server-level)
-    // - mcp__server__tool (specific tool)
-
-    // MCP rules cannot have any pattern/content (parentheses)
-    // Check both parsed content and raw string since the parser normalizes
-    // standalone wildcards (e.g., "mcp__server(*)") to undefined ruleContent
-    if (parsed.ruleContent !== undefined || countUnescapedChar(rule, '(') > 0) {
-      return {
-        valid: false,
-        error: 'MCP rules do not support patterns in parentheses',
-        suggestion: `Use "${parsed.toolName}" without parentheses, or use "mcp__${mcpInfo.serverName}__*" for all tools`,
-        examples: [
-          `mcp__${mcpInfo.serverName}`,
-          `mcp__${mcpInfo.serverName}__*`,
-          mcpInfo.toolName && mcpInfo.toolName !== '*'
-            ? `mcp__${mcpInfo.serverName}__${mcpInfo.toolName}`
-            : undefined,
-        ].filter(Boolean) as string[],
-      }
-    }
-
-    return { valid: true } // Valid MCP rule
-  }
-
-  // Tool name validation (for non-MCP tools)
+  // Tool name validation
   if (!parsed.toolName || parsed.toolName.length === 0) {
     return { valid: false, error: 'Tool name cannot be empty' }
   }

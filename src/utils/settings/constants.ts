@@ -44,7 +44,7 @@ export function getSettingSourceName(source: SettingSource): string {
  * @returns Short capitalized display name like 'User', 'Project', or 'Built-in'
  */
 export function getSourceDisplayName(
-  source: SettingSource | 'built-in' | 'mcp' | 'bundled',
+  source: SettingSource | 'built-in' | 'bundled',
 ): string {
   switch (source) {
     case 'userSettings':
@@ -59,8 +59,6 @@ export function getSourceDisplayName(
       return 'Managed'
     case 'built-in':
       return 'Built-in'
-    case 'mcp':
-      return 'MCP'
     case 'bundled':
       return 'Bundled'
   }

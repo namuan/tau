@@ -35,13 +35,9 @@ export const renderToolUseMessage = () => null;
 export const renderToolUseRejectedMessage = () => null;
 export const renderToolUseErrorMessage = () => null;
 export const renderToolResultMessage = () => null;
-export const createClaudeForChromeMcpServer = () => {};
-export const BROWSER_TOOLS = [];
-export const COMPUTER_USE_TOOLS = [];
 export const DEFAULT_UPLOAD_CONCURRENCY = 1;
 export const FILE_COUNT_LIMIT = 100;
 export const OUTPUTS_SUBDIR = 'outputs';
-export const buildComputerUseTools = () => [];
 export const isCoordinatorMode = () => false;
 export class SandboxManager {
   constructor() {}
@@ -73,8 +69,6 @@ export class SandboxManager {
 }
 export class SandboxViolationStore { constructor() {} getViolations() { return []; } clear() {} }
 export const SandboxRuntimeConfigSchema = { parse: (v) => v, safeParse: (v) => ({ success: true, data: v }) };
-export const runChromeNativeHost = () => {};
-export const runComputerUseMcpServer = () => {};
 export const runDaemonWorker = () => {};
 export const daemonMain = () => {};
 export const templatesMain = () => {};

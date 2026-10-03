@@ -192,7 +192,7 @@ export async function resumeAgentBackground({
   }
   const workerTools = isResumedFork
     ? toolUseContext.options.tools
-    : assembleToolPool(workerPermissionContext, appState.mcp.tools)
+    : assembleToolPool(workerPermissionContext)
 
   const runAgentParams: Parameters<typeof runAgent>[0] = {
     agentDefinition: selectedAgent,

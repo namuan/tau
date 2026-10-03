@@ -2,7 +2,6 @@ import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import type { UUID } from 'crypto'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import type { CompactionResult } from '../services/compact/compact.js'
-import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { SettingSource } from '../utils/settings/constants.js'
@@ -27,7 +26,7 @@ export type PromptCommand = {
   argNames?: string[]
   allowedTools?: string[]
   model?: string
-  source: SettingSource | 'builtin' | 'mcp' | 'bundled'
+  source: SettingSource | 'builtin' | 'bundled'
   disableNonInteractive?: boolean
   // Hooks to register when this skill is invoked
   hooks?: HooksSettings
@@ -75,13 +74,9 @@ export type LocalJSXCommandContext = ToolUseContext & {
   canUseTool?: CanUseToolFn
   setMessages: (updater: (prev: Message[]) => Message[]) => void
   options: {
-    dynamicMcpConfig?: Record<string, ScopedMcpServerConfig>
     theme: ThemeName
   }
   onChangeAPIKey: () => void
-  onChangeDynamicMcpConfig?: (
-    config: Record<string, ScopedMcpServerConfig>,
-  ) => void
   resume?: (
     sessionId: UUID,
     log: LogOption,
@@ -185,7 +180,6 @@ export type CommandBase = {
     | 'skills'
     | 'managed'
     | 'bundled'
-    | 'mcp' // Where the command was loaded from
   kind?: 'workflow' // Distinguishes workflow-backed commands (badged in autocomplete)
   immediate?: boolean // If true, command executes immediately without waiting for a stop point (bypasses queue)
   isSensitive?: boolean // If true, args are redacted from the conversation history

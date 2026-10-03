@@ -13,7 +13,7 @@ import { coerceMcpInput } from '../services/mcp/coerceMcpInput.js'
 import {
   contractArgumentJudge,
   contractIssues,
-} from '../services/mcp/contractValidation.js'
+} from './toolContractValidation.js'
 import {
   type ArgumentIssue,
   type ArgumentJudge,

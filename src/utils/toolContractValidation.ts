@@ -34,7 +34,7 @@ import type {
   ArgumentIssue,
   ArgumentJudge,
 } from '../../utils/placeholderArguments.js'
-import { jsonStringify } from '../../utils/slowOperations.js'
+import { jsonStringify } from './slowOperations.js'
 
 export type McpArgumentCheck =
   | { ok: true }

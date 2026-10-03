@@ -21,7 +21,7 @@ import {
   geminiSafeToolName,
   sanitizeGeminiToolParameters,
 } from './gemini_schema.js'
-import { sanitizeSchemaForLane } from './mcp_bridge.js'
+import { sanitizeSchemaForLane } from './providerToolCompat.js'
 
 let passed = 0
 let failed = 0

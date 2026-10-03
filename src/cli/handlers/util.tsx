@@ -12,7 +12,6 @@ import type { Root } from '../../ink.js';
 import { Box, Text } from '../../ink.js';
 import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js';
 import { logEvent } from '../../services/analytics/index.js';
-import { MCPConnectionManager } from '../../services/mcp/MCPConnectionManager.js';
 import { AppStateProvider } from '../../state/AppState.js';
 import { onChangeAppState } from '../../state/onChangeAppState.js';
 import { isAnthropicAuthEnabled } from '../../utils/auth.js';
@@ -72,11 +71,9 @@ export async function doctorHandler(root: Root): Promise<void> {
   await new Promise<void>(resolve => {
     root.render(<AppStateProvider>
         <KeybindingSetup>
-          <MCPConnectionManager dynamicMcpConfig={undefined} isStrictMcpConfig={false}>
             <DoctorView onDone={() => {
             void resolve();
           }} />
-          </MCPConnectionManager>
         </KeybindingSetup>
       </AppStateProvider>);
   });

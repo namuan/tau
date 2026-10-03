@@ -7,7 +7,6 @@ import { basename, dirname, join, resolve } from 'path'
 import { getOriginalCwd, getSessionTrustAccepted } from '../bootstrap/state.js'
 import { getAutoMemEntrypoint } from '../memdir/paths.js'
 import { logEvent } from '../services/analytics/index.js'
-import type { McpServerConfig } from '../services/mcp/types.js'
 import type {
   BillingType,
   ReferralEligibilityResponse,
@@ -75,8 +74,6 @@ export type ReleaseChannel = 'stable' | 'latest'
 
 export type ProjectConfig = {
   allowedTools: string[]
-  mcpContextUris: string[]
-  mcpServers?: Record<string, McpServerConfig>
   lastAPIDuration?: number
   lastAPIDurationWithoutRetries?: number
   lastToolDuration?: number
@@ -114,14 +111,6 @@ export type ProjectConfig = {
   projectOnboardingSeenCount: number
   hasClaudeMdExternalIncludesApproved?: boolean
   hasClaudeMdExternalIncludesWarningShown?: boolean
-  // MCP server approval fields - migrated to settings but kept for backward compatibility
-  enabledMcpjsonServers?: string[]
-  disabledMcpjsonServers?: string[]
-  enableAllProjectMcpServers?: boolean
-  // List of disabled MCP servers (all scopes) - used for enable/disable toggle
-  disabledMcpServers?: string[]
-  // Opt-in list for built-in MCP servers that default to disabled
-  enabledMcpServers?: string[]
   // Worktree session management
   activeWorktreeSession?: {
     originalCwd: string
@@ -135,10 +124,6 @@ export type ProjectConfig = {
 
 const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   allowedTools: [],
-  mcpContextUris: [],
-  mcpServers: {},
-  enabledMcpjsonServers: [],
-  disabledMcpjsonServers: [],
   hasTrustDialogAccepted: false,
   projectOnboardingSeenCount: 0,
   hasClaudeMdExternalIncludesApproved: false,
@@ -205,13 +190,6 @@ export type GlobalConfig = {
   changelogLastFetched?: number
   // @deprecated - Migrated to ~/.claude/cache/changelog.md. Keep for migration support.
   cachedChangelog?: string
-  mcpServers?: Record<string, McpServerConfig>
-  // claude.ai MCP connectors that have successfully connected at least once.
-  // Used to gate "connector unavailable" / "needs auth" startup notifications:
-  // a connector the user has actually used is worth flagging when it breaks,
-  // but an org-configured connector that's been needs-auth since day one is
-  // something the user has demonstrably ignored and shouldn't nag about.
-  claudeAiMcpEverConnected?: string[]
   preferredNotifChannel: NotificationChannel
   /**
    * @deprecated. Use the Notification hook instead (docs/hooks.md).
@@ -490,17 +468,6 @@ export type GlobalConfig = {
 
   // Skill usage tracking for autocomplete ranking
   skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
-  // Claude in Chrome settings
-  hasCompletedClaudeInChromeOnboarding?: boolean // Whether Claude in Chrome onboarding has been shown
-  claudeInChromeDefaultEnabled?: boolean // Whether Claude in Chrome is enabled by default (undefined means platform default)
-  cachedChromeExtensionInstalled?: boolean // Cached result of whether Chrome extension is installed
-
-  // Chrome extension pairing state (persisted across sessions)
-  chromeExtension?: {
-    pairedDeviceId?: string
-    pairedDeviceName?: string
-  }
-
   // Permission explainer configuration
   permissionExplainerEnabled?: boolean // Enable Haiku-generated explanations for permission requests (default: true)
 
@@ -676,8 +643,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'terminalProgressBarEnabled',
   'showStatusInTerminalTab',
   'respectGitignore',
-  'claudeInChromeDefaultEnabled',
-  'hasCompletedClaudeInChromeOnboarding',
   'copyFullResponse',
   'copyOnSelect',
   'permissionExplainerEnabled',

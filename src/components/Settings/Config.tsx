@@ -834,24 +834,6 @@ export function Config({
     value: mainLoopModel === null ? 'Default (recommended)' : mainLoopModel,
     type: 'managedEnum' as const,
     onChange: onChangeMainModelConfig
-  }, {
-    id: 'claudeInChromeDefaultEnabled',
-    label: 'Tau in Chrome enabled by default',
-    value: globalConfig.claudeInChromeDefaultEnabled ?? true,
-    type: 'boolean' as const,
-    onChange(enabled_5: boolean) {
-      saveGlobalConfig(current_18 => ({
-        ...current_18,
-        claudeInChromeDefaultEnabled: enabled_5
-      }));
-      setGlobalConfig({
-        ...getGlobalConfig(),
-        claudeInChromeDefaultEnabled: enabled_5
-      });
-      logEvent('tengu_claude_in_chrome_setting_changed', {
-        enabled: enabled_5
-      });
-    }
   },
   // Teammate mode (only shown when agent swarms are enabled)
   ...(isAgentSwarmsEnabled() ? (() => {

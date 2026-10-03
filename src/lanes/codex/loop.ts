@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { decodeToolArguments, toolDecodeFields } from '../../services/mcp/decodeStatus.js'
+import { decodeToolArguments, toolDecodeFields } from '../../utils/toolDecodeStatus.js'
 import { logForDebugging } from '../../utils/debug.js'
 /**
  * Codex Lane — Agent Loop + Provider-Shim Entry
@@ -45,7 +45,7 @@ import {
 import {
   appendStrictParamsHint,
   CODEX_TOOL_USAGE_RULES,
-} from '../shared/mcp_bridge.js'
+} from '../shared/providerToolCompat.js'
 import { describeUnsendableMedia } from '../shared/media_blocks.js'
 import { toCodexToolParameters } from './tool_schema.js'
 import { isOutputCapTruncation, laneStopReason } from '../shared/truncation.js'

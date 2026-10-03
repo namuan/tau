@@ -11,7 +11,7 @@ import { logError } from '../../utils/log.js'
 import {
   isBinaryContentType,
   persistBinaryContent,
-} from '../../utils/mcpOutputStorage.js'
+} from '../../utils/binaryContentStorage.js'
 import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { isPreapprovedHost } from './preapproved.js'

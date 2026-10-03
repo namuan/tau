@@ -7,7 +7,6 @@ import type { Command } from '../../commands.js';
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
 import { Box, Link, Text } from '../../ink.js';
 import { useKeybinding } from '../../keybindings/useKeybinding.js';
-import { getMcpConfigsByScope } from '../../services/mcp/config.js';
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js';
 import { checkHasTrustDialogAccepted, saveCurrentProjectConfig } from '../../utils/config.js';
 import { getCwd } from '../../utils/cwd.js';
@@ -26,24 +25,6 @@ export function TrustDialog(t0) {
     onDone,
     commands
   } = t0;
-  let t1;
-  if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = getMcpConfigsByScope("project");
-    $[0] = t1;
-  } else {
-    t1 = $[0];
-  }
-  const {
-    servers: projectServers
-  } = t1;
-  let t2;
-  if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
-    t2 = Object.keys(projectServers);
-    $[1] = t2;
-  } else {
-    t2 = $[1];
-  }
-  const hasMcpServers = t2.length > 0;
   let t3;
   if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
     t3 = getHooksSources();
@@ -133,7 +114,6 @@ export function TrustDialog(t0) {
       const isHomeDir = homedir() === getCwd();
       logEvent("tengu_trust_dialog_shown", {
         isHomeDir,
-        hasMcpServers,
         hasHooks,
         hasBashExecution: hasAnyBashExecution,
         hasApiKeyHelper,
@@ -143,7 +123,7 @@ export function TrustDialog(t0) {
         hasDangerousEnvVars
       });
     };
-    t13 = [hasMcpServers, hasHooks, hasAnyBashExecution, hasApiKeyHelper, hasAwsCommands, hasGcpCommands, hasOtelHeadersHelper, hasDangerousEnvVars];
+    t13 = [hasHooks, hasAnyBashExecution, hasApiKeyHelper, hasAwsCommands, hasGcpCommands, hasOtelHeadersHelper, hasDangerousEnvVars];
     $[13] = hasAnyBashExecution;
     $[14] = t12;
     $[15] = t13;
@@ -162,7 +142,6 @@ export function TrustDialog(t0) {
       const isHomeDir_0 = homedir() === getCwd();
       logEvent("tengu_trust_dialog_accept", {
         isHomeDir: isHomeDir_0,
-        hasMcpServers,
         hasHooks,
         hasBashExecution: hasAnyBashExecution,
         hasApiKeyHelper,

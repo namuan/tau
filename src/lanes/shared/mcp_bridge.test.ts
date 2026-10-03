@@ -8,7 +8,7 @@
  * Run:  bun run src/lanes/shared/mcp_bridge.test.ts
  */
 
-import { sanitizeSchemaForLane } from './mcp_bridge.js'
+import { sanitizeSchemaForLane } from './providerToolCompat.js'
 
 let passed = 0
 let failed = 0

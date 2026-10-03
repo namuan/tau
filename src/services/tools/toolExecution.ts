@@ -170,7 +170,7 @@ import {
 import {
   getBinaryBlobSavedMessage,
   persistBinaryContent,
-} from '../../utils/mcpOutputStorage.js'
+} from '../../utils/binaryContentStorage.js'
 import type { MCPServerConnection } from '../mcp/types.js'
 import {
   getLoggingSafeMcpBaseUrl,

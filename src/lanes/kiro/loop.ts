@@ -24,7 +24,7 @@
  *   contextUsageEvent       → estimates input tokens when metrics absent
  */
 
-import { decodeToolArguments, decodeStatusOf, describeDecodeFailure, type ToolDecodeStatus } from '../../services/mcp/decodeStatus.js'
+import { decodeToolArguments, decodeStatusOf, describeDecodeFailure, type ToolDecodeStatus } from '../../utils/toolDecodeStatus.js'
 import type {
   AnthropicStreamEvent,
   ModelInfo,

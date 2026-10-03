@@ -3,9 +3,9 @@ import type {
   ProviderTool,
 } from '../../services/api/providers/base_provider.js'
 import type { OpenAIMessage } from '../../services/api/adapters/anthropic_to_openai.js'
-import { buildStrictParamsSummary } from '../shared/mcp_bridge.js'
-import { decodeToolArguments, toolDecodeFields } from '../../services/mcp/decodeStatus.js'
-import { contractArgumentJudge } from '../../services/mcp/contractValidation.js'
+import { buildStrictParamsSummary } from '../shared/providerToolCompat.js'
+import { decodeToolArguments, toolDecodeFields } from '../../utils/toolDecodeStatus.js'
+import { contractArgumentJudge } from '../../utils/toolContractValidation.js'
 import { dropInvalidPlaceholderArguments } from '../../utils/placeholderArguments.js'
 
 export interface ClineInvalidToolCall {

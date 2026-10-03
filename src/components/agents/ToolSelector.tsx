@@ -1,8 +1,6 @@
 import { c as _c } from "react/compiler-runtime";
 import figures from 'figures';
 import React, { useCallback, useMemo, useState } from 'react';
-import { mcpInfoFromString } from 'src/services/mcp/mcpStringUtils.js';
-import { isMcpTool } from 'src/services/mcp/utils.js';
 import type { Tool, Tools } from 'src/Tool.js';
 import { filterToolsForAgent } from 'src/tools/AgentTool/agentToolUtils.js';
 import { AGENT_TOOL_NAME } from 'src/tools/AgentTool/constants.js';
@@ -13,9 +11,7 @@ import { FileReadTool } from 'src/tools/FileReadTool/FileReadTool.js';
 import { FileWriteTool } from 'src/tools/FileWriteTool/FileWriteTool.js';
 import { GlobTool } from 'src/tools/GlobTool/GlobTool.js';
 import { GrepTool } from 'src/tools/GrepTool/GrepTool.js';
-import { ListMcpResourcesTool } from 'src/tools/ListMcpResourcesTool/ListMcpResourcesTool.js';
 import { NotebookEditTool } from 'src/tools/NotebookEditTool/NotebookEditTool.js';
-import { ReadMcpResourceTool } from 'src/tools/ReadMcpResourceTool/ReadMcpResourceTool.js';
 import { TaskOutputTool } from 'src/tools/TaskOutputTool/TaskOutputTool.js';
 import { TaskStopTool } from 'src/tools/TaskStopTool/TaskStopTool.js';
 import { TodoWriteTool } from 'src/tools/TodoWriteTool/TodoWriteTool.js';
@@ -50,7 +46,7 @@ function getToolBuckets(): ToolBuckets {
   return {
     READ_ONLY: {
       name: 'Read-only tools',
-      toolNames: new Set([GlobTool.name, GrepTool.name, ExitPlanModeV2Tool.name, FileReadTool.name, WebFetchTool.name, TodoWriteTool.name, WebSearchTool.name, TaskStopTool.name, TaskOutputTool.name, ListMcpResourcesTool.name, ReadMcpResourceTool.name])
+      toolNames: new Set([GlobTool.name, GrepTool.name, ExitPlanModeV2Tool.name, FileReadTool.name, WebFetchTool.name, TodoWriteTool.name, WebSearchTool.name, TaskStopTool.name, TaskOutputTool.name])
     },
     EDIT: {
       name: 'Edit tools',
@@ -73,27 +69,6 @@ function getToolBuckets(): ToolBuckets {
   };
 }
 
-// Helper to get MCP server buckets dynamically
-function getMcpServerBuckets(tools: Tools): Array<{
-  serverName: string;
-  tools: Tools;
-}> {
-  const serverMap = new Map<string, Tool[]>();
-  tools.forEach(tool => {
-    if (isMcpTool(tool)) {
-      const mcpInfo = mcpInfoFromString(tool.name);
-      if (mcpInfo?.serverName) {
-        const existing = serverMap.get(mcpInfo.serverName) || [];
-        existing.push(tool);
-        serverMap.set(mcpInfo.serverName, existing);
-      }
-    }
-  });
-  return Array.from(serverMap.entries()).map(([serverName, tools]) => ({
-    serverName,
-    tools
-  })).sort((a, b) => a.serverName.localeCompare(b.serverName));
-}
 export function ToolSelector(t0) {
   const $ = _c(69);
   const {
@@ -222,10 +197,7 @@ export function ToolSelector(t0) {
       other: [] as Tool[]
     };
     customAgentTools.forEach(tool => {
-      if (isMcpTool(tool)) {
-        buckets.mcp.push(tool);
-      } else {
-        if (toolBuckets.READ_ONLY.toolNames.has(tool.name)) {
+      if (toolBuckets.READ_ONLY.toolNames.has(tool.name)) {
           buckets.readOnly.push(tool);
         } else {
           if (toolBuckets.EDIT.toolNames.has(tool.name)) {
@@ -240,7 +212,6 @@ export function ToolSelector(t0) {
             }
           }
         }
-      }
     });
     $[20] = customAgentTools;
     $[21] = buckets;
@@ -351,7 +322,6 @@ export function ToolSelector(t0) {
       action: t12,
       isToggle: true
     });
-    const mcpServerBuckets = getMcpServerBuckets(customAgentTools);
     if (showIndividualTools) {
       if (mcpServerBuckets.length > 0) {
         navigableItems.push({
@@ -385,11 +355,7 @@ export function ToolSelector(t0) {
       }
       customAgentTools.forEach(tool_0 => {
         let displayName = tool_0.name;
-        if (tool_0.name.startsWith("mcp__")) {
-          const mcpInfo = mcpInfoFromString(tool_0.name);
-          displayName = mcpInfo ? `${mcpInfo.toolName} (${mcpInfo.serverName})` : tool_0.name;
-        }
-        navigableItems.push({
+          navigableItems.push({
           id: `tool-${tool_0.name}`,
           label: `${selectedSet.has(tool_0.name) ? figures.checkboxOn : figures.checkboxOff} ${displayName}`,
           action: () => handleToggleTool(tool_0.name)

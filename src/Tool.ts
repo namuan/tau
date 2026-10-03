@@ -2,10 +2,6 @@ import type {
   ToolResultBlockParam,
   ToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/index.mjs'
-import type {
-  ElicitRequestURLParams,
-  ElicitResult,
-} from '@modelcontextprotocol/sdk/types.js'
 import type { UUID } from 'crypto'
 import type { z } from 'zod/v4'
 import type { Command } from './commands.js'
@@ -21,10 +17,6 @@ export type ToolInputJSONSchema = {
 }
 
 import type { Notification } from './context/notifications.js'
-import type {
-  MCPServerConnection,
-  ServerResource,
-} from './services/mcp/types.js'
 import type {
   AgentDefinition,
   AgentDefinitionsResult,
@@ -49,7 +41,6 @@ import type {
 import type {
   AgentToolProgress,
   BashProgress,
-  MCPProgress,
   REPLToolProgress,
   SkillToolProgress,
   TaskOutputProgress,
@@ -65,7 +56,6 @@ import type { ContentReplacementState } from './utils/toolResultStorage.js'
 export type {
   AgentToolProgress,
   BashProgress,
-  MCPProgress,
   REPLToolProgress,
   SkillToolProgress,
   TaskOutputProgress,
@@ -172,8 +162,6 @@ export type ToolUseContext = {
     tools: Tools
     verbose: boolean
     thinkingConfig: ThinkingConfig
-    mcpClients: MCPServerConnection[]
-    mcpResources: Record<string, ServerResource[]>
     isNonInteractiveSession: boolean
     agentDefinitions: AgentDefinitionsResult
     maxBudgetUsd?: number
@@ -183,10 +171,7 @@ export type ToolUseContext = {
     appendSystemPrompt?: string
     /** Override querySource for analytics tracking */
     querySource?: QuerySource
-    /** Optional callback to get the latest tools (e.g., after MCP servers connect mid-query) */
     refreshTools?: () => Tools
-    /** Read tools and their MCP connections from one current state snapshot. */
-    refreshMcpContext?: () => { tools: Tools; mcpClients: MCPServerConnection[] }
   }
   abortController: AbortController
   readFileState: FileStateCache
@@ -201,16 +186,6 @@ export type ToolUseContext = {
    * fall back to setAppState.
    */
   setAppStateForTasks?: (f: (prev: AppState) => AppState) => void
-  /**
-   * Optional handler for URL elicitations triggered by tool call errors (-32042).
-   * In print/SDK mode, this delegates to structuredIO.handleElicitation.
-   * In REPL mode, this is undefined and the queue-based UI path is used.
-   */
-  handleElicitation?: (
-    serverName: string,
-    params: ElicitRequestURLParams,
-    signal: AbortSignal,
-  ) => Promise<ElicitResult>
   setToolJSX?: SetToolJSXFn
   /**
    * Set for a `!!cmd` shell command typed by the user, whose output must
@@ -348,11 +323,6 @@ export type ToolResult<T> = {
   )[]
   // contextModifier is only honored for tools that aren't concurrency safe.
   contextModifier?: (context: ToolUseContext) => ToolUseContext
-  /** MCP protocol metadata (structuredContent, _meta) to pass through to SDK consumers */
-  mcpMeta?: {
-    _meta?: Record<string, unknown>
-    structuredContent?: Record<string, unknown>
-  }
 }
 
 export type ToolCallProgress<P extends ToolProgressData = ToolProgressData> = (
@@ -461,16 +431,10 @@ export type Tool<
   readonly shouldDefer?: boolean
   /**
    * When true, this tool is never deferred — its full schema appears in the
-   * initial prompt even when ToolSearch is enabled. For MCP tools, set via
-   * `_meta['anthropic/alwaysLoad']`. Use for tools the model must see on
-   * turn 1 without a ToolSearch round-trip.
+   * initial prompt even when ToolSearch is enabled. Use for tools the model
+   * must see on turn 1 without a ToolSearch round-trip.
    */
   readonly alwaysLoad?: boolean
-  /**
-   * For MCP tools: the server and tool names as received from the MCP server (unnormalized).
-   * Present on all MCP tools regardless of whether `name` is prefixed (mcp__server__tool)
-   * or unprefixed (CLAUDE_AGENT_SDK_MCP_NO_PREFIX mode).
-   */
   mcpInfo?: { serverName: string; toolName: string }
   readonly name: string
   /**

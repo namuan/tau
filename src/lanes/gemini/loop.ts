@@ -30,7 +30,7 @@ import {
   decodeStatusOf,
   describeDecodeFailure,
   type ToolDecodeStatus,
-} from '../../services/mcp/decodeStatus.js'
+} from '../../utils/toolDecodeStatus.js'
 import { createHash, randomUUID } from 'crypto'
 import type {
   AnthropicStreamEvent,
@@ -84,7 +84,7 @@ import {
   sanitizeSchemaForLane,
   appendStrictParamsHint,
   GEMINI_TOOL_USAGE_RULES,
-} from '../shared/mcp_bridge.js'
+} from '../shared/providerToolCompat.js'
 import { geminiSafeToolName } from '../shared/gemini_schema.js'
 import { isOutputCapTruncation, laneStopReason } from '../shared/truncation.js'
 import { selectGeminiToolsForRequest } from './lazy_tools.js'

@@ -42,7 +42,7 @@ This document groups Tau's source tree by purpose to support a gradual move towa
 | Paths | Responsibility | Cleanup priority |
 |---|---|---|
 | `src/voice`, `native/tau-voice`, `platform-packages/tau-voice-*` | Live voice conversation and platform-specific native voice addons | Removed in Phase 1; retained generic provider authentication and file/audio handling. |
-| Browser/computer-use tools and `src/services/browser` | Browser automation and computer interaction | Optional; audit separately because it may bring platform/runtime dependencies. |
+| Claude in Chrome and Computer Use MCP integration | Browser automation and desktop control | Removed in Phase 3; generic web search/fetch and MCP support remain. |
 | `src/services/whatsapp` and WhatsApp commands | WhatsApp connectivity | Removed in Phase 2, including its permission relay and Baileys dependency. |
 | `src/services/remote`, remote commands and bridge modules | LAN pairing, remote control, and shared session control | Removed in Phase 4; generic Tau Web session APIs remain. |
 | `src/buddy`, `src/vim`, `src/outputStyles`, `src/moreright`, `src/coordinator` | Specialized UI, interaction, or orchestration modes | Audit against intended product experience; likely non-core for a minimal coding CLI. |
@@ -72,7 +72,7 @@ A lightweight terminal coding agent could retain:
 - File read, write, edit, and basic file/content search
 - Essential Git support and build/test execution
 
-Remaining removal candidates, if out of scope, are browser/computer use, MCP, and specialized commands/tools.
+Remaining removal candidates, if out of scope, are MCP and specialized commands/tools.
 
 ## Cleanup approach
 

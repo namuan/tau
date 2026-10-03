@@ -20,7 +20,6 @@ import { isSynchronizedOutputSupported } from './ink/terminal.js';
 import { KeybindingSetup } from './keybindings/KeybindingProviderSetup.js';
 import { startDeferredPrefetches } from './main.js';
 import { initializeGrowthBook, resetGrowthBook } from './services/analytics/growthbook.js';
-import { handleMcpjsonServerApprovals } from './services/mcpServerApproval.js';
 import { AppStateProvider } from './state/AppState.js';
 import { onChangeAppState } from './state/onChangeAppState.js';
 import { normalizeApiKeyForConfig } from './utils/authPortable.js';
@@ -33,7 +32,6 @@ import { updateGithubRepoPathMapping } from './utils/githubRepoPathMapping.js';
 import { applyConfigEnvironmentVariables } from './utils/managedEnv.js';
 import type { PermissionMode } from './utils/permissions/PermissionMode.js';
 import { getBaseRenderOptions } from './utils/renderOptions.js';
-import { getSettingsWithAllErrors } from './utils/settings/allErrors.js';
 import { hasAutoModeOptIn, hasSkipDangerousModePermissionPrompt } from './utils/settings/settings.js';
 export function completeOnboarding(): void {
   saveGlobalConfig(current => ({
@@ -150,7 +148,7 @@ export async function renderAndRun(root: Root, element: React.ReactNode): Promis
   await root.waitUntilExit();
   await gracefulShutdown(0);
 }
-export async function showSetupScreens(root: Root, permissionMode: PermissionMode, allowDangerouslySkipPermissions: boolean, commands?: Command[], claudeInChrome?: boolean): Promise<boolean> {
+export async function showSetupScreens(root: Root, permissionMode: PermissionMode, allowDangerouslySkipPermissions: boolean, commands?: Command[]): Promise<boolean> {
   trace('showSetupScreens entered');
   // Fail fast with a readable error instead of hanging invisibly.
   assertTerminalWritable();
@@ -228,17 +226,6 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
     // Now that trust is established, prefetch system context if it wasn't already
     void getSystemContext();
 
-    // If settings are valid, check for any mcp.json servers that need approval
-    const {
-      errors: allErrors
-    } = getSettingsWithAllErrors();
-    trace(`settingsErrors = ${allErrors.length}`);
-    if (allErrors.length === 0) {
-      trace('before handleMcpjsonServerApprovals');
-      await handleMcpjsonServerApprovals(root);
-      trace('after handleMcpjsonServerApprovals');
-    }
-
     // Check for claude.md includes that need approval
     trace('before shouldShowClaudeMdExternalIncludesWarning');
     if (await shouldShowClaudeMdExternalIncludesWarning()) {
@@ -305,13 +292,6 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
     }
   }
 
-  // Show Chrome onboarding for first-time Claude in Chrome users
-  if (claudeInChrome && !getGlobalConfig().hasCompletedClaudeInChromeOnboarding) {
-    const {
-      ClaudeInChromeOnboarding
-    } = await import('./components/ClaudeInChromeOnboarding.js');
-    await showSetupDialog(root, done => <ClaudeInChromeOnboarding onDone={done} />);
-  }
   trace('showSetupScreens completed — returning');
   return onboardingShown;
 }

@@ -1,4 +1,4 @@
-import { decodeToolArguments, toolDecodeFields } from '../../mcp/decodeStatus.js'
+import { decodeToolArguments, toolDecodeFields } from '../../../utils/toolDecodeStatus.js'
 /**
  * Adapters for the OpenAI Responses API (POST /v1/responses).
  *

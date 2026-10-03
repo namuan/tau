@@ -8,10 +8,6 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from '../../services/analytics/index.js'
-import {
-  type McpServerConfig,
-  McpServerConfigSchema,
-} from '../../services/mcp/types.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -59,20 +55,6 @@ import {
 } from './agentMemorySnapshot.js'
 import { getBuiltInAgents } from './builtInAgents.js'
 
-// Type for MCP server specification in agent definitions
-// Can be either a reference to an existing server by name, or an inline definition as { [name]: config }
-export type AgentMcpServerSpec =
-  | string // Reference to existing server by name (e.g., "slack")
-  | { [name: string]: McpServerConfig } // Inline definition as { name: config }
-
-// Zod schema for agent MCP server specs
-const AgentMcpServerSpecSchema = lazySchema(() =>
-  z.union([
-    z.string(), // Reference by name
-    z.record(z.string(), McpServerConfigSchema()), // Inline as { name: config }
-  ]),
-)
-
 // Zod schemas for JSON agent validation
 // Note: HooksSchema is lazy so the circular chain AppState -> loadAgentsDir -> settings/types
 // is broken at module load time
@@ -100,7 +82,6 @@ const AgentJsonSchema = lazySchema(() =>
         .optional(),
       effort: z.union([z.enum(EFFORT_LEVELS), z.number().int()]).optional(),
       permissionMode: z.enum(PERMISSION_MODES).optional(),
-      mcpServers: z.array(AgentMcpServerSpecSchema()).optional(),
       hooks: HooksSchema().optional(),
       maxTurns: z.number().int().positive().optional(),
       skills: z.array(z.string()).optional(),
@@ -148,7 +129,6 @@ export type BaseAgentDefinition = {
   tools?: string[]
   disallowedTools?: string[]
   skills?: string[] // Skill names to preload (parsed from comma-separated frontmatter)
-  mcpServers?: AgentMcpServerSpec[] // MCP servers specific to this agent
   hooks?: HooksSettings // Session-scoped hooks registered when agent starts
   color?: AgentColorName
   model?: string
@@ -166,7 +146,6 @@ export type BaseAgentDefinition = {
   filename?: string // Original filename without .md extension (for user/project/managed agents)
   baseDir?: string
   criticalSystemReminder_EXPERIMENTAL?: string // Short message re-injected at every user turn
-  requiredMcpServers?: string[] // MCP server name patterns that must be configured for agent to be available
   background?: boolean // Always run as background task when spawned
   initialPrompt?: string // Prepended to the first user turn (slash commands work)
   memory?: AgentMemoryScope // Persistent memory scope
@@ -252,40 +231,6 @@ export function getActiveAgentsFromList(
   }
 
   return Array.from(agentMap.values())
-}
-
-/**
- * Checks if an agent's required MCP servers are available.
- * Returns true if no requirements or all requirements are met.
- * @param agent The agent to check
- * @param availableServers List of available MCP server names (e.g., from mcp.clients)
- */
-export function hasRequiredMcpServers(
-  agent: AgentDefinition,
-  availableServers: string[],
-): boolean {
-  if (!agent.requiredMcpServers || agent.requiredMcpServers.length === 0) {
-    return true
-  }
-  // Each required pattern must match at least one available server (case-insensitive)
-  return agent.requiredMcpServers.every(pattern =>
-    availableServers.some(server =>
-      server.toLowerCase().includes(pattern.toLowerCase()),
-    ),
-  )
-}
-
-/**
- * Filters agents based on MCP server requirements.
- * Only returns agents whose required MCP servers are available.
- * @param agents List of agents to filter
- * @param availableServers List of available MCP server names
- */
-export function filterAgentsByMcpRequirements(
-  agents: AgentDefinition[],
-  availableServers: string[],
-): AgentDefinition[] {
-  return agents.filter(agent => hasRequiredMcpServers(agent, availableServers))
 }
 
 /**
@@ -519,9 +464,6 @@ export function parseAgentFromJson(
       ...(parsed.effort !== undefined ? { effort: parsed.effort } : {}),
       ...(parsed.permissionMode
         ? { permissionMode: parsed.permissionMode }
-        : {}),
-      ...(parsed.mcpServers && parsed.mcpServers.length > 0
-        ? { mcpServers: parsed.mcpServers }
         : {}),
       ...(parsed.hooks ? { hooks: parsed.hooks } : {}),
       ...(parsed.maxTurns !== undefined ? { maxTurns: parsed.maxTurns } : {}),
@@ -768,24 +710,6 @@ export function parseAgentFromMarkdown(
         ? initialPromptRaw
         : undefined
 
-    // Parse mcpServers from frontmatter using same Zod validation as JSON agents
-    const mcpServersRaw = frontmatter['mcpServers']
-    let mcpServers: AgentMcpServerSpec[] | undefined
-    if (Array.isArray(mcpServersRaw)) {
-      mcpServers = mcpServersRaw
-        .map(item => {
-          const result = AgentMcpServerSpecSchema().safeParse(item)
-          if (result.success) {
-            return result.data
-          }
-          logForDebugging(
-            `Agent file ${filePath} has invalid mcpServers item: ${jsonStringify(item)}. Error: ${result.error.message}`,
-          )
-          return null
-        })
-        .filter((item): item is AgentMcpServerSpec => item !== null)
-    }
-
     // Parse hooks from frontmatter
     const hooks = parseHooksFromFrontmatter(frontmatter, agentType)
 
@@ -798,9 +722,6 @@ export function parseAgentFromMarkdown(
       ...(disallowedTools !== undefined ? { disallowedTools } : {}),
       ...(skills !== undefined ? { skills } : {}),
       ...(initialPrompt !== undefined ? { initialPrompt } : {}),
-      ...(mcpServers !== undefined && mcpServers.length > 0
-        ? { mcpServers }
-        : {}),
       ...(hooks !== undefined ? { hooks } : {}),
       getSystemPrompt: () => {
         if (isAutoMemoryEnabled() && memory) {

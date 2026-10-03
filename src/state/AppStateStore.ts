@@ -1,15 +1,8 @@
 import type { Notification } from 'src/context/notifications.js'
 import type { TodoList } from 'src/utils/todo/types.js'
-import type { Command } from '../commands.js'
-import type { ElicitationRequestEvent } from '../services/mcp/elicitationHandler.js'
-import type {
-  MCPServerConnection,
-  ServerResource,
-} from '../services/mcp/types.js'
 import { shouldEnablePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
 import {
   getEmptyToolPermissionContext,
-  type Tool,
   type ToolPermissionContext,
 } from '../Tool.js'
 import type { TaskState } from '../tasks/types.js'
@@ -142,12 +135,6 @@ export type AppState = DeepImmutable<{
   // Timestamp of last /buddy pet — CompanionSprite renders hearts while recent
   companionPetAt?: number
   // TODO (ashwin): see if we can use utility-types DeepReadonly for this
-  mcp: {
-    clients: MCPServerConnection[]
-    tools: Tool[]
-    commands: Command[]
-    resources: Record<string, ServerResource[]>
-  }
   agentDefinitions: AgentDefinitionsResult
   fileHistory: FileHistoryState
   attribution: AttributionState
@@ -156,9 +143,6 @@ export type AppState = DeepImmutable<{
   notifications: {
     current: Notification | null
     queue: Notification[]
-  }
-  elicitation: {
-    queue: ElicitationRequestEvent[]
   }
   thinkingEnabled: boolean | undefined
   promptSuggestionEnabled: boolean
@@ -185,52 +169,6 @@ export type AppState = DeepImmutable<{
   bagelUrl?: string
   // WebBrowser tool: sticky panel visibility toggle
   bagelPanelVisible?: boolean
-  // chicago MCP session state. Types inlined (not imported from
-  // @ant/computer-use-mcp/types) so external typecheck passes without the
-  // ant-scoped dep resolved. Shapes match `AppGrant`/`CuGrantFlags`
-  // structurally — wrapper.tsx assigns via structural compatibility. Only
-  // populated when feature('CHICAGO_MCP') is active.
-  computerUseMcpState?: {
-    // Session-scoped app allowlist. NOT persisted across resume.
-    allowedApps?: readonly {
-      bundleId: string
-      displayName: string
-      grantedAt: number
-    }[]
-    // Clipboard/system-key grant flags (orthogonal to allowlist).
-    grantFlags?: {
-      clipboardRead: boolean
-      clipboardWrite: boolean
-      systemKeyCombos: boolean
-    }
-    // Dims-only (NOT the blob) for scaleCoord after compaction. The full
-    // `ScreenshotResult` including base64 is process-local in wrapper.tsx.
-    lastScreenshotDims?: {
-      width: number
-      height: number
-      displayWidth: number
-      displayHeight: number
-      displayId?: number
-      originX?: number
-      originY?: number
-    }
-    // Accumulated by onAppsHidden, cleared + unhidden at turn end.
-    hiddenDuringTurn?: ReadonlySet<string>
-    // Which display CU targets. Written back by the package's
-    // `autoTargetDisplay` resolver via `onResolvedDisplayUpdated`. Persisted
-    // across resume so clicks stay on the display the model last saw.
-    selectedDisplayId?: number
-    // True when the model explicitly picked a display via `switch_display`.
-    // Makes `handleScreenshot` skip the resolver chase chain and honor
-    // `selectedDisplayId` directly. Cleared on resolver writeback (pinned
-    // display unplugged → Swift fell back to main) and on
-    // `switch_display("auto")`.
-    displayPinnedByModel?: boolean
-    // Sorted comma-joined bundle-ID set the display was last auto-resolved
-    // for. `handleScreenshot` only re-resolves when the allowed set has
-    // changed since — keeps the resolver from yanking on every screenshot.
-    displayResolvedForApps?: string
-  }
   // REPL tool VM context - persists across REPL calls for state sharing
   replContext?: {
     vmContext: import('vm').Context
@@ -432,19 +370,10 @@ export function getDefaultAppState(): AppState {
       snapshotSequence: 0,
     },
     attribution: createEmptyAttributionState(),
-    mcp: {
-      clients: [],
-      tools: [],
-      commands: [],
-      resources: {},
-    },
     todos: {},
     remoteAgentTaskSuggestions: [],
     notifications: {
       current: null,
-      queue: [],
-    },
-    elicitation: {
       queue: [],
     },
     thinkingEnabled: shouldEnableThinkingByDefault(),

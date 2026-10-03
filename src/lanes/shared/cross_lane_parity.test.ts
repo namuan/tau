@@ -29,7 +29,7 @@ import {
   QWEN_TOOL_USAGE_RULES,
   OPENAI_COMPAT_TOOL_USAGE_RULES,
   appendStrictParamsHint,
-} from './mcp_bridge.js'
+} from './providerToolCompat.js'
 
 let passed = 0
 let failed = 0

@@ -27,7 +27,7 @@ import type {
   ProviderMessage,
   ProviderTool,
 } from '../../services/api/providers/base_provider.js'
-import { decodeToolArguments, toolDecodeFields } from '../../services/mcp/decodeStatus.js'
+import { decodeToolArguments, toolDecodeFields } from '../../utils/toolDecodeStatus.js'
 import { toCodexToolParameters } from '../codex/tool_schema.js'
 import { isMediaBlock } from '../shared/media_blocks.js'
 import { renderMediaForTextLane } from '../shared/media_extract.js'

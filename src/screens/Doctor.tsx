@@ -3,7 +3,6 @@ import figures from 'figures';
 import { join } from 'path';
 import React, { Suspense, use, useCallback, useEffect, useMemo, useState } from 'react';
 import { KeybindingWarnings } from 'src/components/KeybindingWarnings.js';
-import { McpParsingWarnings } from 'src/components/mcp/McpParsingWarnings.js';
 import { getModelMaxOutputTokens } from 'src/utils/context.js';
 import { getClaudeConfigHomeDir } from 'src/utils/envUtils.js';
 import type { SettingSource } from 'src/utils/settings/constants.js';
@@ -417,21 +416,17 @@ export function Doctor(t0) {
     t30 = $[60];
   }
   let t31;
-  let t32;
   let t33;
   let t34;
   if ($[61] === Symbol.for("react.memo_cache_sentinel")) {
     t31 = <SandboxDoctorSection />;
-    t32 = <McpParsingWarnings />;
     t33 = <KeybindingWarnings />;
     t34 = envValidationErrors.length > 0 && <Box flexDirection="column"><Text bold={true}>Environment Variables</Text>{envValidationErrors.map(_temp11)}</Box>;
     $[61] = t31;
-    $[62] = t32;
     $[63] = t33;
     $[64] = t34;
   } else {
     t31 = $[61];
-    t32 = $[62];
     t33 = $[63];
     t34 = $[64];
   }
@@ -476,7 +471,7 @@ export function Doctor(t0) {
   }
   let t41;
   if ($[76] !== t23 || $[77] !== t30 || $[78] !== t35 || $[79] !== t36 || $[81] !== t38 || $[82] !== t39) {
-    t41 = <Pane>{t23}{t30}{t31}{t32}{t33}{t34}{t35}{t36}{t38}{t39}{t40}</Pane>;
+    t41 = <Pane>{t23}{t30}{t31}{t33}{t34}{t35}{t36}{t38}{t39}{t40}</Pane>;
     $[76] = t23;
     $[77] = t30;
     $[78] = t35;

@@ -46,7 +46,6 @@ export function AgentsMenu(t0) {
   }
   const [modeState, setModeState] = useState(t1);
   const agentDefinitions = useAppState(_temp);
-  const mcpTools = useAppState(_temp2);
   const toolPermissionContext = useAppState(_temp3);
   const setAppState = useSetAppState();
   const {
@@ -61,7 +60,7 @@ export function AgentsMenu(t0) {
     t2 = $[1];
   }
   const [changes, setChanges] = useState(t2);
-  const mergedTools = useMergedTools(tools, mcpTools, toolPermissionContext);
+  const mergedTools = useMergedTools(tools, toolPermissionContext);
   useExitOnCtrlCDWithKeybindings();
   let t3;
   if ($[2] !== allAgents) {
@@ -777,9 +776,6 @@ function _temp4(a) {
 }
 function _temp3(s_1) {
   return s_1.toolPermissionContext;
-}
-function _temp2(s_0) {
-  return s_0.mcp.tools;
 }
 function _temp(s) {
   return s.agentDefinitions;

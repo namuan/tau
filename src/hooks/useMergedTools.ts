@@ -6,27 +6,20 @@ import { useAppState } from '../state/AppState.js'
 import { mergeAndFilterTools } from '../utils/toolPool.js'
 
 /**
- * React hook that assembles the full tool pool for the REPL.
+ * React hook that assembles the tool pool for the REPL.
  *
- * Uses assembleToolPool() (the shared pure function used by both REPL and runAgent)
- * to combine built-in tools with MCP tools, applying deny rules and deduplication.
- * Any extra initialTools are merged on top.
+ * Any extra initial tools are merged with the current built-in tools.
  *
- * @param initialTools - Extra tools to include (built-in + startup MCP from props).
- *   These are merged with the assembled pool and take precedence in deduplication.
- * @param mcpTools - MCP tools discovered dynamically (from mcp state)
+ * @param initialTools - Extra tools to include.
  * @param toolPermissionContext - Permission context for filtering
  */
 export function useMergedTools(
   initialTools: Tools,
-  mcpTools: Tools,
   toolPermissionContext: ToolPermissionContext,
 ): Tools {
   const settings = useAppState(state => state.settings)
   return useMemo(() => {
-    // assembleToolPool is the shared function that both REPL and runAgent use.
-    // It handles: getTools() + MCP deny-rule filtering + dedup + MCP CLI exclusion.
-    const assembled = assembleToolPool(toolPermissionContext, mcpTools)
+    const assembled = assembleToolPool(toolPermissionContext)
 
     return mergeAndFilterTools(
       initialTools,
@@ -36,7 +29,6 @@ export function useMergedTools(
     )
   }, [
     initialTools,
-    mcpTools,
     toolPermissionContext,
     settings,
   ])

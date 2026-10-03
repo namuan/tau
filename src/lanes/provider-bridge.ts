@@ -29,7 +29,7 @@ import type {
   ProviderStreamResult,
 } from '../services/api/providers/base_provider.js'
 import { buildProviderStreamResult } from '../services/api/providers/base_provider.js'
-import { decodeToolArguments, toolDecodeFields } from '../services/mcp/decodeStatus.js'
+import { decodeToolArguments, toolDecodeFields } from '../utils/toolDecodeStatus.js'
 import {
   providerUsesStableRequestSession,
   resolveProviderRequestSessionId,

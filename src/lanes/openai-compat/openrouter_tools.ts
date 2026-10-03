@@ -1,6 +1,6 @@
 import type { ProviderContentBlock, ProviderMessage, ProviderTool } from '../../services/api/providers/base_provider.js'
-import { decodeStatusOf, decodeToolArguments, toolDecodeFields } from '../../services/mcp/decodeStatus.js'
-import { contractArgumentJudge, isValidAgainstContract } from '../../services/mcp/contractValidation.js'
+import { decodeStatusOf, decodeToolArguments, toolDecodeFields } from '../../utils/toolDecodeStatus.js'
+import { contractArgumentJudge, isValidAgainstContract } from '../../utils/toolContractValidation.js'
 import { dropInvalidPlaceholderArguments } from '../../utils/placeholderArguments.js'
 import { isOutputCapTruncation } from '../shared/truncation.js'
 import { restoreOpenRouterOptionalArguments } from '../../utils/model/openrouterStrictSchema.js'

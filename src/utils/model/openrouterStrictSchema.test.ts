@@ -15,7 +15,7 @@ import {
   recordOpenRouterStrictToolSchemaModel,
   _resetOpenRouterStrictToolSchemaForTests,
 } from './openrouterStrictSchema.js'
-import { isValidAgainstContract } from '../../services/mcp/contractValidation.js'
+import { isValidAgainstContract } from '../toolContractValidation.js'
 import strictAssert from 'node:assert/strict'
 
 let passed = 0

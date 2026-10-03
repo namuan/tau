@@ -78,8 +78,6 @@ import { ArtifactCanvasTool } from './tools/ArtifactCanvasTool/ArtifactCanvasToo
 import { PackageManagerTool } from './tools/PackageManagerTool/PackageManagerTool.js'
 import { VisualDesignAuditTool } from './tools/VisualDesignAuditTool/VisualDesignAuditTool.js'
 import { PtyTool } from './tools/PtyTool/PtyTool.js'
-import { ListMcpResourcesTool } from './tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
-import { ReadMcpResourceTool } from './tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
 import { ToolSearchTool } from './tools/ToolSearchTool/ToolSearchTool.js'
 import { EnterPlanModeTool } from './tools/EnterPlanModeTool/EnterPlanModeTool.js'
 import { EnterWorktreeTool } from './tools/EnterWorktreeTool/EnterWorktreeTool.js'
@@ -89,7 +87,6 @@ import { TaskCreateTool } from './tools/TaskCreateTool/TaskCreateTool.js'
 import { TaskGetTool } from './tools/TaskGetTool/TaskGetTool.js'
 import { TaskUpdateTool } from './tools/TaskUpdateTool/TaskUpdateTool.js'
 import { TaskListTool } from './tools/TaskListTool/TaskListTool.js'
-import uniqBy from 'lodash-es/uniqBy.js'
 import { isToolSearchEnabledOptimistic } from './utils/toolSearch.js'
 import { isTodoV2Enabled } from './utils/tasks.js'
 import { filterDisabledPrebuiltTools } from './utils/prebuiltToolToggles.js'
@@ -264,8 +261,6 @@ export function getAllBaseTools(): Tools {
     ...(getPowerShellTool() ? [getPowerShellTool()] : []),
     ...(SnipTool ? [SnipTool] : []),
     ...(process.env.NODE_ENV === 'test' ? [TestingPermissionTool] : []),
-    ListMcpResourcesTool,
-    ReadMcpResourceTool,
     // Include ToolSearchTool when tool search might be enabled (optimistic check)
     // The actual decision to defer tools happens at request time in claude.ts
     ...(isToolSearchEnabledOptimistic() ? [ToolSearchTool] : []),
@@ -326,11 +321,7 @@ export const getTools = (permissionContext: ToolPermissionContext): Tools => {
   }
 
   // Get all base tools and filter out special tools that get added conditionally
-  const specialTools = new Set([
-    ListMcpResourcesTool.name,
-    ReadMcpResourceTool.name,
-    SYNTHETIC_OUTPUT_TOOL_NAME,
-  ])
+  const specialTools = new Set([SYNTHETIC_OUTPUT_TOOL_NAME])
 
   const settings = getInitialSettings()
   let tools = filterDisabledPrebuiltTools(
@@ -366,75 +357,14 @@ export const getTools = (permissionContext: ToolPermissionContext): Tools => {
   return allowedTools.filter((_, i) => isEnabled[i])
 }
 
-/**
- * Assemble the full tool pool for a given permission context and MCP tools.
- *
- * This is the single source of truth for combining built-in tools with MCP tools.
- * Both REPL.tsx (via useMergedTools hook) and runAgent.ts (for coordinator workers)
- * use this function to ensure consistent tool pool assembly.
- *
- * The function:
- * 1. Gets built-in tools via getTools() (respects mode filtering)
- * 2. Filters MCP tools by deny rules
- * 3. Deduplicates by tool name (built-in tools take precedence)
- *
- * @param permissionContext - Permission context for filtering built-in tools
- * @param mcpTools - MCP tools from appState.mcp.tools
- * @returns Combined, deduplicated array of built-in and MCP tools
- */
 export function assembleToolPool(
   permissionContext: ToolPermissionContext,
-  mcpTools: Tools,
 ): Tools {
-  const builtInTools = getTools(permissionContext)
-
-  // Cheap power mode ignores MCP tools entirely, including tools from
-  // servers that were already connected before a mid-session mode switch.
-  const effectiveMcpTools =
-    getPowerModeFromSettings(getInitialSettings()) === 'cheap' ? [] : mcpTools
-
-  // Filter out MCP tools that are in the deny list
-  const allowedMcpTools = filterToolsByDenyRules(
-    effectiveMcpTools,
-    permissionContext,
-  )
-
-  // Sort each partition for prompt-cache stability, keeping built-ins as a
-  // contiguous prefix. The server's claude_code_system_cache_policy places a
-  // global cache breakpoint after the last prefix-matched built-in tool; a flat
-  // sort would interleave MCP tools into built-ins and invalidate all downstream
-  // cache keys whenever an MCP tool sorts between existing built-ins. uniqBy
-  // preserves insertion order, so built-ins win on name conflict.
-  // Avoid Array.toSorted (Node 20+) — we support Node 18. builtInTools is
-  // readonly so copy-then-sort; allowedMcpTools is a fresh .filter() result.
-  const byName = (a: Tool, b: Tool) => a.name.localeCompare(b.name)
-  return uniqBy(
-    [...builtInTools].sort(byName).concat(allowedMcpTools.sort(byName)),
-    'name',
-  )
+  return getTools(permissionContext)
 }
 
-/**
- * Get all tools including both built-in tools and MCP tools.
- *
- * This is the preferred function when you need the complete tools list for:
- * - Tool search threshold calculations (isToolSearchEnabled)
- * - Token counting that includes MCP tools
- * - Any context where MCP tools should be considered
- *
- * Use getTools() only when you specifically need just built-in tools.
- *
- * @param permissionContext - Permission context for filtering built-in tools
- * @param mcpTools - MCP tools from appState.mcp.tools
- * @returns Combined array of built-in and MCP tools
- */
 export function getMergedTools(
   permissionContext: ToolPermissionContext,
-  mcpTools: Tools,
 ): Tools {
-  const builtInTools = getTools(permissionContext)
-  if (getPowerModeFromSettings(getInitialSettings()) === 'cheap') {
-    return [...builtInTools]
-  }
-  return [...builtInTools, ...mcpTools]
+  return getTools(permissionContext)
 }

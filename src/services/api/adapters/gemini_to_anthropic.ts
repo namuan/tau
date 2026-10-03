@@ -16,7 +16,7 @@ import type {
 import { storeThoughtSignature } from './gemini_thought_cache.js'
 import { originalToolNameFromGemini } from './anthropic_to_gemini.js'
 import { coerceToolCallArgs } from './tool_schema_cache.js'
-import { decodeToolArguments, toolDecodeFields } from '../../mcp/decodeStatus.js'
+import { decodeToolArguments, toolDecodeFields } from '../../../utils/toolDecodeStatus.js'
 
 function uncachedInputTokens(promptTokens: number, cacheReadTokens: number): number {
   return Math.max(0, promptTokens - cacheReadTokens)

@@ -74,7 +74,6 @@ export function matchSessionMode(
 }
 
 export function getCoordinatorUserContext(
-  mcpClients: ReadonlyArray<{ name: string }>,
   scratchpadDir?: string,
 ): { [k: string]: string } {
   if (!isCoordinatorMode()) {
@@ -92,11 +91,6 @@ export function getCoordinatorUserContext(
 
   let content = `Workers spawned via the ${AGENT_TOOL_NAME} tool have access to these tools: ${workerTools}`
 
-  if (mcpClients.length > 0) {
-    const serverNames = mcpClients.map(c => c.name).join(', ')
-    content += `\n\nWorkers also have access to MCP tools from connected MCP servers: ${serverNames}`
-  }
-
   if (scratchpadDir && isScratchpadGateEnabled()) {
     content += `\n\nScratchpad directory: ${scratchpadDir}\nWorkers can read and write here without permission prompts. Use this for durable cross-worker knowledge — structure files however fits the work.`
   }
@@ -106,8 +100,8 @@ export function getCoordinatorUserContext(
 
 export function getCoordinatorSystemPrompt(): string {
   const workerCapabilities = isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)
-    ? 'Workers have access to Bash, Read, and Edit tools, plus MCP tools from configured MCP servers.'
-    : 'Workers have access to standard tools, MCP tools from configured MCP servers, and project skills via the Skill tool. Delegate skill invocations (e.g. /commit, /verify) to workers.'
+    ? 'Workers have access to Bash, Read, and Edit tools.'
+    : 'Workers have access to standard tools and project skills via the Skill tool. Delegate skill invocations (e.g. /commit, /verify) to workers.'
 
   return `You are Tau, an AI assistant that orchestrates software engineering tasks across multiple workers.
 

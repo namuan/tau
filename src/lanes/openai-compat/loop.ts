@@ -17,7 +17,7 @@
  */
 
 import { APIConnectionError } from '@anthropic-ai/sdk'
-import { decodeToolArguments, toolDecodeFields } from '../../services/mcp/decodeStatus.js'
+import { decodeToolArguments, toolDecodeFields } from '../../utils/toolDecodeStatus.js'
 import type {
   AnthropicStreamEvent,
   ModelInfo,
@@ -85,7 +85,7 @@ import {
   appendStrictParamsHint,
   buildOpenAICompatToolUsageRules,
   OPENAI_COMPAT_TOOL_USAGE_RULES,
-} from '../shared/mcp_bridge.js'
+} from '../shared/providerToolCompat.js'
 import { getTransformer, type ProviderId } from './transformers/index.js'
 import { resolveEditFormat } from './capabilities.js'
 import {

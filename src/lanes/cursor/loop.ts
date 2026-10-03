@@ -51,7 +51,7 @@ import {
   getCursorRegistrationByNativeName,
   resolveCursorToolCall,
 } from './tools.js'
-import { OPENAI_COMPAT_TOOL_USAGE_RULES } from '../shared/mcp_bridge.js'
+import { OPENAI_COMPAT_TOOL_USAGE_RULES } from '../shared/providerToolCompat.js'
 import {
   createRetryableConnectionError,
   isAbortError,

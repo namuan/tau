@@ -37,7 +37,6 @@ import provider from './commands/provider/index.js'
 import installGitHubApp from './commands/install-github-app/index.js'
 import installSlackApp from './commands/install-slack-app/index.js'
 import breakCache from './commands/break-cache/index.js'
-import mcp from './commands/mcp/index.js'
 import mobile from './commands/mobile/index.js'
 import onboarding from './commands/onboarding/index.js'
 import releaseNotes from './commands/release-notes/index.js'
@@ -140,7 +139,6 @@ import {
 import antTrace from './commands/ant-trace/index.js'
 import perfIssue from './commands/perf-issue/index.js'
 import sandboxToggle from './commands/sandbox-toggle/index.js'
-import chrome from './commands/chrome/index.js'
 import stickers from './commands/stickers/index.js'
 import advisor from './commands/advisor.js'
 import pin from './commands/pin.js'
@@ -260,7 +258,6 @@ const COMMANDS = memoize((): Command[] => [
   clone,
   bye,
   btw,
-  chrome,
   clear,
   color,
   compact,
@@ -290,7 +287,6 @@ const COMMANDS = memoize((): Command[] => [
   learnedRun,
   installGitHubApp,
   installSlackApp,
-  mcp,
   memory,
   mobile,
   model,
@@ -546,26 +542,6 @@ export function clearCommandsCache(): void {
   clearSkillCaches()
 }
 
-/**
- * Filter AppState.mcp.commands to MCP-provided skills (prompt-type,
- * model-invocable, loaded from MCP). These live outside getCommands() so
- * callers that need MCP skills in their skill index thread them through
- * separately.
- */
-export function getMcpSkillCommands(
-  mcpCommands: readonly Command[],
-): readonly Command[] {
-  if (feature('MCP_SKILLS')) {
-    return mcpCommands.filter(
-      cmd =>
-        cmd.type === 'prompt' &&
-        cmd.loadedFrom === 'mcp' &&
-        !cmd.disableModelInvocation,
-    )
-  }
-  return []
-}
-
 // SkillTool shows ALL prompt-based commands that the model can invoke
 // This includes both skills (from /skills/) and commands (from /commands/)
 export const getSkillToolCommands = memoize(
@@ -578,7 +554,6 @@ export const getSkillToolCommands = memoize(
         cmd.source !== 'builtin' &&
         // Always include skills from /skills/ dirs, bundled skills, and legacy /commands/ entries
         // (they all get an auto-derived description from the first line if frontmatter is missing).
-        // MCP commands still require an explicit description to appear in the listing.
         (cmd.loadedFrom === 'bundled' ||
           cmd.loadedFrom === 'skills' ||
           cmd.loadedFrom === 'commands_DEPRECATED' ||
@@ -702,7 +677,7 @@ export function formatDescriptionWithSource(cmd: Command): string {
     return `${cmd.description} (workflow)`
   }
 
-  if (cmd.source === 'builtin' || cmd.source === 'mcp') {
+  if (cmd.source === 'builtin') {
     return cmd.description
   }
 

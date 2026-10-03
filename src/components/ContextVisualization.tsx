@@ -70,12 +70,12 @@ function CollapseStatus() {
   return null;
 }
 
-// Order for displaying source groups: Project > User > Managed > Built-in > MCP > Bundled
-const SOURCE_DISPLAY_ORDER = ['Project', 'User', 'Managed', 'Built-in', 'MCP', 'Bundled'];
+// Order for displaying source groups: Project > User > Managed > Built-in > Bundled
+const SOURCE_DISPLAY_ORDER = ['Project', 'User', 'Managed', 'Built-in', 'Bundled'];
 
 /** Group items by source type for display, sorted by tokens descending within each group */
 function groupBySource<T extends {
-  source: SettingSource | 'built-in' | 'mcp' | 'bundled';
+  source: SettingSource | 'built-in' | 'bundled';
   tokens: number;
 }>(items: T[]): Map<string, T[]> {
   const groups = new Map<string, T[]>();

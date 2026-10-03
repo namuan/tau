@@ -34,7 +34,7 @@ import {
   appendStrictParamsHint,
   KIRO_TOOL_USAGE_RULES,
   sanitizeSchemaForLane,
-} from '../shared/mcp_bridge.js'
+} from '../shared/providerToolCompat.js'
 import { normalizeKiroModelId } from './catalog.js'
 import { isMediaBlock } from '../shared/media_blocks.js'
 import { renderMediaForTextLane } from '../shared/media_extract.js'

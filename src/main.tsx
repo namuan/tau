@@ -35,8 +35,6 @@ import { hasGrowthBookEnvOverride, initializeGrowthBook, refreshGrowthBookAfterA
 import { fetchBootstrapData } from './services/api/bootstrap.js';
 import { type DownloadResult, downloadSessionFiles, type FilesApiConfig, parseFileSpecs } from './services/api/filesApi.js';
 import { prefetchPassesEligibility } from './services/api/referral.js';
-import { prefetchOfficialMcpUrls } from './services/mcp/officialRegistry.js';
-import type { McpSdkServerConfig, McpServerConfig, ScopedMcpServerConfig } from './services/mcp/types.js';
 import { isPolicyAllowed, loadPolicyLimits, refreshPolicyLimits, waitForPolicyLimitsToLoad } from './services/policyLimits/index.js';
 import { loadRemoteManagedSettings, refreshRemoteManagedSettings } from './services/remoteManagedSettings/index.js';
 import type { ToolInputJSONSchema } from './Tool.js';
@@ -46,7 +44,7 @@ import { canUserConfigureAdvisor, getInitialAdvisorSetting, isAdvisorEnabled, is
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js';
 import { count, uniq } from './utils/array.js';
 import { installAsciicastRecorder } from './utils/asciicast.js';
-import { getSubscriptionType, isClaudeAISubscriber, prefetchAwsCredentialsAndBedRockInfoIfSafe, prefetchGcpCredentialsIfSafe, validateForceLoginOrg } from './utils/auth.js';
+import { getSubscriptionType, prefetchAwsCredentialsAndBedRockInfoIfSafe, prefetchGcpCredentialsIfSafe, validateForceLoginOrg } from './utils/auth.js';
 import { checkHasTrustDialogAccepted, getGlobalConfig, isAutoUpdaterDisabled, saveGlobalConfig } from './utils/config.js';
 import { seedEarlyInput, stopCapturingEarlyInput } from './utils/earlyInput.js';
 import { getInitialEffortSetting, parseEffortValue } from './utils/effort.js';
@@ -100,17 +98,12 @@ const assistantModule = feature('KAIROS') ? require('./assistant/index.js') as t
 const kairosGate = feature('KAIROS') ? require('./assistant/gate.js') as typeof import('./assistant/gate.js') : null;
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { checkQuotaStatus } from './services/claudeAiLimits.js';
-import { getMcpToolsCommandsAndResources, prefetchAllMcpResources } from './services/mcp/client.js';
-import { MCP_SOURCE_LOCAL_CONFIG, acknowledgeMcpPublication, beginMcpSource, registerMcpPublisher, settleMcpSource, skipMcpSource } from './services/mcp/readiness.js';
-import { waitForMcpLaunchBarrier } from './services/mcp/launchBarrier.js';
 import { initBundledSkills } from './skills/bundled/index.js';
 import type { AgentColorName } from './tools/AgentTool/agentColorManager.js';
 import { getActiveAgentsFromList, getAgentDefinitionsWithOverrides, isBuiltInAgent, isCustomAgent, parseAgentsFromJson } from './tools/AgentTool/loadAgentsDir.js';
 import type { LogOption } from './types/logs.js';
 import type { Message as MessageType } from './types/message.js';
 import { assertMinVersion } from './utils/autoUpdater.js';
-import { CLAUDE_IN_CHROME_SKILL_HINT, CLAUDE_IN_CHROME_SKILL_HINT_WITH_WEBBROWSER } from './utils/claudeInChrome/prompt.js';
-import { setupClaudeInChrome, shouldAutoEnableClaudeInChrome, shouldEnableClaudeInChrome } from './utils/claudeInChrome/setup.js';
 import { getContextWindowForModel } from './utils/context.js';
 import { loadConversationForResume } from './utils/conversationRecovery.js';
 import { buildDeepLinkBanner } from './utils/deepLink/banner.js';
@@ -141,14 +134,9 @@ import { logSkillsLoaded } from './utils/telemetry/skillLoadedEvent.js';
 import { generateTempFilePath } from './utils/tempfile.js';
 import { validateUuid } from './utils/uuid.js';
 
-import { registerMcpAddCommand } from 'src/commands/mcp/addCommand.js';
-import { registerMcpXaaIdpCommand } from 'src/commands/mcp/xaaIdpCommand.js';
 import { logPermissionContextForAnts } from 'src/services/internalLogging.js';
-import { doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getClaudeCodeMcpConfigs, isMcpServerDisabled, parseMcpConfig, parseMcpConfigFromFilePath } from 'src/services/mcp/config.js';
-import { isXaaEnabled } from 'src/services/mcp/xaaIdpLogin.js';
 import { getRelevantTips } from 'src/services/tips/tipRegistry.js';
 import { logContextMetrics } from 'src/utils/api.js';
-import { CLAUDE_IN_CHROME_MCP_SERVER_NAME, isClaudeInChromeMCPServer } from 'src/utils/claudeInChrome/common.js';
 import { registerCleanup } from 'src/utils/cleanupRegistry.js';
 import { eagerParseCliFlag } from 'src/utils/cliArgs.js';
 import { createEmptyAttributionState } from 'src/utils/commitAttribution.js';
@@ -167,7 +155,7 @@ import type { ContentReplacementRecord } from 'src/utils/toolResultStorage.js';
 import { parseSettingSourcesFlag } from 'src/utils/settings/constants.js';
 import { setCwd } from 'src/utils/Shell.js';
 import { plural } from 'src/utils/stringUtils.js';
-import { getInitialMainLoopModel, getIsNonInteractiveSession, getSdkBetas, getSessionId, getUserMsgOptIn, onSessionSwitch, setAllowedSettingSources, setChromeFlagOverride, setClientType, setCwdState, setFlagSettingsPath, setInitialMainLoopModel, setIsInteractive, setKairosActive, setOriginalCwd, setQuestionPreviewFormat, setSdkBetas, setSessionBypassPermissionsMode, setSessionPersistenceDisabled, setUserMsgOptIn, switchSession } from './bootstrap/state.js';
+import { getInitialMainLoopModel, getIsNonInteractiveSession, getSdkBetas, getSessionId, getUserMsgOptIn, onSessionSwitch, setAllowedSettingSources, setClientType, setCwdState, setFlagSettingsPath, setInitialMainLoopModel, setIsInteractive, setKairosActive, setOriginalCwd, setQuestionPreviewFormat, setSdkBetas, setSessionBypassPermissionsMode, setSessionPersistenceDisabled, setUserMsgOptIn, switchSession } from './bootstrap/state.js';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER') ? require('./utils/permissions/autoModeState.js') as typeof import('./utils/permissions/autoModeState.js') : null;
@@ -175,7 +163,6 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER') ? require('./utils/
 // TeleportRepoMismatchDialog, TeleportResumeWrapper dynamically imported at call sites
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js';
 import { migrateBypassPermissionsAcceptedToSettings } from './migrations/migrateBypassPermissionsAcceptedToSettings.js';
-import { migrateEnableAllProjectMcpServersToSettings } from './migrations/migrateEnableAllProjectMcpServersToSettings.js';
 import { migrateFennecToOpus } from './migrations/migrateFennecToOpus.js';
 import { migrateLegacyOpusToCurrent } from './migrations/migrateLegacyOpusToCurrent.js';
 import { migrateOpusToOpus1m } from './migrations/migrateOpusToOpus1m.js';
@@ -317,7 +304,6 @@ function runMigrations(): void {
   if (getGlobalConfig().migrationVersion !== CURRENT_MIGRATION_VERSION) {
     migrateAutoUpdatesToSettings();
     migrateBypassPermissionsAcceptedToSettings();
-    migrateEnableAllProjectMcpServersToSettings();
     resetProToOpusDefault();
     migrateSonnet1mToSonnet45();
     migrateLegacyOpusToCurrent();
@@ -404,7 +390,6 @@ export function startDeferredPrefetches(): void {
 
   // Analytics and feature flag initialization
   void initializeAnalyticsGates();
-  void prefetchOfficialMcpUrls();
   void refreshModelCapabilities();
   // Fills the persistent context-window store for the active provider so a
   // fresh session sizes its window from the provider's own catalogue instead
@@ -520,12 +505,6 @@ function initializeEntrypoint(isNonInteractive: boolean): void {
   }
   const cliArgs = process.argv.slice(2);
 
-  // Check for MCP serve command (handle flags before mcp serve, e.g., --debug mcp serve)
-  const mcpIndex = cliArgs.indexOf('mcp');
-  if (mcpIndex !== -1 && cliArgs[mcpIndex + 1] === 'serve') {
-    process.env.CLAUDE_CODE_ENTRYPOINT = 'mcp';
-    return;
-  }
   if (isEnvTruthy(process.env.CLAUDE_CODE_ACTION)) {
     process.env.CLAUDE_CODE_ENTRYPOINT = 'claude-code-github-action';
     return;
@@ -790,7 +769,7 @@ export async function main() {
   profileCheckpoint('main_after_run');
 }
 async function getInputPrompt(prompt: string, inputFormat: 'text' | 'stream-json'): Promise<string | AsyncIterable<string>> {
-  if (!process.stdin.isTTY && !process.argv.includes('mcp')) {
+  if (!process.stdin.isTTY) {
     if (inputFormat === 'stream-json') {
       return process.stdin;
     }
@@ -859,7 +838,7 @@ async function run(): Promise<CommanderCommand> {
     // Attach logging sinks so subcommand handlers can use logEvent/logError.
     // Before PR #11106 logEvent dispatched directly; after, events queue until
     // a sink attaches. setup() attaches sinks for the default command, but
-    // subcommands (doctor, mcp, auth) never call setup() and would
+    // subcommands (doctor, auth) never call setup() and would
     // silently drop events on process.exit(). Both inits are idempotent.
     const {
       initSinks
@@ -887,13 +866,13 @@ async function run(): Promise<CommanderCommand> {
   });
   program.name(PRODUCT_COMMAND).description(`Tau - starts an interactive session by default, use -p/--print for non-interactive output`).argument('[prompt]', 'Your prompt', String)
   // Subcommands inherit helpOption via commander's copyInheritedSettings —
-  // setting it once here covers mcp, auth, and all other subcommands.
+  // setting it once here covers auth and all other subcommands.
   .helpOption('-h, --help', 'Display help for command').option('-d, --debug [filter]', 'Enable debug mode with optional category filtering (e.g., "api,hooks" or "!1p,!file")', (_value: string | true) => {
     // If value is provided, it will be the filter string
     // If not provided but flag is present, value will be true
     // The actual filtering is handled in debug.ts by parsing process.argv
     return true;
-  }).addOption(new Option('-d2e, --debug-to-stderr', 'Enable debug mode (to stderr)').argParser(Boolean).hideHelp()).option('--debug-file <path>', 'Write debug logs to a specific file path (implicitly enables debug mode)', () => true).option('--verbose', 'Override verbose mode setting from config', () => true).option('-p, --print', 'Print response and exit (useful for pipes). Note: The workspace trust dialog is skipped when Tau is run with the -p mode. Only use this flag in directories you trust.', () => true).option('--bare', 'Minimal mode: skip hooks, attribution, auto-memory, background prefetches, keychain reads, and CLAUDE.md auto-discovery. Sets CLAUDE_CODE_SIMPLE=1. Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper via --settings (OAuth and keychain are never read). 3P providers (Bedrock/Vertex/Foundry) use their own credentials. Skills still resolve via /skill-name. Explicitly provide context via: --system-prompt[-file], --append-system-prompt[-file], --add-dir (CLAUDE.md dirs), --mcp-config, --settings, --agents.', () => true).addOption(new Option('--init', 'Run Setup hooks with init trigger, then continue').hideHelp()).addOption(new Option('--init-only', 'Run Setup and SessionStart:startup hooks, then exit').hideHelp()).addOption(new Option('--maintenance', 'Run Setup hooks with maintenance trigger, then continue').hideHelp()).addOption(new Option('--output-format <format>', 'Output format (only works with --print): "text" (default), "json" (single result), or "stream-json" (realtime streaming)').choices(['text', 'json', 'stream-json'])).addOption(new Option('--json-schema <schema>', 'JSON Schema for structured output validation. ' + 'Example: {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}').argParser(String)).option('--include-hook-events', 'Include all hook lifecycle events in the output stream (only works with --output-format=stream-json)', () => true).option('--include-partial-messages', 'Include partial message chunks as they arrive (only works with --print and --output-format=stream-json)', () => true).addOption(new Option('--input-format <format>', 'Input format (only works with --print): "text" (default), or "stream-json" (realtime streaming input)').choices(['text', 'stream-json'])).option('--mcp-debug', '[DEPRECATED. Use --debug instead] Enable MCP debug mode (shows MCP server errors)', () => true).option('--dangerously-skip-permissions', 'Bypass all permission checks. Recommended only for sandboxes with no internet access.', () => true).option('--allow-dangerously-skip-permissions', 'Enable bypassing all permission checks as an option, without it being enabled by default. Recommended only for sandboxes with no internet access.', () => true).addOption(new Option('--thinking <mode>', 'Thinking mode: enabled (equivalent to adaptive), disabled').choices(['enabled', 'adaptive', 'disabled']).hideHelp()).addOption(new Option('--max-thinking-tokens <tokens>', '[DEPRECATED. Use --thinking instead for newer models] Maximum number of thinking tokens (only works with --print)').argParser(Number).hideHelp()).addOption(new Option('--max-turns <turns>', 'Maximum number of agentic turns in non-interactive mode. This will early exit the conversation after the specified number of turns. (only works with --print)').argParser(Number).hideHelp()).addOption(new Option('--max-budget-usd <amount>', 'Maximum dollar amount to spend on API calls (only works with --print)').argParser(value => {
+  }).addOption(new Option('-d2e, --debug-to-stderr', 'Enable debug mode (to stderr)').argParser(Boolean).hideHelp()).option('--debug-file <path>', 'Write debug logs to a specific file path (implicitly enables debug mode)', () => true).option('--verbose', 'Override verbose mode setting from config', () => true).option('-p, --print', 'Print response and exit (useful for pipes). Note: The workspace trust dialog is skipped when Tau is run with the -p mode. Only use this flag in directories you trust.', () => true).option('--bare', 'Minimal mode: skip hooks, attribution, auto-memory, background prefetches, keychain reads, and CLAUDE.md auto-discovery. Sets CLAUDE_CODE_SIMPLE=1. Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper via --settings (OAuth and keychain are never read). 3P providers (Bedrock/Vertex/Foundry) use their own credentials. Skills still resolve via /skill-name. Explicitly provide context via: --system-prompt[-file], --append-system-prompt[-file], --add-dir (CLAUDE.md dirs), --settings, --agents.', () => true).addOption(new Option('--init', 'Run Setup hooks with init trigger, then continue').hideHelp()).addOption(new Option('--init-only', 'Run Setup and SessionStart:startup hooks, then exit').hideHelp()).addOption(new Option('--maintenance', 'Run Setup hooks with maintenance trigger, then continue').hideHelp()).addOption(new Option('--output-format <format>', 'Output format (only works with --print): "text" (default), "json" (single result), or "stream-json" (realtime streaming)').choices(['text', 'json', 'stream-json'])).addOption(new Option('--json-schema <schema>', 'JSON Schema for structured output validation. ' + 'Example: {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}').argParser(String)).option('--include-hook-events', 'Include all hook lifecycle events in the output stream (only works with --output-format=stream-json)', () => true).option('--include-partial-messages', 'Include partial message chunks as they arrive (only works with --print and --output-format=stream-json)', () => true).addOption(new Option('--input-format <format>', 'Input format (only works with --print): "text" (default), or "stream-json" (realtime streaming input)').choices(['text', 'stream-json'])).option('--dangerously-skip-permissions', 'Bypass all permission checks. Recommended only for sandboxes with no internet access.', () => true).option('--allow-dangerously-skip-permissions', 'Enable bypassing all permission checks as an option, without it being enabled by default. Recommended only for sandboxes with no internet access.', () => true).addOption(new Option('--thinking <mode>', 'Thinking mode: enabled (equivalent to adaptive), disabled').choices(['enabled', 'adaptive', 'disabled']).hideHelp()).addOption(new Option('--max-thinking-tokens <tokens>', '[DEPRECATED. Use --thinking instead for newer models] Maximum number of thinking tokens (only works with --print)').argParser(Number).hideHelp()).addOption(new Option('--max-turns <turns>', 'Maximum number of agentic turns in non-interactive mode. This will early exit the conversation after the specified number of turns. (only works with --print)').argParser(Number).hideHelp()).addOption(new Option('--max-budget-usd <amount>', 'Maximum dollar amount to spend on API calls (only works with --print)').argParser(value => {
     const amount = Number(value);
     if (isNaN(amount) || amount <= 0) {
       throw new Error('--max-budget-usd must be a positive number greater than 0');
@@ -905,7 +884,7 @@ async function run(): Promise<CommanderCommand> {
       throw new Error('--task-budget must be a positive integer');
     }
     return tokens;
-  }).hideHelp()).option('--replay-user-messages', 'Re-emit user messages from stdin back on stdout for acknowledgment (only works with --input-format=stream-json and --output-format=stream-json)', () => true).addOption(new Option('--enable-auth-status', 'Enable auth status messages in SDK mode').default(false).hideHelp()).option('--allowedTools, --allowed-tools <tools...>', 'Comma or space-separated list of tool names to allow (e.g. "Bash(git:*) Edit")').option('--tools <tools...>', 'Specify the list of available tools from the built-in set. Use "" to disable all tools, "default" to use all tools, or specify tool names (e.g. "Bash,Edit,Read").').option('--disallowedTools, --disallowed-tools <tools...>', 'Comma or space-separated list of tool names to deny (e.g. "Bash(git:*) Edit")').option('--mcp-config <configs...>', 'Load MCP servers from JSON files or strings (space-separated)').addOption(new Option('--permission-prompt-tool <tool>', 'MCP tool to use for permission prompts (only works with --print)').argParser(String).hideHelp()).addOption(new Option('--system-prompt <prompt>', 'System prompt to use for the session').argParser(String)).addOption(new Option('--system-prompt-file <file>', 'Read system prompt from a file').argParser(String).hideHelp()).addOption(new Option('--append-system-prompt <prompt>', 'Append a system prompt to the default system prompt').argParser(String)).addOption(new Option('--append-system-prompt-file <file>', 'Read system prompt from a file and append to the default system prompt').argParser(String).hideHelp()).addOption(new Option('--permission-mode <mode>', 'Permission mode to use for the session').argParser(String).choices(PERMISSION_MODES)).option('-c, --continue', 'Continue the most recent conversation in the current directory', () => true).option('-r, --resume [value]', 'Resume a conversation by session ID, or open interactive picker with optional search term', value => value || true).option('--fork-session', 'When resuming, create a new session ID instead of reusing the original (use with --resume or --continue)', () => true).addOption(new Option('--prefill <text>', 'Pre-fill the prompt input with text without submitting it').hideHelp()).addOption(new Option('--deep-link-origin', 'Signal that this session was launched from a deep link').hideHelp()).addOption(new Option('--deep-link-repo <slug>', 'Repo slug the deep link ?repo= parameter resolved to the current cwd').hideHelp()).addOption(new Option('--deep-link-last-fetch <ms>', 'FETCH_HEAD mtime in epoch ms, precomputed by the deep link trampoline').argParser(v => {
+  }).hideHelp()).option('--replay-user-messages', 'Re-emit user messages from stdin back on stdout for acknowledgment (only works with --input-format=stream-json and --output-format=stream-json)', () => true).addOption(new Option('--enable-auth-status', 'Enable auth status messages in SDK mode').default(false).hideHelp()).option('--allowedTools, --allowed-tools <tools...>', 'Comma or space-separated list of tool names to allow (e.g. "Bash(git:*) Edit")').option('--tools <tools...>', 'Specify the list of available tools from the built-in set. Use "" to disable all tools, "default" to use all tools, or specify tool names (e.g. "Bash,Edit,Read").').option('--disallowedTools, --disallowed-tools <tools...>', 'Comma or space-separated list of tool names to deny (e.g. "Bash(git:*) Edit")').addOption(new Option('--system-prompt <prompt>', 'System prompt to use for the session').argParser(String)).addOption(new Option('--system-prompt-file <file>', 'Read system prompt from a file').argParser(String).hideHelp()).addOption(new Option('--append-system-prompt <prompt>', 'Append a system prompt to the default system prompt').argParser(String)).addOption(new Option('--append-system-prompt-file <file>', 'Read system prompt from a file and append to the default system prompt').argParser(String).hideHelp()).addOption(new Option('--permission-mode <mode>', 'Permission mode to use for the session').argParser(String).choices(PERMISSION_MODES)).option('-c, --continue', 'Continue the most recent conversation in the current directory', () => true).option('-r, --resume [value]', 'Resume a conversation by session ID, or open interactive picker with optional search term', value => value || true).option('--fork-session', 'When resuming, create a new session ID instead of reusing the original (use with --resume or --continue)', () => true).addOption(new Option('--prefill <text>', 'Pre-fill the prompt input with text without submitting it').hideHelp()).addOption(new Option('--deep-link-origin', 'Signal that this session was launched from a deep link').hideHelp()).addOption(new Option('--deep-link-repo <slug>', 'Repo slug the deep link ?repo= parameter resolved to the current cwd').hideHelp()).addOption(new Option('--deep-link-last-fetch <ms>', 'FETCH_HEAD mtime in epoch ms, precomputed by the deep link trampoline').argParser(v => {
     const n = Number(v);
     return Number.isFinite(n) ? n : undefined;
   }).hideHelp()).option('--from-pr [value]', 'Resume a session linked to a PR by PR number/URL, or open interactive picker with optional search term', value => value || true).option('--no-session-persistence', 'Disable session persistence - sessions will not be saved to disk and cannot be resumed (only works with --print)').addOption(new Option('--resume-session-at <message id>', 'When resuming, only messages up to and including the assistant message with <message.id> (use with --resume in print mode)').argParser(String).hideHelp()).addOption(new Option('--rewind-files <user-message-id>', 'Restore files to state at the specified user message and exit (requires --resume)').hideHelp())
@@ -917,8 +896,8 @@ async function run(): Promise<CommanderCommand> {
       throw new InvalidArgumentError(`It must be one of: ${allowed.join(', ')}`);
     }
     return value;
-  })).option('--agent <agent>', `Agent for the current session. Overrides the 'agent' setting.`).option('--betas <betas...>', 'Beta headers to include in API requests (API key users only)').option('--fallback-model <model>', 'Enable automatic fallback to specified model when default model is overloaded (only works with --print)').addOption(new Option('--workload <tag>', 'Workload tag for billing-header attribution (cc_workload). Process-scoped; set by SDK daemon callers that spawn subprocesses for cron work. (only works with --print)').hideHelp()).option('--settings <file-or-json>', 'Path to a settings JSON file or a JSON string to load additional settings from').option('--add-dir <directories...>', 'Additional directories to allow tool access to').option('--strict-mcp-config', 'Only use MCP servers from --mcp-config, ignoring all other MCP configurations', () => true).option('--session-id <uuid>', 'Use a specific session ID for the conversation (must be a valid UUID)').option('-n, --name <name>', 'Set a display name for this session (shown in /resume and terminal title)').option('--agents <json>', 'JSON object defining custom agents (e.g. \'{"reviewer": {"description": "Reviews code", "prompt": "You are a code reviewer"}}\')').option('--setting-sources <sources>', 'Comma-separated list of setting sources to load (user, project, local).')
-  .option('--disable-slash-commands', 'Disable all skills', () => true).option('--chrome', 'Enable Tau in Chrome integration').option('--no-chrome', 'Disable Tau in Chrome integration').option('--file <specs...>', 'File resources to download at startup. Format: file_id:relative_path (e.g., --file file_abc:doc.txt file_def:img.png)').action(async (prompt, options) => {
+  })).option('--agent <agent>', `Agent for the current session. Overrides the 'agent' setting.`).option('--betas <betas...>', 'Beta headers to include in API requests (API key users only)').option('--fallback-model <model>', 'Enable automatic fallback to specified model when default model is overloaded (only works with --print)').addOption(new Option('--workload <tag>', 'Workload tag for billing-header attribution (cc_workload). Process-scoped; set by SDK daemon callers that spawn subprocesses for cron work. (only works with --print)').hideHelp()).option('--settings <file-or-json>', 'Path to a settings JSON file or a JSON string to load additional settings from').option('--add-dir <directories...>', 'Additional directories to allow tool access to').option('--session-id <uuid>', 'Use a specific session ID for the conversation (must be a valid UUID)').option('-n, --name <name>', 'Set a display name for this session (shown in /resume and terminal title)').option('--agents <json>', 'JSON object defining custom agents (e.g. \'{"reviewer": {"description": "Reviews code", "prompt": "You are a code reviewer"}}\')').option('--setting-sources <sources>', 'Comma-separated list of setting sources to load (user, project, local).')
+  .option('--disable-slash-commands', 'Disable all skills', () => true).option('--file <specs...>', 'File resources to download at startup. Format: file_id:relative_path (e.g., --file file_abc:doc.txt file_def:img.png)').action(async (prompt, options) => {
     trace('action_handler_start');
     profileCheckpoint('action_handler_start');
 
@@ -1011,7 +990,6 @@ async function run(): Promise<CommanderCommand> {
       tools: baseTools = [],
       allowedTools = [],
       disallowedTools = [],
-      mcpConfig = [],
       permissionMode: permissionModeCli,
       addDir = [],
       fallbackModel,
@@ -1310,225 +1288,6 @@ async function run(): Promise<CommanderCommand> {
       }
     }
 
-    // Parse the MCP config files/strings if provided
-    let dynamicMcpConfig: Record<string, ScopedMcpServerConfig> = {};
-    if (mcpConfig && mcpConfig.length > 0) {
-      // Process mcpConfig array
-      const processedConfigs = mcpConfig.map(config => config.trim()).filter(config => config.length > 0);
-      let allConfigs: Record<string, McpServerConfig> = {};
-      const allErrors: ValidationError[] = [];
-      for (const configItem of processedConfigs) {
-        let configs: Record<string, McpServerConfig> | null = null;
-        let errors: ValidationError[] = [];
-
-        // First try to parse as JSON string
-        const parsedJson = safeParseJSON(configItem);
-        if (parsedJson) {
-          const result = parseMcpConfig({
-            configObject: parsedJson,
-            filePath: 'command line',
-            expandVars: true,
-            scope: 'dynamic'
-          });
-          if (result.config) {
-            configs = result.config.mcpServers;
-          } else {
-            errors = result.errors;
-          }
-        } else {
-          // Try as file path
-          const configPath = resolve(configItem);
-          const result = parseMcpConfigFromFilePath({
-            filePath: configPath,
-            expandVars: true,
-            scope: 'dynamic'
-          });
-          if (result.config) {
-            configs = result.config.mcpServers;
-          } else {
-            errors = result.errors;
-          }
-        }
-        if (errors.length > 0) {
-          allErrors.push(...errors);
-        } else if (configs) {
-          // Merge configs, later ones override earlier ones
-          allConfigs = {
-            ...allConfigs,
-            ...configs
-          };
-        }
-      }
-      if (allErrors.length > 0) {
-        const formattedErrors = allErrors.map(err => `${err.path ? err.path + ': ' : ''}${err.message}`).join('\n');
-        logForDebugging(`--mcp-config validation failed (${allErrors.length} errors): ${formattedErrors}`, {
-          level: 'error'
-        });
-        process.stderr.write(`Error: Invalid MCP configuration:\n${formattedErrors}\n`);
-        process.exit(1);
-      }
-      if (Object.keys(allConfigs).length > 0) {
-        // SDK hosts (Nest/Desktop) own their server naming and may reuse
-        // built-in names — skip reserved-name checks for type:'sdk'.
-        const nonSdkConfigNames = Object.entries(allConfigs).filter(([, config]) => config.type !== 'sdk').map(([name]) => name);
-        let reservedNameError: string | null = null;
-        if (nonSdkConfigNames.some(isClaudeInChromeMCPServer)) {
-          reservedNameError = `Invalid MCP configuration: "${CLAUDE_IN_CHROME_MCP_SERVER_NAME}" is a reserved MCP name.`;
-        } else if (feature('CHICAGO_MCP')) {
-          const {
-            isComputerUseMCPServer,
-            COMPUTER_USE_MCP_SERVER_NAME
-          } = await import('src/utils/computerUse/common.js');
-          if (nonSdkConfigNames.some(isComputerUseMCPServer)) {
-            reservedNameError = `Invalid MCP configuration: "${COMPUTER_USE_MCP_SERVER_NAME}" is a reserved MCP name.`;
-          }
-        }
-        if (reservedNameError) {
-          // stderr+exit(1) — a throw here becomes a silent unhandled
-          // rejection in stream-json mode (void main() in cli.tsx).
-          process.stderr.write(`Error: ${reservedNameError}\n`);
-          process.exit(1);
-        }
-
-        // Add dynamic scope to all configs. type:'sdk' entries pass through
-        // unchanged — they're extracted into sdkMcpConfigs downstream and
-        // passed to print.ts. The Python SDK relies on this path (it doesn't
-        // send sdkMcpServers in the initialize message). Dropping them here
-        // broke Coworker (inc-5122). The policy filter below already exempts
-        // type:'sdk', and the entries are inert without an SDK transport on
-        // stdin, so there's no bypass risk from letting them through.
-        const scopedConfigs = mapValues(allConfigs, config => ({
-          ...config,
-          scope: 'dynamic' as const
-        }));
-
-        // Enforce managed policy (allowedMcpServers / deniedMcpServers) on
-        // --mcp-config servers. Without this, the CLI flag bypasses the
-        // enterprise allowlist that user/project/local configs go through in
-        // getTauCodeMcpConfigs — callers spread dynamicMcpConfig back on
-        // top of filtered results. Filter here at the source so all
-        // downstream consumers see the policy-filtered set.
-        const {
-          allowed,
-          blocked
-        } = filterMcpServersByPolicy(scopedConfigs);
-        if (blocked.length > 0) {
-          process.stderr.write(`Warning: MCP ${plural(blocked.length, 'server')} blocked by enterprise policy: ${blocked.join(', ')}\n`);
-        }
-        dynamicMcpConfig = {
-          ...dynamicMcpConfig,
-          ...allowed
-        };
-      }
-    }
-
-    // Extract Tau in Chrome option and enforce claude.ai subscriber check (unless user is ant)
-    const chromeOpts = options as {
-      chrome?: boolean;
-    };
-    // Store the explicit CLI flag so teammates can inherit it
-    setChromeFlagOverride(chromeOpts.chrome);
-    const enableClaudeInChrome = shouldEnableClaudeInChrome(chromeOpts.chrome) && ("external" === 'ant' || isClaudeAISubscriber());
-    const autoEnableClaudeInChrome = !enableClaudeInChrome && shouldAutoEnableClaudeInChrome();
-    if (enableClaudeInChrome) {
-      const platform = getPlatform();
-      try {
-        logEvent('tengu_claude_in_chrome_setup', {
-          platform: platform as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
-        const {
-          mcpConfig: chromeMcpConfig,
-          allowedTools: chromeMcpTools,
-          systemPrompt: chromeSystemPrompt
-        } = setupClaudeInChrome();
-        dynamicMcpConfig = {
-          ...dynamicMcpConfig,
-          ...chromeMcpConfig
-        };
-        allowedTools.push(...chromeMcpTools);
-        if (chromeSystemPrompt) {
-          appendSystemPrompt = appendSystemPrompt ? `${chromeSystemPrompt}\n\n${appendSystemPrompt}` : chromeSystemPrompt;
-        }
-      } catch (error) {
-        logEvent('tengu_claude_in_chrome_setup_failed', {
-          platform: platform as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
-        logForDebugging(`[Tau in Chrome] Error: ${error}`);
-        logError(error);
-        // biome-ignore lint/suspicious/noConsole:: intentional console output
-        console.error(`Error: Failed to run with Tau in Chrome.`);
-        process.exit(1);
-      }
-    } else if (autoEnableClaudeInChrome) {
-      try {
-        const {
-          mcpConfig: chromeMcpConfig
-        } = setupClaudeInChrome();
-        dynamicMcpConfig = {
-          ...dynamicMcpConfig,
-          ...chromeMcpConfig
-        };
-        const hint = feature('WEB_BROWSER_TOOL') && typeof Bun !== 'undefined' && 'WebView' in Bun ? CLAUDE_IN_CHROME_SKILL_HINT_WITH_WEBBROWSER : CLAUDE_IN_CHROME_SKILL_HINT;
-        appendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${hint}` : hint;
-      } catch (error) {
-        // Silently skip any errors for the auto-enable
-        logForDebugging(`[Tau in Chrome] Error (auto-enable): ${error}`);
-      }
-    }
-
-    // Extract strict MCP config flag
-    const strictMcpConfig = options.strictMcpConfig || false;
-
-    // Check if enterprise MCP configuration exists. When it does, only allow dynamic MCP
-    // configs that contain special server types (sdk)
-    if (doesEnterpriseMcpConfigExist()) {
-      if (strictMcpConfig) {
-        process.stderr.write(chalk.red('You cannot use --strict-mcp-config when an enterprise MCP config is present'));
-        process.exit(1);
-      }
-
-      // For --mcp-config, allow if all servers are internal types (sdk)
-      if (dynamicMcpConfig) {
-        process.stderr.write(chalk.red('You cannot dynamically configure MCP servers when an enterprise MCP config is present'));
-        process.exit(1);
-      }
-    }
-
-    // chicago MCP: guarded Computer Use (app allowlist + frontmost gate +
-    // SCContentFilter screenshots). Ant-only, GrowthBook-gated — failures
-    // are silent (this is dogfooding). Platform + interactive checks inline
-    // so non-macOS / print-mode ants skip the heavy @ant/computer-use-mcp
-    // import entirely. gates.js is light (type-only package import).
-    //
-    // Placed AFTER the enterprise-MCP-config check: that check rejects any
-    // dynamicMcpConfig entry with `type !== 'sdk'`, and our config is
-    // `type: 'stdio'`. An enterprise-config ant with the GB gate on would
-    // otherwise process.exit(1). Chrome has the same latent issue but has
-    // shipped without incident; chicago places itself correctly.
-    if (feature('CHICAGO_MCP') && getPlatform() === 'macos' && !getIsNonInteractiveSession()) {
-      try {
-        const {
-          getChicagoEnabled
-        } = await import('src/utils/computerUse/gates.js');
-        if (getChicagoEnabled()) {
-          const {
-            setupComputerUseMCP
-          } = await import('src/utils/computerUse/setup.js');
-          const {
-            mcpConfig,
-            allowedTools: cuTools
-          } = setupComputerUseMCP();
-          dynamicMcpConfig = {
-            ...dynamicMcpConfig,
-            ...mcpConfig
-          };
-          allowedTools.push(...cuTools);
-        }
-      } catch (error) {
-        logForDebugging(`[Computer Use MCP] Setup failed: ${errorMessage(error)}`);
-      }
-    }
-
     // Store additional directories for CLAUDE.md loading (controlled by env var)
     setAdditionalDirectoriesForClaudeMd(addDir);
 
@@ -1589,31 +1348,6 @@ async function run(): Promise<CommanderCommand> {
       console.error(warning);
     });
     void assertMinVersion();
-
-    // Tau loads configured MCP servers only; claude.ai account connectors are not imported.
-
-    // Kick off MCP config loading early (safe - just reads files, no execution).
-    // Both interactive and -p use getTauCodeMcpConfigs (local file reads only).
-    // The local promise is awaited later (before prefetchAllMcpResources) to
-    // overlap config I/O with setup(), commands loading, and trust dialog.
-    logForDebugging('[STARTUP] Loading MCP configs...');
-    // Register the local-config source before its read starts. Until it
-    // settles, the launch barrier knows servers may still be coming, so an
-    // empty registry is not mistaken for "nothing configured".
-    beginMcpSource(MCP_SOURCE_LOCAL_CONFIG);
-    const mcpConfigStart = Date.now();
-    let mcpConfigResolvedMs: number | undefined;
-    // --bare skips auto-discovered MCP (.mcp.json and user settings) —
-    // only explicit --mcp-config works. dynamicMcpConfig is spread onto
-    // allMcpConfigs downstream so it survives this skip.
-    const mcpConfigPromise = (strictMcpConfig || isBareMode() ? Promise.resolve({
-      servers: {} as Record<string, ScopedMcpServerConfig>
-    }) : getClaudeCodeMcpConfigs()).then(result => {
-      mcpConfigResolvedMs = Date.now() - mcpConfigStart;
-      return result;
-    });
-
-    // NOTE: We do NOT call prefetchAllMcpResources here - that's deferred until after trust dialog
 
     if (inputFormat && inputFormat !== 'text' && inputFormat !== 'stream-json') {
       // biome-ignore lint/suspicious/noConsole:: intentional console output
@@ -1903,7 +1637,7 @@ async function run(): Promise<CommanderCommand> {
       }
     }
 
-    // Compute effective model early so hooks can run in parallel with MCP
+    // Compute effective model early so hooks can run in parallel with startup work
     // If user didn't specify a model but agent has one, use the agent's model
     let effectiveModel = userSpecifiedModel;
     if (!effectiveModel && mainThreadAgentDefinition?.model && mainThreadAgentDefinition.model !== 'inherit') {
@@ -2059,7 +1793,7 @@ async function run(): Promise<CommanderCommand> {
       trace('Calling showSetupScreens()...');
       logForDebugging('[STARTUP] Running showSetupScreens()...');
       const setupScreensStart = Date.now();
-      const onboardingShown = await showSetupScreens(root, permissionMode, allowDangerouslySkipPermissions, commands, enableClaudeInChrome);
+      const onboardingShown = await showSetupScreens(root, permissionMode, allowDangerouslySkipPermissions, commands);
       trace('showSetupScreens() completed');
       logForDebugging(`[STARTUP] showSetupScreens() completed in ${Date.now() - setupScreensStart}ms`);
 
@@ -2092,7 +1826,7 @@ async function run(): Promise<CommanderCommand> {
         void refreshPolicyLimits();
         // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
         resetUserCache();
-        // Refresh GrowthBook after login to get updated feature flags (e.g., for claude.ai MCPs)
+        // Refresh GrowthBook after login to get updated feature flags
         refreshGrowthBookAfterAuthChange();
       }
 
@@ -2114,16 +1848,11 @@ async function run(): Promise<CommanderCommand> {
       return;
     }
 
-    // Show settings validation errors after trust is established
-    // MCP config errors don't block settings from loading, so exclude them
     if (!isNonInteractiveSession) {
-      const {
-        errors
-      } = getSettingsWithErrors();
-      const nonMcpErrors = errors.filter(e => !e.mcpErrorMetadata);
-      if (nonMcpErrors.length > 0) {
+      const { errors } = getSettingsWithErrors();
+      if (errors.length > 0) {
         await launchInvalidSettingsDialog(root, {
-          settingsErrors: nonMcpErrors,
+          settingsErrors: errors,
           onExit: () => gracefulShutdownSync(1)
         });
       }
@@ -2171,49 +1900,7 @@ async function run(): Promise<CommanderCommand> {
       void refreshExampleCommands(); // Pre-fetch example commands (runs git log, no API call)
     }
 
-    // Resolve MCP configs (started early, overlaps with setup/trust dialog work)
-    const {
-      servers: existingMcpConfigs
-    } = await mcpConfigPromise;
-    logForDebugging(`[STARTUP] MCP configs resolved in ${mcpConfigResolvedMs}ms (awaited at +${Date.now() - mcpConfigStart}ms)`);
-    // Cheap mode must also suppress explicit --mcp-config connections. The
-    // config loader already hides file-based servers, but spreading dynamic
-    // configs afterward used to bypass that gate during startup prefetch.
-    // Keep dynamicMcpConfig for a later /mode normal transition.
-    const allMcpConfigs = getPowerModeFromSettings(getInitialSettings()) === 'cheap' ? {} : {
-      ...existingMcpConfigs,
-      ...dynamicMcpConfig
-    };
-
-    // Separate SDK configs from regular MCP configs
-    const sdkMcpConfigs: Record<string, McpSdkServerConfig> = {};
-    const regularMcpConfigs: Record<string, ScopedMcpServerConfig> = {};
-    for (const [name, config] of Object.entries(allMcpConfigs)) {
-      const typedConfig = config as ScopedMcpServerConfig | McpSdkServerConfig;
-      if (typedConfig.type === 'sdk') {
-        sdkMcpConfigs[name] = typedConfig as McpSdkServerConfig;
-      } else {
-        regularMcpConfigs[name] = typedConfig as ScopedMcpServerConfig;
-      }
-    }
-    profileCheckpoint('action_mcp_configs_loaded');
-
-    // Settle the local-config source together with the servers it found.
-    // prefetchAllMcpResources below registers each of them as discovering
-    // (via getMcpToolsCommandsAndResources), and the hook converges on the
-    // same memoized connections, so naming them here is not double counting.
-    settleMcpSource(MCP_SOURCE_LOCAL_CONFIG, Object.keys(regularMcpConfigs).filter(name => !isMcpServerDisabled(name)));
-
-    // Prefetch MCP resources after trust dialog (this is where execution happens).
-    // Interactive mode only: print mode defers connects until headlessStore exists
-    // and pushes per-server (below), so ToolSearch's pending-client handling works
-    // and one slow server doesn't block the batch.
-    const mcpPromise = isNonInteractiveSession ? Promise.resolve({
-      clients: [],
-      tools: [],
-      commands: []
-    }) : prefetchAllMcpResources(regularMcpConfigs);
-    // Start hooks early so they run in parallel with MCP connections.
+    // Start hooks early so they run in parallel with startup work.
     // Skip for initOnly/init/maintenance (handled separately), non-interactive
     // (handled via setupTrigger), and resume/continue (conversationRecovery.ts
     // fires 'resume' instead — without this guard, hooks fire TWICE on /resume
@@ -2223,20 +1910,7 @@ async function run(): Promise<CommanderCommand> {
       model: resolvedInitialModel
     });
 
-    // MCP never blocks REPL render OR turn 1 TTFT. useManageMCPConnections
-    // populates appState.mcp async as servers connect (connectToServer is
-    // memoized — the prefetch calls above and the hook converge on the same
-    // connections). getToolUseContext reads store.getState() fresh via
-    // computeTools(), so turn 1 sees whatever's connected by query time.
-    // Slow servers populate for turn 2+. Matches interactive-no-prompt
-    // behavior. Print mode: per-server push into headlessStore (below).
     const hookMessages: Awaited<NonNullable<typeof hooksPromise>> = [];
-    // Suppress transient unhandledRejection — the prefetch warms the
-    // memoized connectToServer cache but nobody awaits it in interactive.
-    mcpPromise.catch(() => {});
-    const mcpClients: Awaited<typeof mcpPromise>['clients'] = [];
-    const mcpTools: Awaited<typeof mcpPromise>['tools'] = [];
-    const mcpCommands: Awaited<typeof mcpPromise>['commands'] = [];
     let thinkingEnabled = shouldEnableThinkingByDefault();
     let thinkingConfig: ThinkingConfig = thinkingEnabled !== false ? {
       type: 'adaptive'
@@ -2288,7 +1962,6 @@ async function run(): Promise<CommanderCommand> {
       inputFormat: inputFormat ?? 'text',
       numAllowedTools: allowedTools.length,
       numDisallowedTools: disallowedTools.length,
-      mcpClientCount: Object.keys(allMcpConfigs).length,
       worktreeEnabled,
       skipWebFetchPreflight: getInitialSettings().skipWebFetchPreflight,
       githubActionInputs: process.env.GITHUB_ACTION_INPUTS,
@@ -2303,7 +1976,7 @@ async function run(): Promise<CommanderCommand> {
     });
 
     // Log context metrics once at initialization
-    void logContextMetrics(regularMcpConfigs, toolPermissionContext);
+    void logContextMetrics(toolPermissionContext);
     void logPermissionContextForAnts(null, 'initialization');
     logManagedSettings();
 
@@ -2354,7 +2027,7 @@ async function run(): Promise<CommanderCommand> {
       initializeTelemetryAfterTrust();
 
       // Kick SessionStart hooks now so the subprocess spawn overlaps with
-      // MCP connect + print.ts import below. loadInitialMessages
+      // print.ts import below. loadInitialMessages
       // joins this at print.ts:4397. Guarded same as loadInitialMessages —
       // continue/resume/teleport paths don't fire startup hooks (or fire them
       // conditionally inside the resume branch, where this promise is
@@ -2380,12 +2053,6 @@ async function run(): Promise<CommanderCommand> {
       const defaultState = getDefaultAppState();
       const headlessInitialState: AppState = {
         ...defaultState,
-        mcp: {
-          ...defaultState.mcp,
-          clients: mcpClients,
-          commands: mcpCommands,
-          tools: mcpTools
-        },
         toolPermissionContext,
         effortValue: parseEffortValue(options.effort) ?? getInitialEffortSetting(),
         ...(isFastModeEnabled() && {
@@ -2441,80 +2108,6 @@ async function run(): Promise<CommanderCommand> {
       // Only store allowed betas (filters by allowlist and subscriber status)
       setSdkBetas(filterAllowedSdkBetas(betas));
 
-      // Print-mode MCP: per-server incremental push into headlessStore.
-      // Mirrors useManageMCPConnections — push pending first (so ToolSearch's
-      // pending-check at ToolSearchTool.ts:334 sees them), then replace with
-      // connected/failed as each server settles.
-      const connectMcpBatch = (configs: Record<string, ScopedMcpServerConfig>, label: string): Promise<void> => {
-        if (Object.keys(configs).length === 0) return Promise.resolve();
-        // This callback writes straight into headlessStore and acknowledges,
-        // so discovery may defer a server's settle until its tools are
-        // readable there.
-        const releasePublisher = registerMcpPublisher(publishMcpToHeadlessStore);
-        headlessStore.setState(prev => ({
-          ...prev,
-          mcp: {
-            ...prev.mcp,
-            clients: [...prev.mcp.clients, ...Object.entries(configs).map(([name, config]) => ({
-              name,
-              type: 'pending' as const,
-              config
-            }))]
-          }
-        }));
-        return getMcpToolsCommandsAndResources(publishMcpToHeadlessStore, configs).catch(err => logForDebugging(`[MCP] ${label} connect error: ${err}`)).finally(releasePublisher);
-
-        function publishMcpToHeadlessStore({
-          client,
-          tools,
-          commands
-        }: Parameters<Parameters<typeof getMcpToolsCommandsAndResources>[0]>[0]) {
-          // tools and commands publish separately, so a server's ready tools
-          // are not held back by a slow prompts or resources listing. An
-          // undefined collection means "unchanged", not "none".
-          headlessStore.setState(prev => ({
-            ...prev,
-            mcp: {
-              ...prev.mcp,
-              clients: prev.mcp.clients.some(c => c.name === client.name) ? prev.mcp.clients.map(c => c.name === client.name ? client : c) : [...prev.mcp.clients, client],
-              tools: tools === undefined ? prev.mcp.tools : uniqBy([...prev.mcp.tools, ...tools], 'name'),
-              commands: commands === undefined ? prev.mcp.commands : uniqBy([...prev.mcp.commands, ...commands], 'name')
-            }
-          }));
-          // The store a request reads now holds this update. Print mode
-          // writes directly rather than through the hook's batched flush, so
-          // it acknowledges publication itself.
-          acknowledgeMcpPublication(client.name);
-        }
-      };
-      // Await all MCP configs — print mode is often single-turn, so
-      // "late-connecting servers visible next turn" doesn't help. SDK init
-      // message and turn-1 tool list both need configured MCP tools present.
-      // Zero-server case is free via the early return in connectMcpBatch.
-      // Connectors parallelize inside getMcpToolsCommandsAndResources
-      // (processBatched with Promise.all). claude.ai is awaited too — its
-      // fetch was kicked off early (line ~2558) so only residual time blocks
-      // here. --bare skips claude.ai entirely for perf-sensitive scripts.
-      profileCheckpoint('before_connectMcp');
-      // Start the local servers, but do not await them here. Print mode used
-      // to block on the full local batch and then add a separate fixed wait
-      // for connectors, so one slow stdio server could hold up startup with
-      // no bound at all, and the total was unrelated to the launch budget.
-      // Both now share the barrier's single deadline, measured from launch,
-      // exactly as interactive mode does. That caps a wait that previously
-      // had no bound, so a script whose servers are legitimately slower than
-      // the default raises TAU_MCP_LAUNCH_WAIT_MS; setting it to 0 turns the
-      // wait off entirely, which for -p means turn 1 may see no MCP tools.
-      const localMcpConnect = connectMcpBatch(regularMcpConfigs, 'regular');
-      // Discovery reports readiness independently; a failed connection must not
-      // become an unhandled rejection while the launch barrier is waiting.
-      localMcpConnect.catch(() => {});
-      const mcpWait = await waitForMcpLaunchBarrier();
-      if (mcpWait.outcome === 'deadline') {
-        logForDebugging(`[MCP] not all servers ready after ${mcpWait.waitedMs}ms — proceeding; background connection continues`);
-      }
-      profileCheckpoint('after_connectMcp');
-
       // In headless mode, start deferred prefetches immediately (no user typing delay)
       // --bare / SIMPLE: startDeferredPrefetches early-returns internally.
       // backgroundHousekeeping (initExtractMemories, pruneShellSnapshots,
@@ -2533,13 +2126,12 @@ async function run(): Promise<CommanderCommand> {
         runHeadless
       } = await import('src/cli/print.js');
       profileCheckpoint('after_print_import');
-      void runHeadless(inputPrompt, () => headlessStore.getState(), headlessStore.setState, commandsHeadless, tools, sdkMcpConfigs, agentDefinitions.activeAgents, {
+      void runHeadless(inputPrompt, () => headlessStore.getState(), headlessStore.setState, commandsHeadless, tools, agentDefinitions.activeAgents, {
         continue: options.continue,
         resume: options.resume,
         verbose: verbose,
         outputFormat: outputFormat,
         jsonSchema,
-        permissionPromptToolName: options.permissionPromptTool,
         allowedTools,
         thinkingConfig,
         maxTurns: options.maxTurns,
@@ -2644,12 +2236,6 @@ async function run(): Promise<CommanderCommand> {
       toolPermissionContext: effectiveToolPermissionContext,
       agent: mainThreadAgentDefinition?.agentType,
       agentDefinitions,
-      mcp: {
-        clients: [],
-        tools: [],
-        commands: [],
-        resources: {}
-      },
       statusLineText: undefined,
       kairosEnabled,
       remoteSessionUrl: undefined,
@@ -2658,9 +2244,6 @@ async function run(): Promise<CommanderCommand> {
       notifications: {
         current: null,
         queue: initialNotifications
-      },
-      elicitation: {
-        queue: []
       },
       todos: {},
       remoteAgentTaskSuggestions: [],
@@ -2718,7 +2301,7 @@ async function run(): Promise<CommanderCommand> {
     if (inputPrompt) {
       addToHistory(String(inputPrompt));
     }
-    const initialTools = mcpTools;
+    const initialTools = tools;
 
     // Increment numStartups synchronously — first-render readers like
     // shouldShowEffortCallout (via useState initializer) need the updated
@@ -2749,13 +2332,10 @@ async function run(): Promise<CommanderCommand> {
     const uploaderReady = sessionUploaderPromise ? sessionUploaderPromise.then(mod => mod.createSessionTurnUploader()).catch(() => null) : null;
     const sessionConfig = {
       debug: debug || debugToStderr,
-      commands: [...commands, ...mcpCommands],
+      commands,
       initialTools,
-      mcpClients,
       mainThreadAgentDefinition,
       disableSlashCommands,
-      dynamicMcpConfig,
-      strictMcpConfig,
       systemPrompt,
       appendSystemPrompt,
       taskListId,
@@ -2888,7 +2468,6 @@ async function run(): Promise<CommanderCommand> {
         commands,
         initialTools: [],
         initialMessages: [sshInfoMessage],
-        mcpClients: [],
         mainThreadAgentDefinition,
         disableSlashCommands,
         sshSession,
@@ -3036,7 +2615,6 @@ async function run(): Promise<CommanderCommand> {
           commands: remoteCommands,
           initialTools: [],
           initialMessages: initialUserMessage ? [remoteInfoMessage, initialUserMessage] : [remoteInfoMessage],
-          mcpClients: [],
           mainThreadAgentDefinition,
           disableSlashCommands,
           remoteSessionConfig,
@@ -3407,7 +2985,7 @@ async function run(): Promise<CommanderCommand> {
   profileCheckpoint('run_main_options_built');
 
   // -p/--print mode: skip subcommand registration. The 52 subcommands
-  // (mcp, auth, skill, task, config, doctor, update, etc.) are
+  // (auth, skill, task, config, doctor, update, etc.) are
   // never dispatched in print mode — commander routes the prompt to the
   // default action. The subcommand registration path was measured at ~65ms
   const isPrintMode = process.argv.includes('-p') || process.argv.includes('--print');
@@ -3417,74 +2995,6 @@ async function run(): Promise<CommanderCommand> {
     profileCheckpoint('run_after_parse');
     return program;
   }
-
-  // tau mcp
-
-  const mcp = program.command('mcp').description('Configure and manage MCP servers').configureHelp(createSortedHelpConfig()).enablePositionalOptions();
-  mcp.command('serve').description(`Start the Tau MCP server`).option('-d, --debug', 'Enable debug mode', () => true).option('--verbose', 'Override verbose mode setting from config', () => true).action(async ({
-    debug,
-    verbose
-  }: {
-    debug?: boolean;
-    verbose?: boolean;
-  }) => {
-    const {
-      mcpServeHandler
-    } = await import('./cli/handlers/mcp.js');
-    await mcpServeHandler({
-      debug,
-      verbose
-    });
-  });
-
-  // Register the mcp add subcommand (extracted for testability)
-  registerMcpAddCommand(mcp);
-  if (isXaaEnabled()) {
-    registerMcpXaaIdpCommand(mcp);
-  }
-  mcp.command('remove <name>').description('Remove an MCP server').option('-s, --scope <scope>', 'Configuration scope (local, user, or project) - if not specified, removes from whichever scope it exists in').action(async (name: string, options: {
-    scope?: string;
-  }) => {
-    const {
-      mcpRemoveHandler
-    } = await import('./cli/handlers/mcp.js');
-    await mcpRemoveHandler(name, options);
-  });
-  mcp.command('list').description('List configured MCP servers. Note: The workspace trust dialog is skipped and stdio servers from .mcp.json are spawned for health checks. Only use this command in directories you trust.').action(async () => {
-    const {
-      mcpListHandler
-    } = await import('./cli/handlers/mcp.js');
-    await mcpListHandler();
-  });
-  mcp.command('get <name>').description('Get details about an MCP server. Note: The workspace trust dialog is skipped and stdio servers from .mcp.json are spawned for health checks. Only use this command in directories you trust.').action(async (name: string) => {
-    const {
-      mcpGetHandler
-    } = await import('./cli/handlers/mcp.js');
-    await mcpGetHandler(name);
-  });
-  mcp.command('add-json <name> <json>').description('Add an MCP server (stdio or SSE) with a JSON string').option('-s, --scope <scope>', 'Configuration scope (local, user, or project)', 'local').option('--client-secret', 'Prompt for OAuth client secret (or set MCP_CLIENT_SECRET env var)').action(async (name: string, json: string, options: {
-    scope?: string;
-    clientSecret?: true;
-  }) => {
-    const {
-      mcpAddJsonHandler
-    } = await import('./cli/handlers/mcp.js');
-    await mcpAddJsonHandler(name, json, options);
-  });
-  mcp.command('add-from-claude-desktop').description('Import MCP servers from Tau Desktop (Mac and WSL only)').option('-s, --scope <scope>', 'Configuration scope (local, user, or project)', 'local').action(async (options: {
-    scope?: string;
-  }) => {
-    const {
-      mcpAddFromDesktopHandler
-    } = await import('./cli/handlers/mcp.js');
-    await mcpAddFromDesktopHandler(options);
-  });
-  mcp.command('reset-project-choices').description('Reset all approved and rejected project-scoped (.mcp.json) servers within this project').action(async () => {
-    const {
-      mcpResetChoicesHandler
-    } = await import('./cli/handlers/mcp.js');
-    await mcpResetChoicesHandler();
-  });
 
   // `tau ssh <host> [dir]` — registered here only so --help shows it.
   // The actual interactive flow is handled by early argv rewriting in main()
@@ -3592,7 +3102,7 @@ async function run(): Promise<CommanderCommand> {
   }
 
   // Doctor command - check installation health
-  program.command('doctor').description('Check the health of your Tau auto-updater. Note: The workspace trust dialog is skipped and stdio servers from .mcp.json are spawned for health checks. Only use this command in directories you trust.').action(async () => {
+  program.command('doctor').description('Check the health of your Tau auto-updater.').action(async () => {
     const [{
       doctorHandler
     }, {
@@ -3771,7 +3281,6 @@ async function logTenguInit({
   inputFormat,
   numAllowedTools,
   numDisallowedTools,
-  mcpClientCount,
   worktreeEnabled,
   skipWebFetchPreflight,
   githubActionInputs,
@@ -3794,7 +3303,6 @@ async function logTenguInit({
   inputFormat: string;
   numAllowedTools: number;
   numDisallowedTools: number;
-  mcpClientCount: number;
   worktreeEnabled: boolean;
   skipWebFetchPreflight: boolean | undefined;
   githubActionInputs: string | undefined;
@@ -3820,7 +3328,6 @@ async function logTenguInit({
       inputFormat: inputFormat as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       numAllowedTools,
       numDisallowedTools,
-      mcpClientCount,
       worktree: worktreeEnabled,
       skipWebFetchPreflight,
       ...(githubActionInputs && {

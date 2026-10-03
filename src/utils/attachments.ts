@@ -75,9 +75,8 @@ import {
   getDefaultOpusModel,
 } from './model/model.js'
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js'
-import { getSkillToolCommands, getMcpSkillCommands } from '../commands.js'
+import { getSkillToolCommands } from '../commands.js'
 import type { Command } from '../types/command.js'
-import uniqBy from 'lodash-es/uniqBy.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { formatCommandsWithinBudget } from '../tools/SkillTool/prompt.js'
 import { getContextWindowForModel } from './context.js'
@@ -173,10 +172,7 @@ import {
   getMcpInstructionsDelta,
   isMcpInstructionsDeltaEnabled,
   mcpServersForTools,
-  type ClientSideInstruction,
 } from './mcpInstructionsDelta.js'
-import { CLAUDE_IN_CHROME_MCP_SERVER_NAME } from './claudeInChrome/common.js'
-import { CHROME_TOOL_SEARCH_INSTRUCTIONS } from './claudeInChrome/prompt.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import type {
   HookEvent,
@@ -1635,21 +1631,6 @@ export function getMcpInstructionsDeltaAttachment(
       ? []
       : mcpClients
 
-  // The chrome ToolSearch hint is client-authored and ToolSearch-conditional;
-  // actual server `instructions` are unconditional. Decide the chrome part
-  // here, pass it into the pure diff as a synthesized entry.
-  const clientSide: ClientSideInstruction[] = []
-  if (
-    isToolSearchEnabledOptimistic() &&
-    modelSupportsToolReference(model) &&
-    isToolSearchToolAvailable(tools)
-  ) {
-    clientSide.push({
-      serverName: CLAUDE_IN_CHROME_MCP_SERVER_NAME,
-      block: CHROME_TOOL_SEARCH_INSTRUCTIONS,
-    })
-  }
-
   // Instructions travel with the tools they describe: only servers this
   // request can use are announced, and a server whose tools left the request
   // has its instructions retracted.
@@ -1658,7 +1639,7 @@ export function getMcpInstructionsDeltaAttachment(
       getProviderFilteredToolCallDecision(getAPIProvider(), tool.name, model) === null,
     )),
     messages ?? [],
-    clientSide,
+    [],
   )
   if (!delta) return []
   return [{ type: 'mcp_instructions_delta', ...delta }]
@@ -2659,10 +2640,10 @@ async function getDynamicSkillAttachments(
 // Track which skills have been sent to avoid re-sending. Keyed by agentId
 // (empty string = main thread) so subagents get their own turn-0 listing —
 // without per-agent scoping, the main thread populating this Set would cause
-// every subagent's filterToBundledAndMcp result to dedup to empty.
+// every subagent's bundled-skill listing to dedup to empty.
 const sentSkillNames = new Map<string, Set<string>>()
 
-// Called when the skill set genuinely changes (plugin reload, skill file
+// Called when the skill set genuinely changes (settings reload, skill file
 // change on disk) so new skills get announced. NOT called on compact —
 // post-compact re-injection costs ~4K tokens/event for marginal benefit.
 export function resetSentSkillNames(): void {
@@ -2691,27 +2672,13 @@ export function suppressNextSkillListing(): void {
 }
 let suppressNext = false
 
-// When skill-search is enabled and the filtered (bundled + MCP) listing exceeds
-// this count, fall back to bundled-only. Protects MCP-heavy users (100+ servers)
-// from truncation while keeping the turn-0 guarantee for typical setups.
-const FILTERED_LISTING_MAX = 30
-
+// When skill-search is enabled and the bundled listing exceeds this count,
+// fall back to bundled-only while keeping the turn-0 guarantee.
 /**
- * Filter skills to bundled (Anthropic-curated) + MCP (user-connected) only.
- * Used when skill-search is enabled to resolve the turn-0 gap for subagents:
- * these sources are small, intent-signaled, and won't hit the truncation budget.
- * User/project/plugin skills (the long tail — 200+) go through discovery instead.
- *
- * Falls back to bundled-only if bundled+mcp exceeds FILTERED_LISTING_MAX.
+ * Filter skills to the bundled set for turn-zero subagent discovery.
  */
-export function filterToBundledAndMcp(commands: Command[]): Command[] {
-  const filtered = commands.filter(
-    cmd => cmd.loadedFrom === 'bundled' || cmd.loadedFrom === 'mcp',
-  )
-  if (filtered.length > FILTERED_LISTING_MAX) {
-    return filtered.filter(cmd => cmd.loadedFrom === 'bundled')
-  }
-  return filtered
+export function filterToBundledSkills(commands: Command[]): Command[] {
+  return commands.filter(cmd => cmd.loadedFrom === 'bundled')
 }
 
 async function getSkillListingAttachments(
@@ -2730,26 +2697,15 @@ async function getSkillListingAttachments(
 
   const cwd = getProjectRoot()
   const localCommands = await getSkillToolCommands(cwd)
-  const mcpSkills = getMcpSkillCommands(
-    toolUseContext.getAppState().mcp.commands,
-  )
-  let allCommands =
-    mcpSkills.length > 0
-      ? uniqBy([...localCommands, ...mcpSkills], 'name')
-      : localCommands
+  let allCommands = localCommands
 
-  // When skill search is active, filter to bundled + MCP instead of full
-  // suppression. Resolves the turn-0 gap: main thread gets turn-0 discovery
-  // via getTurnZeroSkillDiscovery (blocking), but subagents use the async
-  // subagent_spawn signal (collected post-tools, visible turn 1). Bundled +
-  // MCP are small and intent-signaled; user/project/plugin skills go through
-  // discovery. feature() first for DCE — the property-access string leaks
-  // otherwise even with ?. on null.
+  // When skill search is active, filter to bundled skills for subagents. The
+  // main thread gets turn-zero discovery separately. feature() first for DCE.
   if (
     feature('EXPERIMENTAL_SKILL_SEARCH') &&
     skillSearchModules?.featureCheck.isSkillSearchEnabled()
   ) {
-    allCommands = filterToBundledAndMcp(allCommands)
+    allCommands = filterToBundledSkills(allCommands)
   }
 
   const agentKey = toolUseContext.agentId ?? ''

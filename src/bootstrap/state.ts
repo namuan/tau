@@ -123,8 +123,6 @@ type State = {
   cachedClaudeMdContent: string | null
   // In-memory error log for recent errors
   inMemoryErrorLog: Array<{ error: string; timestamp: string }>
-  // Explicit --chrome / --no-chrome flag value (undefined = not set on CLI)
-  chromeFlagOverride: boolean | undefined
   // Session-only bypass permissions mode flag (not persisted)
   sessionBypassPermissionsMode: boolean
   // Session-only flag gating the .claude/scheduled_tasks.json watcher
@@ -332,8 +330,6 @@ function getInitialState(): State {
     cachedClaudeMdContent: null,
     // In-memory error log for recent errors
     inMemoryErrorLog: [],
-    // Explicit --chrome / --no-chrome flag value (undefined = not set on CLI)
-    chromeFlagOverride: undefined,
     // Session-only bypass permissions mode flag (not persisted)
     sessionBypassPermissionsMode: false,
     // Scheduled tasks disabled until flag or dialog enables them
@@ -1251,14 +1247,6 @@ export function setAllowedSettingSources(sources: SettingSource[]): void {
 
 export function preferThirdPartyAuthentication(): boolean {
   return getIsNonInteractiveSession()
-}
-
-export function setChromeFlagOverride(value: boolean | undefined): void {
-  STATE.chromeFlagOverride = value
-}
-
-export function getChromeFlagOverride(): boolean | undefined {
-  return STATE.chromeFlagOverride
 }
 
 export function setSessionBypassPermissionsMode(enabled: boolean): void {

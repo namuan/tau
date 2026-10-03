@@ -15,7 +15,7 @@ import {
   appendStrictParamsHint,
   buildStrictParamsSummary,
   GEMINI_TOOL_USAGE_RULES,
-} from '../shared/mcp_bridge.js'
+} from '../shared/providerToolCompat.js'
 import { GEMINI_TOOL_REGISTRY } from './tools.js'
 
 let passed = 0

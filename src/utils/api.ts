@@ -15,8 +15,6 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from 'src/services/analytics/index.js'
-import { prefetchAllMcpResources } from 'src/services/mcp/client.js'
-import type { ScopedMcpServerConfig } from 'src/services/mcp/types.js'
 import { BashTool } from 'src/tools/BashTool/BashTool.js'
 import { FileEditTool } from 'src/tools/FileEditTool/FileEditTool.js'
 import {
@@ -504,20 +502,17 @@ export function prependUserContext(
  * Log metrics about context and system prompt size
  */
 export async function logContextMetrics(
-  mcpConfigs: Record<string, ScopedMcpServerConfig>,
   toolPermissionContext: ToolPermissionContext,
 ): Promise<void> {
   // Early return if logging is disabled
   if (isAnalyticsDisabled()) {
     return
   }
-  const [{ tools: mcpTools }, tools, userContext, systemContext] =
-    await Promise.all([
-      prefetchAllMcpResources(mcpConfigs),
-      getTools(toolPermissionContext),
-      getUserContext(),
-      getSystemContext(),
-    ])
+  const [tools, userContext, systemContext] = await Promise.all([
+    getTools(toolPermissionContext),
+    getUserContext(),
+    getSystemContext(),
+  ])
   // Extract individual context sizes and calculate total
   const gitStatusSize = systemContext.gitStatus?.length ?? 0
   const claudeMdSize = userContext.claudeMd?.length ?? 0
@@ -538,42 +533,13 @@ export async function logContextMetrics(
     normalizedIgnorePatterns,
   )
 
-  // Calculate tool metrics
-  let mcpToolsCount = 0
-  let mcpServersCount = 0
-  let mcpToolsTokens = 0
-  let nonMcpToolsCount = 0
-  let nonMcpToolsTokens = 0
-
-  const nonMcpTools = tools.filter(tool => !tool.isMcp)
-  mcpToolsCount = mcpTools.length
-  nonMcpToolsCount = nonMcpTools.length
-
-  // Extract unique server names from MCP tool names (format: mcp__servername__toolname)
-  const serverNames = new Set<string>()
-  for (const tool of mcpTools) {
-    const parts = tool.name.split('__')
-    if (parts.length >= 3 && parts[1]) {
-      serverNames.add(parts[1])
-    }
-  }
-  mcpServersCount = serverNames.size
-
-  // Estimate tool tokens locally for analytics (avoids N API calls per session)
-  // Use inputJSONSchema (plain JSON Schema) when available, otherwise convert Zod schema
-  for (const tool of mcpTools) {
+  let toolsTokens = 0
+  for (const tool of tools) {
     const schema =
       'inputJSONSchema' in tool && tool.inputJSONSchema
         ? tool.inputJSONSchema
         : zodToJsonSchema(tool.inputSchema)
-    mcpToolsTokens += roughTokenCountEstimation(jsonStringify(schema))
-  }
-  for (const tool of nonMcpTools) {
-    const schema =
-      'inputJSONSchema' in tool && tool.inputJSONSchema
-        ? tool.inputJSONSchema
-        : zodToJsonSchema(tool.inputSchema)
-    nonMcpToolsTokens += roughTokenCountEstimation(jsonStringify(schema))
+    toolsTokens += roughTokenCountEstimation(jsonStringify(schema))
   }
 
   logEvent('tengu_context_size', {
@@ -581,11 +547,8 @@ export async function logContextMetrics(
     claude_md_size: claudeMdSize,
     total_context_size: totalContextSize,
     project_file_count_rounded: fileCount,
-    mcp_tools_count: mcpToolsCount,
-    mcp_servers_count: mcpServersCount,
-    mcp_tools_tokens: mcpToolsTokens,
-    non_mcp_tools_count: nonMcpToolsCount,
-    non_mcp_tools_tokens: nonMcpToolsTokens,
+    tools_count: tools.length,
+    tools_tokens: toolsTokens,
   })
 }
 

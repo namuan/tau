@@ -5,7 +5,7 @@ import {
   sanitizeResponsesToolParametersForOpenAI,
   toOpenAIStrictToolParameters,
 } from '../../services/api/adapters/openai_responses_schema.js'
-import { appendStrictParamsHint } from '../shared/mcp_bridge.js'
+import { appendStrictParamsHint } from '../shared/providerToolCompat.js'
 
 export function buildClineToolsForRequest(
   tools: ProviderTool[],

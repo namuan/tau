@@ -15,7 +15,7 @@
  */
 
 import { randomUUID } from 'crypto'
-import { decodeToolArguments, toolDecodeFields } from '../../services/mcp/decodeStatus.js'
+import { decodeToolArguments, toolDecodeFields } from '../../utils/toolDecodeStatus.js'
 import type {
   AnthropicStreamEvent,
   ModelInfo,
@@ -46,7 +46,7 @@ import {
   sanitizeSchemaForLane,
   appendStrictParamsHint,
   QWEN_TOOL_USAGE_RULES,
-} from '../shared/mcp_bridge.js'
+} from '../shared/providerToolCompat.js'
 import {
   InFlightToolCall,
   isOutputCapTruncation,

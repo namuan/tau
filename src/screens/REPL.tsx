@@ -33,7 +33,6 @@ import { createFileStateCacheWithSizeLimit, mergeFileStateCaches, READ_FILE_STAT
 import { updateLastInteractionTime, getLastInteractionTime, getOriginalCwd, getProjectRoot, getSessionId, switchSession, setCostStateForRestore, getTurnHookDurationMs, getTurnHookCount, resetTurnHookDuration, getTurnToolDurationMs, getTurnToolCount, resetTurnToolDuration, getTurnClassifierDurationMs, getTurnClassifierCount, resetTurnClassifierDuration } from '../bootstrap/state.js';
 import { asSessionId, asAgentId } from '../types/ids.js';
 import { logForDebugging } from '../utils/debug.js';
-import { shouldWaitForMcpAtLaunch, waitForMcpLaunchBarrier } from '../services/mcp/launchBarrier.js';
 import { QueryGuard } from '../utils/QueryGuard.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { formatTokens, truncateToWidth } from '../utils/format.js';
@@ -52,7 +51,6 @@ import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getComm
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
 import { MessageSelector, selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } from '../components/MessageSelector.js';
 import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
-import { ElicitationDialog } from '../components/mcp/ElicitationDialog.js';
 import { PromptDialog } from '../components/hooks/PromptDialog.js';
 import type { PromptRequest, PromptResponse } from '../types/hooks.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
@@ -104,9 +102,7 @@ const useFrustrationDetection: typeof import('../components/FeedbackSurvey/useFr
 // eliminated from external builds (one UUID is on excluded-strings).
 const useAntOrgWarningNotification: typeof import('../hooks/notifs/useAntOrgWarningNotification.js').useAntOrgWarningNotification = "external" === 'ant' ? require('../hooks/notifs/useAntOrgWarningNotification.js').useAntOrgWarningNotification : () => {};
 // Dead code elimination: conditional import for coordinator mode
-const getCoordinatorUserContext: (mcpClients: ReadonlyArray<{
-  name: string;
-}>, scratchpadDir?: string) => {
+const getCoordinatorUserContext: (scratchpadDir?: string) => {
   [k: string]: string;
 } = feature('COORDINATOR_MODE') ? require('../coordinator/coordinatorMode.js').getCoordinatorUserContext : () => ({});
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
@@ -136,7 +132,6 @@ import { useMailboxBridge } from '../hooks/useMailboxBridge.js';
 import { queryCheckpoint, logQueryProfileReport } from '../utils/queryProfiler.js';
 import type { Message as MessageType, UserMessage, ProgressMessage, HookResultMessage, PartialCompactDirection } from '../types/message.js';
 import { query } from '../query.js';
-import { mergeClients, useMergedClients } from '../hooks/useMergedClients.js';
 import { getQuerySourceForREPL } from '../utils/promptCategory.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
 import { mergeAndFilterTools } from '../utils/toolPool.js';
@@ -149,8 +144,6 @@ import { TaskListV2 } from '../components/TaskListV2.js';
 import { TeammateViewHeader } from '../components/TeammateViewHeader.js';
 import { useTasksV2WithCollapseEffect } from '../hooks/useTasksV2.js';
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js';
-import type { MCPServerConnection } from '../services/mcp/types.js';
-import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
 import { randomUUID, type UUID } from 'crypto';
 import { processSessionStartHooks } from '../utils/sessionStart.js';
 import { executeSessionEndHooks, getSessionEndHookTimeoutMs } from '../utils/hooks.js';
@@ -213,15 +206,12 @@ const UndercoverAutoCallout = "external" === 'ant' ? require('../components/Unde
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import { activityManager } from '../utils/activityManager.js';
 import { createAbortController } from '../utils/abortController.js';
-import { MCPConnectionManager } from 'src/services/mcp/MCPConnectionManager.js';
 import { useFeedbackSurvey } from 'src/components/FeedbackSurvey/useFeedbackSurvey.js';
 import { useMemorySurvey } from 'src/components/FeedbackSurvey/useMemorySurvey.js';
 import { usePostCompactSurvey } from 'src/components/FeedbackSurvey/usePostCompactSurvey.js';
 import { FeedbackSurvey } from 'src/components/FeedbackSurvey/FeedbackSurvey.js';
 import { useInstallMessages } from 'src/hooks/notifs/useInstallMessages.js';
 import { useAwaySummary } from 'src/hooks/useAwaySummary.js';
-import { useChromeExtensionNotification } from 'src/hooks/useChromeExtensionNotification.js';
-import { usePromptsFromClaudeInChrome } from 'src/hooks/usePromptsFromClaudeInChrome.js';
 import { getTipToShowOnSpinner, recordShownTip } from 'src/services/tips/tipScheduler.js';
 import type { Theme } from 'src/utils/theme.js';
 import { checkAndDisableBypassPermissionsIfNeeded, checkAndDisableAutoModeIfNeeded, useKickOffCheckAndDisableBypassPermissionsIfNeeded, useKickOffCheckAndDisableAutoModeIfNeeded } from 'src/utils/permissions/bypassPermissionsKillswitch.js';
@@ -230,7 +220,6 @@ import { useFileHistorySnapshotInit } from 'src/hooks/useFileHistorySnapshotInit
 import { SandboxPermissionRequest } from 'src/components/permissions/SandboxPermissionRequest.js';
 import { SandboxViolationExpandedView } from 'src/components/SandboxViolationExpandedView.js';
 import { useSettingsErrors } from 'src/hooks/notifs/useSettingsErrors.js';
-import { useMcpConnectivityStatus } from 'src/hooks/notifs/useMcpConnectivityStatus.js';
 import { useAutoModeUnavailableNotification } from 'src/hooks/notifs/useAutoModeUnavailableNotification.js';
 import { AUTO_MODE_DESCRIPTION } from 'src/components/AutoModeOptInDialog.js';
 import { useClaudeCodeHintRecommendation } from 'src/hooks/useClaudeCodeHintRecommendation.js';
@@ -266,11 +255,6 @@ import { useMessageActions, MessageActionsKeybindings, MessageActionsBar, type M
 import { setClipboard } from '../ink/termio/osc.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { createAttachmentMessage, getQueuedCommandAttachments } from '../utils/attachments.js';
-
-// Stable empty array for hooks that accept MCPServerConnection[] — avoids
-// creating a new [] literal on every render in remote mode, which would
-// cause useEffect dependency changes and infinite re-render loops.
-const EMPTY_MCP_CLIENTS: MCPServerConnection[] = [];
 
 // Window after a user-initiated scroll during which type-into-empty does NOT
 // repin to bottom. Josh Rosen's workflow: Tau emits long output → scroll
@@ -524,9 +508,6 @@ export type Props = {
   // Initial agent context for session resume (name/color set via /rename or /color)
   initialAgentName?: string;
   initialAgentColor?: AgentColorName;
-  mcpClients?: MCPServerConnection[];
-  dynamicMcpConfig?: Record<string, ScopedMcpServerConfig>;
-  strictMcpConfig?: boolean;
   systemPrompt?: string;
   appendSystemPrompt?: string;
   // Optional callback invoked before query execution
@@ -561,9 +542,6 @@ export function REPL({
   initialContentReplacements,
   initialAgentName,
   initialAgentColor,
-  mcpClients: initialMcpClients,
-  dynamicMcpConfig: initialDynamicMcpConfig,
-  strictMcpConfig = false,
   systemPrompt: customSystemPrompt,
   appendSystemPrompt,
   onBeforeQuery,
@@ -605,7 +583,6 @@ export function REPL({
   useEffect(() => {
     setOllamaThinkingEnabled(thinkingEnabledState !== false);
   }, [thinkingEnabledState]);
-  const mcp = useAppState(s => s.mcp);
   const agentDefinitions = useAppState(s => s.agentDefinitions);
   const fileHistory = useAppState(s => s.fileHistory);
   const initialMessage = useAppState(s => s.initialMessage);
@@ -620,7 +597,6 @@ export function REPL({
   const teamContext = useAppState(s => s.teamContext);
   const tasks = useAppState(s => s.tasks);
   const workerSandboxPermissions = useAppState(s => s.workerSandboxPermissions);
-  const elicitation = useAppState(s => s.elicitation);
   const ultraplanPendingChoice = useAppState(s => s.ultraplanPendingChoice);
   const ultraplanLaunchPending = useAppState(s => s.ultraplanLaunchPending);
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId);
@@ -690,10 +666,6 @@ export function REPL({
   const localTools = useMemo(() => getTools(toolPermissionContext), [toolPermissionContext, proactiveActive, isBriefOnly, disabledPrebuiltToolsKey]);
   useKickOffCheckAndDisableBypassPermissionsIfNeeded();
   useKickOffCheckAndDisableAutoModeIfNeeded();
-  const [dynamicMcpConfig, setDynamicMcpConfig] = useState<Record<string, ScopedMcpServerConfig> | undefined>(initialDynamicMcpConfig);
-  const onChangeDynamicMcpConfig = useCallback((config: Record<string, ScopedMcpServerConfig>) => {
-    setDynamicMcpConfig(config);
-  }, [setDynamicMcpConfig]);
   const [screen, setScreen] = useState<Screen>('prompt');
   const [showAllInTranscript, setShowAllInTranscript] = useState(false);
   // [ forces the dump-to-scrollback path inside transcript mode. Separate
@@ -721,7 +693,6 @@ export function REPL({
 
   // eslint-disable-next-line prefer-const
   let trySuggestBgPRIntercept = SUGGEST_BG_PR_NOOP;
-  const mcpClients = useMergedClients(initialMcpClients, mcp.clients);
 
   // Dead code elimination: model switch callout state (ant-only)
   const [showModelSwitchCallout, setShowModelSwitchCallout] = useState(() => {
@@ -735,9 +706,6 @@ export function REPL({
   // notifications
   useModelMigrationNotifications();
   useCanSwitchToExistingSubscription();
-  useMcpConnectivityStatus({
-    mcpClients
-  });
   useAutoModeUnavailableNotification();
   useNpmUpdateNotification();
   useSettingsErrors();
@@ -746,7 +714,6 @@ export function REPL({
   useDeprecationWarningNotification(mainLoopModel);
   useAntOrgWarningNotification();
   useInstallMessages();
-  useChromeExtensionNotification();
   useTeammateLifecycleNotification();
 
   // Memoize the combined initial tools array to prevent reference changes
@@ -758,14 +725,13 @@ export function REPL({
 
   // Allow Tau in Chrome MCP to send prompts through MCP notifications
   // and sync permission mode changes to the Chrome extension
-  usePromptsFromClaudeInChrome(isRemoteSession ? EMPTY_MCP_CLIENTS : mcpClients, toolPermissionContext.mode);
 
   // Initialize swarm features: teammate hooks and context
   // Handles both fresh spawns and resumed teammate sessions
   useSwarmInitialization(setAppState, initialMessages, {
     enabled: !isRemoteSession
   });
-  const mergedTools = useMergedTools(combinedInitialTools, mcp.tools, toolPermissionContext);
+  const mergedTools = useMergedTools(combinedInitialTools, toolPermissionContext);
 
   // Apply agent tool restrictions if mainThreadAgentDefinition is set
   const {
@@ -785,7 +751,7 @@ export function REPL({
     };
   }, [mainThreadAgentDefinition, mergedTools]);
 
-  const mergedCommands = useMergedCommands(localCommands, mcp.commands as Command[]);
+  const mergedCommands = useMergedCommands(localCommands);
   // Filter out all commands if disableSlashCommands is true
   const commands = useMemo(() => disableSlashCommands ? [] : mergedCommands, [disableSlashCommands, mergedCommands]);
   const [streamMode, setStreamMode] = useState<SpinnerMode>('responding');
@@ -1608,7 +1574,7 @@ export function REPL({
 
   // Check if any permission or ask question prompt is currently visible
   // This is used to prevent the survey from opening while prompts are active
-  const hasActivePrompt = toolUseConfirmQueue.length > 0 || promptQueue.length > 0 || sandboxPermissionRequestQueue.length > 0 || elicitation.queue.length > 0 || workerSandboxPermissions.queue.length > 0;
+  const hasActivePrompt = toolUseConfirmQueue.length > 0 || promptQueue.length > 0 || sandboxPermissionRequestQueue.length > 0 || workerSandboxPermissions.queue.length > 0;
   const feedbackSurveyOriginal = useFeedbackSurvey(messages, isLoading, submitCount, 'session', hasActivePrompt);
   const skillImprovementSurvey = useSkillImprovementSurvey(setMessages);
   const showIssueFlagBanner = useIssueFlagBanner(messages, submitCount);
@@ -1938,7 +1904,7 @@ export function REPL({
   // Permission and interactive dialogs can show even when toolJSX is set,
   // as long as shouldContinueAnimation is true. This prevents deadlocks when
   // agents set background hints while waiting for user interaction.
-  function getFocusedInputDialog(): 'message-selector' | 'sandbox-permission' | 'tool-permission' | 'prompt' | 'worker-sandbox-permission' | 'elicitation' | 'cost' | 'idle-return' | 'init-onboarding' | 'ide-onboarding' | 'model-switch' | 'undercover-callout' | 'effort-callout' | 'desktop-upsell' | 'ultraplan-choice' | 'ultraplan-launch' | undefined {
+  function getFocusedInputDialog(): 'message-selector' | 'sandbox-permission' | 'tool-permission' | 'prompt' | 'worker-sandbox-permission' | 'cost' | 'idle-return' | 'init-onboarding' | 'ide-onboarding' | 'model-switch' | 'undercover-callout' | 'effort-callout' | 'desktop-upsell' | 'ultraplan-choice' | 'ultraplan-launch' | undefined {
     // Exit states always take precedence
     if (isExiting || exitFlow) return undefined;
 
@@ -1955,7 +1921,6 @@ export function REPL({
     if (allowDialogsWithAnimation && promptQueue[0]) return 'prompt';
     // Worker sandbox permission prompts (network access) from swarm workers
     if (allowDialogsWithAnimation && workerSandboxPermissions.queue[0]) return 'worker-sandbox-permission';
-    if (allowDialogsWithAnimation && elicitation.queue[0]) return 'elicitation';
     if (allowDialogsWithAnimation && showingCostDialog) return 'cost';
     if (allowDialogsWithAnimation && idleReturnPending) return 'idle-return';
     if (feature('ULTRAPLAN') && allowDialogsWithAnimation && !isLoading && ultraplanPendingChoice) return 'ultraplan-choice';
@@ -1981,7 +1946,7 @@ export function REPL({
   const focusedInputDialog = getFocusedInputDialog();
 
   // True when permission prompts exist but are hidden because the user is typing
-  const hasSuppressedDialogs = isPromptInputActive && (sandboxPermissionRequestQueue[0] || toolUseConfirmQueue[0] || promptQueue[0] || workerSandboxPermissions.queue[0] || elicitation.queue[0] || showingCostDialog);
+  const hasSuppressedDialogs = isPromptInputActive && (sandboxPermissionRequestQueue[0] || toolUseConfirmQueue[0] || promptQueue[0] || workerSandboxPermissions.queue[0] || showingCostDialog);
 
   // Keep ref in sync so timer callbacks can read the current value
   focusedInputDialogRef.current = focusedInputDialog;
@@ -2020,10 +1985,6 @@ export function REPL({
     prevDialogRef.current = focusedInputDialog;
   }, [focusedInputDialog, repinScroll]);
   function onCancel() {
-    if (focusedInputDialog === 'elicitation') {
-      // Elicitation dialog handles its own Escape, and closing it shouldn't affect any loading state.
-      return;
-    }
     logForDebugging(`[onCancel] focusedInputDialog=${focusedInputDialog} streamMode=${streamMode}`);
 
     // Pause proactive mode so the user gets control back.
@@ -2285,16 +2246,9 @@ export function REPL({
     // a future headless conversation loop. Same pattern refreshTools() uses.
     const s = store.getState();
 
-    // Compute tools fresh from store.getState() rather than the closure-
-    // captured `tools`. useManageMCPConnections populates appState.mcp
-    // async as servers connect — the store may have newer MCP state than
-    // the closure captured at render time. Also doubles as refreshTools()
-    // for mid-query tool list updates.
     const computeTools = (state = store.getState()) => {
-      const assembled = assembleToolPool(state.toolPermissionContext, state.mcp.tools);
-      const managedServers = new Set([...(initialMcpClients ?? []), ...state.mcp.clients].map(c => c.name));
-      const initial = combinedInitialTools.filter(t => !t.mcpInfo || !managedServers.has(t.mcpInfo.serverName));
-      const merged = mergeAndFilterTools(initial, assembled, state.toolPermissionContext.mode, state.settings);
+      const assembled = assembleToolPool(state.toolPermissionContext);
+      const merged = mergeAndFilterTools(combinedInitialTools, assembled, state.toolPermissionContext.mode, state.settings);
       if (!mainThreadAgentDefinition) return merged;
       return resolveAgentTools(mainThreadAgentDefinition, merged, false, true).resolvedTools;
     };
@@ -2310,12 +2264,7 @@ export function REPL({
         thinkingConfig: s.thinkingEnabled !== false ? thinkingConfig : {
           type: 'disabled'
         },
-        // Merge fresh from store rather than closing over useMergedClients'
-        // memoized output. initialMcpClients is a prop (session-constant).
-        mcpClients: mergeClients(initialMcpClients, s.mcp.clients),
-        mcpResources: s.mcp.resources,
         isNonInteractiveSession: false,
-        dynamicMcpConfig,
         theme,
         agentDefinitions: allowedAgentTypes ? {
           ...s.agentDefinitions,
@@ -2323,11 +2272,7 @@ export function REPL({
         } : s.agentDefinitions,
         customSystemPrompt,
         appendSystemPrompt,
-        refreshTools: computeTools,
-        refreshMcpContext: () => {
-          const state = store.getState();
-          return { tools: computeTools(state), mcpClients: mergeClients(initialMcpClients, state.mcp.clients) };
-        }
+        refreshTools: computeTools
       },
       getAppState: () => store.getState(),
       setAppState,
@@ -2369,7 +2314,6 @@ export function REPL({
       sendOSNotification: opts => {
         void sendNotification(opts, terminal);
       },
-      onChangeDynamicMcpConfig,
       nestedMemoryAttachmentTriggers: new Set<string>(),
       loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
       dynamicSkillDirTriggers: new Set<string>(),
@@ -2416,7 +2360,7 @@ export function REPL({
         contentReplacementStateRef.current = state;
       }
     };
-  }, [commands, combinedInitialTools, mainThreadAgentDefinition, debug, initialMcpClients, dynamicMcpConfig, theme, allowedAgentTypes, store, mainLoopModel, setAppState, reverify, addNotification, setMessages, onChangeDynamicMcpConfig, resume, requestPrompt, disabled, customSystemPrompt, appendSystemPrompt, setConversationId]);
+  }, [commands, combinedInitialTools, mainThreadAgentDefinition, debug, theme, allowedAgentTypes, store, mainLoopModel, setAppState, reverify, addNotification, setMessages, resume, requestPrompt, disabled, customSystemPrompt, appendSystemPrompt, setConversationId]);
 
   // Session backgrounding (Ctrl+B to background/foreground)
   const handleBackgroundQuery = useCallback(() => {
@@ -2428,7 +2372,7 @@ export function REPL({
     const removedNotifications = removeByFilter(cmd => cmd.mode === 'task-notification');
     void (async () => {
       const toolUseContext = getToolUseContext(messagesRef.current, [], new AbortController(), mainLoopModel);
-      const [defaultSystemPrompt, userContext, systemContext] = await Promise.all([getSystemPrompt(toolUseContext.options.tools, toolUseContext.options.mainLoopModel, Array.from(toolPermissionContext.additionalWorkingDirectories.keys()), toolUseContext.options.mcpClients), getUserContext(), getSystemContext()]);
+      const [defaultSystemPrompt, userContext, systemContext] = await Promise.all([getSystemPrompt(toolUseContext.options.tools, toolUseContext.options.mainLoopModel, Array.from(toolPermissionContext.additionalWorkingDirectories.keys())), getUserContext(), getSystemContext()]);
       const systemPrompt = buildEffectiveSystemPrompt({
         mainThreadAgentDefinition,
         toolUseContext,
@@ -2627,27 +2571,9 @@ export function REPL({
       setAbortController(null);
       return;
     }
-    // MCP launch barrier: the first MCP-capable request of the process waits
-    // for startup discovery to settle, bounded by the remaining launch budget
-    // (see src/services/mcp/launchBarrier.ts). It must run BEFORE
-    // getToolUseContext — computeTools() reads the store when called, so
-    // waiting here is what puts late-connecting servers' tools into turn 1.
-    // Esc aborts the wait like any other part of the turn.
-    if (shouldWaitForMcpAtLaunch(true)) {
-      const barrier = await waitForMcpLaunchBarrier(abortController.signal);
-      if (barrier.waitedMs > 0) {
-        logForDebugging(`[MCP launch barrier] turn 1 waited ${barrier.waitedMs}ms (${barrier.outcome})`);
-      }
-    }
     const toolUseContext = getToolUseContext(messagesIncludingNewMessages, newMessages, abortController, mainLoopModelParam);
-    // getToolUseContext reads tools/mcpClients fresh from store.getState()
-    // (via computeTools/mergeClients). Use those rather than the closure-
-    // captured `tools`/`mcpClients` — useManageMCPConnections may have
-    // flushed new MCP state between the render that captured this closure
-    // and now. Turn 1 via processInitialMessage is the main beneficiary.
     const {
       tools: freshTools,
-      mcpClients: freshMcpClients,
       mainLoopModel: effectiveMainLoopModel
     } = toolUseContext.options;
 
@@ -2666,10 +2592,10 @@ export function REPL({
     // IMPORTANT: do this after setMessages() above, to avoid UI jank
     checkAndDisableBypassPermissionsIfNeeded(toolPermissionContext, setAppState),
     // Gated on TRANSCRIPT_CLASSIFIER so GrowthBook kill switch runs wherever auto mode is built in
-    feature('TRANSCRIPT_CLASSIFIER') ? checkAndDisableAutoModeIfNeeded(toolPermissionContext, setAppState, store.getState().fastMode) : undefined, getSystemPrompt(freshTools, effectiveMainLoopModel, Array.from(toolPermissionContext.additionalWorkingDirectories.keys()), freshMcpClients), getUserContext(), getSystemContext()]);
+    feature('TRANSCRIPT_CLASSIFIER') ? checkAndDisableAutoModeIfNeeded(toolPermissionContext, setAppState, store.getState().fastMode) : undefined, getSystemPrompt(freshTools, effectiveMainLoopModel, Array.from(toolPermissionContext.additionalWorkingDirectories.keys())), getUserContext(), getSystemContext()]);
     const userContext = {
       ...baseUserContext,
-      ...getCoordinatorUserContext(freshMcpClients, isScratchpadEnabled() ? getScratchpadDir() : undefined),
+      ...getCoordinatorUserContext(isScratchpadEnabled() ? getScratchpadDir() : undefined),
       ...((feature('PROACTIVE') || feature('KAIROS')) && proactiveModule?.isProactiveActive() && !terminalFocusRef.current ? {
         terminalFocus: 'The terminal is unfocused \u2014 the user is not actively watching.'
       } : {})
@@ -2748,7 +2674,7 @@ export function REPL({
 
     // Signal that a query turn has completed successfully
     await onTurnComplete?.(messagesRef.current);
-  }, [initialMcpClients, resetLoadingState, getToolUseContext, toolPermissionContext, setAppState, customSystemPrompt, onTurnComplete, appendSystemPrompt, canUseTool, mainThreadAgentDefinition, onQueryEvent, sessionTitle, titleDisabled]);
+  }, [resetLoadingState, getToolUseContext, toolPermissionContext, setAppState, customSystemPrompt, onTurnComplete, appendSystemPrompt, canUseTool, mainThreadAgentDefinition, onQueryEvent, sessionTitle, titleDisabled]);
   const onQuery = useCallback(async (newMessages: MessageType[], abortController: AbortController, shouldQuery: boolean, additionalAllowedTools: string[], mainLoopModelParam: string, onBeforeQueryCallback?: (input: string, newMessages: MessageType[]) => Promise<boolean>, input?: string, effort?: EffortValue): Promise<void> => {
     // If this is a teammate, mark them as active when starting a turn
     if (isAgentSwarmsEnabled()) {
@@ -4467,7 +4393,6 @@ export function REPL({
       <ScrollKeybindingHandler scrollRef={scrollRef} isActive={isFullscreenEnvEnabled() && (centeredModal != null || !focusedInputDialog || focusedInputDialog === 'tool-permission')} onScroll={centeredModal || toolPermissionOverlay || viewedAgentTask ? undefined : composedOnScroll} />
       {feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? <MessageActionsKeybindings handlers={messageActionHandlers} isActive={cursor !== null} /> : null}
       <CancelRequestHandler {...cancelRequestProps} />
-      <MCPConnectionManager key={remountKey} dynamicMcpConfig={dynamicMcpConfig} isStrictMcpConfig={strictMcpConfig}>
         <FullscreenLayout scrollRef={scrollRef} overlay={toolPermissionOverlay} bottomFloat={bottomFloat} modal={centeredModal} modalScrollRef={modalScrollRef} dividerYRef={dividerYRef} hidePill={!!viewedAgentTask} hideSticky={!!viewedTeammateTask} centerBottom={centerFreshPrompt} newMessageCount={unseenDivider?.count ?? 0} onPillClick={() => {
         setCursor(null);
         jumpToNew(scrollRef.current);
@@ -4615,35 +4540,6 @@ export function REPL({
               }
             }));
           }} />}
-                {focusedInputDialog === 'elicitation' && <ElicitationDialog key={elicitation.queue[0]!.serverName + ':' + String(elicitation.queue[0]!.requestId)} event={elicitation.queue[0]!} onResponse={(action, content) => {
-            const currentRequest = elicitation.queue[0];
-            if (!currentRequest) return;
-            // Call respond callback to resolve Promise
-            currentRequest.respond({
-              action,
-              content
-            });
-            // For URL accept, keep in queue for phase 2
-            const isUrlAccept = currentRequest.params.mode === 'url' && action === 'accept';
-            if (!isUrlAccept) {
-              setAppState(prev => ({
-                ...prev,
-                elicitation: {
-                  queue: prev.elicitation.queue.slice(1)
-                }
-              }));
-            }
-          }} onWaitingDismiss={action => {
-            const currentRequest = elicitation.queue[0];
-            // Remove from queue
-            setAppState(prev => ({
-              ...prev,
-              elicitation: {
-                queue: prev.elicitation.queue.slice(1)
-              }
-            }));
-            currentRequest?.onWaitingDismiss?.(action);
-          }} />}
                 {focusedInputDialog === 'cost' && <CostThresholdDialog onDone={() => {
             setShowCostDialog(false);
             setHaveShownCostDialog(true);
@@ -4780,7 +4676,7 @@ export function REPL({
                       {}
                       <PromptInput debug={debug} hasSuppressedDialogs={!!hasSuppressedDialogs} isLocalJSXCommandActive={isShowingLocalJSXCommand} isCenteredPrompt={centerFreshPrompt} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={commands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
             // Works during isLoading — edit cancels first; uuid selection survives appends.
-            feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} />
+            feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} />
                       <SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />
                     </>}
                 {cursor &&
@@ -4809,7 +4705,7 @@ export function REPL({
             const newAbortController = createAbortController();
             const context = getToolUseContext(compactMessages, [], newAbortController, mainLoopModel);
             const appState = context.getAppState();
-            const defaultSysPrompt = await getSystemPrompt(context.options.tools, context.options.mainLoopModel, Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys()), context.options.mcpClients);
+            const defaultSysPrompt = await getSystemPrompt(context.options.tools, context.options.mainLoopModel, Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys()));
             const systemPrompt = buildEffectiveSystemPrompt({
               mainThreadAgentDefinition: undefined,
               toolUseContext: context,
@@ -4872,7 +4768,6 @@ export function REPL({
               </Box>
               {feature('BUDDY') && !(companionNarrow && isFullscreenEnvEnabled()) && companionVisible ? <CompanionSprite /> : null}
             </Box>} />
-      </MCPConnectionManager>
     </KeybindingSetup>;
   if (isFullscreenEnvEnabled()) {
     return <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>
