@@ -414,7 +414,7 @@ async function* _streamCursorAttempt(params: {
     conversationId: params.conversationId,
   })
   const toolNameMap = _buildCursorToolNameMap(params.tools)
-  const toolSchemas = _buildCursorToolSchemaMap(params.tools, toolNameMap)
+  const toolSchemas = _buildCursorToolSchemaMap(params.tools)
 
   const headers = buildCursorHeaders({
     accessToken: params.accessToken,
@@ -958,7 +958,6 @@ function _buildCursorToolNameMap(
   tools: LaneProviderCallParams['tools'],
 ): Map<string, string> {
   const map = new Map<string, string>()
-  const selectedMcpNames = new Map<string, string | null>()
 
   for (const tool of tools) {
     const original = tool.name
@@ -967,9 +966,6 @@ function _buildCursorToolNameMap(
     const formatted = formatCursorToolName(original)
     map.set(original, original)
     map.set(formatted, original)
-    if (original.startsWith('mcp__')) {
-      map.set(formatted.replace(/-/g, '_'), original)
-    }
 
     const reg =
       getCursorRegistrationByImplId(original) ??
@@ -979,45 +975,17 @@ function _buildCursorToolNameMap(
       map.set(formatCursorToolName(reg.nativeName), reg.nativeName)
     }
 
-    if (original.startsWith('mcp__')) {
-      const selected = _extractMcpSelectedToolName(original)
-      if (selected) {
-        for (const variant of _mcpSelectedToolNameVariants(selected)) {
-          selectedMcpNames.set(
-            variant,
-            selectedMcpNames.has(variant) ? null : original,
-          )
-        }
-      }
-      continue
-    }
-
     const unformatted = unformatCursorToolName(formatted)
     if (unformatted && !map.has(unformatted)) {
       map.set(unformatted, original)
     }
   }
 
-  for (const [selected, original] of selectedMcpNames) {
-    if (original && !map.has(selected)) {
-      map.set(selected, original)
-    }
-  }
-
   return map
-}
-
-function _mcpSelectedToolNameVariants(name: string): string[] {
-  return [...new Set([
-    name,
-    name.replace(/-/g, '_'),
-    name.replace(/_/g, '-'),
-  ])]
 }
 
 function _buildCursorToolSchemaMap(
   tools: ProviderTool[],
-  toolNameMap: Map<string, string>,
 ): Map<string, Record<string, unknown>> {
   const schemas = new Map<string, Record<string, unknown>>()
   for (const tool of tools) {
@@ -1028,9 +996,6 @@ function _buildCursorToolSchemaMap(
       formatCursorToolName(tool.name),
       unformatCursorToolName(formatCursorToolName(tool.name)),
     ])
-    if (tool.name.startsWith('mcp__')) {
-      names.add(formatCursorToolName(tool.name).replace(/-/g, '_'))
-    }
 
     const reg =
       getCursorRegistrationByImplId(tool.name) ??
@@ -1040,25 +1005,11 @@ function _buildCursorToolSchemaMap(
       names.add(formatCursorToolName(reg.nativeName))
     }
 
-    const selected = _extractMcpSelectedToolName(tool.name)
-    if (selected && toolNameMap.get(selected) === tool.name) {
-      for (const variant of _mcpSelectedToolNameVariants(selected)) {
-        names.add(variant)
-      }
-    }
-
     for (const name of names) {
       schemas.set(name, schema)
     }
   }
   return schemas
-}
-
-function _extractMcpSelectedToolName(name: string): string | null {
-  const rest = name.startsWith('mcp__') ? name.slice('mcp__'.length) : ''
-  const idx = rest.indexOf('__')
-  if (idx < 0) return null
-  return rest.slice(idx + 2) || null
 }
 
 function _normalizeCursorToolName(

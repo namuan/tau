@@ -172,13 +172,6 @@ interface MemoryFile {
   tokens: number
 }
 
-interface McpTool {
-  name: string
-  serverName: string
-  tokens: number
-  isLoaded?: boolean
-}
-
 export interface DeferredBuiltinTool {
   name: string
   tokens: number
@@ -237,7 +230,6 @@ export interface ContextData {
   readonly gridRows: GridSquare[][]
   readonly model: string
   readonly memoryFiles: MemoryFile[]
-  readonly mcpTools: McpTool[]
   /** Ant-only: per-tool breakdown of deferred built-in tools */
   readonly deferredBuiltinTools?: DeferredBuiltinTool[]
   /** Ant-only: per-tool breakdown of always-loaded built-in tools */
@@ -424,7 +416,7 @@ async function countBuiltInToolTokens(
   deferredBuiltinTokens: number
   systemToolDetails: SystemToolDetail[]
 }> {
-  const builtInTools = tools.filter(tool => !tool.isMcp)
+  const builtInTools = tools
   if (builtInTools.length < 1) {
     return {
       builtInToolTokens: 0,
@@ -665,122 +657,6 @@ async function countSkillTokens(
   }
 }
 
-export async function countMcpToolTokens(
-  tools: Tools,
-  getToolPermissionContext: () => Promise<ToolPermissionContext>,
-  agentInfo: AgentDefinitionsResult | null,
-  model: string,
-  messages?: Message[],
-): Promise<{
-  mcpToolTokens: number
-  mcpToolDetails: McpTool[]
-  deferredToolTokens: number
-  loadedMcpToolNames: Set<string>
-}> {
-  const mcpTools = tools.filter(tool => tool.isMcp)
-  const mcpToolDetails: McpTool[] = []
-  // Single bulk API call for all MCP tools (instead of N individual calls)
-  const totalTokensRaw = await countToolDefinitionTokens(
-    mcpTools,
-    getToolPermissionContext,
-    agentInfo,
-    model,
-  )
-  // Subtract the single overhead since we made one bulk call
-  const totalTokens = Math.max(
-    0,
-    (totalTokensRaw || 0) - TOOL_TOKEN_COUNT_OVERHEAD,
-  )
-
-  // Estimate per-tool proportions for display using local estimation.
-  // Include name + description + input schema to match what toolToAPISchema
-  // sends — otherwise tools with similar schemas but different descriptions
-  // get identical counts (MCP tools share the same base Zod inputSchema).
-  const estimates = await Promise.all(
-    mcpTools.map(async t =>
-      roughTokenCountEstimation(
-        jsonStringify({
-          name: t.name,
-          description: await t.prompt({
-            getToolPermissionContext,
-            tools,
-            agents: agentInfo?.activeAgents ?? [],
-          }),
-          input_schema: t.inputJSONSchema ?? {},
-        }),
-      ),
-    ),
-  )
-  const estimateTotal = estimates.reduce((s, e) => s + e, 0) || 1
-  const mcpToolTokensByTool = estimates.map(e =>
-    Math.round((e / estimateTotal) * totalTokens),
-  )
-
-  // Check if tool search is enabled - if so, MCP tools are deferred
-  // isToolSearchEnabled handles threshold calculation internally for TstAuto mode
-  const { isToolSearchEnabled } = await import('./toolSearch.js')
-  const { isDeferredTool } = await import('../tools/ToolSearchTool/prompt.js')
-
-  const isDeferred = await isToolSearchEnabled(
-    model,
-    tools,
-    getToolPermissionContext,
-    agentInfo?.activeAgents ?? [],
-    'analyzeMcp',
-  )
-
-  // Find MCP tools that have been used in messages (loaded via ToolSearchTool)
-  const loadedMcpToolNames = new Set<string>()
-  if (isDeferred && messages) {
-    const mcpToolNameSet = new Set(mcpTools.map(t => t.name))
-    for (const msg of messages) {
-      if (msg.type === 'assistant') {
-        for (const block of msg.message.content) {
-          if (
-            'type' in block &&
-            block.type === 'tool_use' &&
-            'name' in block &&
-            typeof block.name === 'string' &&
-            mcpToolNameSet.has(block.name)
-          ) {
-            loadedMcpToolNames.add(block.name)
-          }
-        }
-      }
-    }
-  }
-
-  // Build tool details with isLoaded flag
-  for (const [i, tool] of mcpTools.entries()) {
-    mcpToolDetails.push({
-      name: tool.name,
-      serverName: tool.name.split('__')[1] || 'unknown',
-      tokens: mcpToolTokensByTool[i]!,
-      isLoaded: loadedMcpToolNames.has(tool.name) || !isDeferredTool(tool),
-    })
-  }
-
-  // Calculate loaded vs deferred tokens
-  let loadedTokens = 0
-  let deferredTokens = 0
-  for (const detail of mcpToolDetails) {
-    if (detail.isLoaded) {
-      loadedTokens += detail.tokens
-    } else if (isDeferred) {
-      deferredTokens += detail.tokens
-    }
-  }
-
-  return {
-    // When deferred but some tools are loaded, count loaded tokens
-    mcpToolTokens: isDeferred ? loadedTokens : totalTokens,
-    mcpToolDetails,
-    // Track deferred tokens separately for display
-    deferredToolTokens: deferredTokens,
-    loadedMcpToolNames,
-  }
-}
-
 async function countCustomAgentTokens(agentDefinitions: {
   activeAgents: AgentDefinition[]
 }): Promise<{
@@ -976,7 +852,7 @@ async function approximateMessageTokens(
  * a provider is unreachable.
  *
  * Covers what every request carries ahead of the conversation: the system
- * prompt, every tool definition (MCP servers' included), and the memory files
+ * prompt, every tool definition, and the memory files
  * and date prepended as user context. Git status is left out: it comes from
  * running git, which must not happen before the workspace is trusted, and it
  * is small. The result is a slight under-count, which is the safe direction:
@@ -1075,7 +951,6 @@ export async function analyzeContextUsage(
       deferredBuiltinTokens,
       systemToolDetails,
     },
-    { mcpToolTokens, mcpToolDetails, deferredToolTokens },
     { agentTokens, agentDetails },
     { slashCommandTokens, commandInfo },
     messageBreakdown,
@@ -1083,13 +958,6 @@ export async function analyzeContextUsage(
     countSystemTokens(effectiveSystemPrompt),
     countMemoryFileTokens(),
     countBuiltInToolTokens(
-      tools,
-      getToolPermissionContext,
-      agentDefinitions,
-      runtimeModel,
-      messages,
-    ),
-    countMcpToolTokens(
       tools,
       getToolPermissionContext,
       agentDefinitions,
@@ -1149,26 +1017,6 @@ export async function analyzeContextUsage(
     })
   }
 
-  // MCP tools after system tools
-  if (mcpToolTokens > 0) {
-    cats.push({
-      name: 'MCP tools',
-      tokens: mcpToolTokens,
-      color: 'cyan_FOR_SUBAGENTS_ONLY',
-    })
-  }
-
-  // Show deferred MCP tools (when tool search is enabled)
-  // These don't count toward context usage but we show them for visibility
-  if (deferredToolTokens > 0) {
-    cats.push({
-      name: 'MCP tools (deferred)',
-      tokens: deferredToolTokens,
-      color: 'inactive',
-      isDeferred: true,
-    })
-  }
-
   // Show deferred builtin tools (when tool search is enabled)
   if (deferredBuiltinTokens > 0) {
     cats.push({
@@ -1179,7 +1027,7 @@ export async function analyzeContextUsage(
     })
   }
 
-  // Custom agents after MCP tools
+  // Custom agents after system tools
   if (agentTokens > 0) {
     cats.push({
       name: 'Custom agents',
@@ -1312,7 +1160,7 @@ export async function analyzeContextUsage(
   const TOTAL_SQUARES = GRID_WIDTH * GRID_HEIGHT
 
   // Filter out deferred categories - they don't take up actual context space
-  // (e.g., MCP tools when tool search is enabled)
+  // (for example, built-in tools when tool search is enabled)
   const nonDeferredCats = cats.filter(cat => !cat.isDeferred)
 
   // Calculate squares per category (use rawEffectiveMax for visualization to show full context)
@@ -1472,7 +1320,6 @@ export async function analyzeContextUsage(
     gridRows,
     model: runtimeModel,
     memoryFiles: memoryFileDetails,
-    mcpTools: mcpToolDetails,
     deferredBuiltinTools:
       process.env.USER_TYPE === 'ant' ? deferredBuiltinDetails : undefined,
     systemTools:

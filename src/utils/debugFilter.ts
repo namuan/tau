@@ -57,7 +57,6 @@ export const parseDebugFilter = memoize(
  * Supports multiple patterns:
  * - "category: message" -> ["category"]
  * - "[CATEGORY] message" -> ["category"]
- * - "MCP server \"name\": message" -> ["mcp", "name"]
  * - "[ANT-ONLY] 1P event: tengu_timer" -> ["ant-only", "1p"]
  *
  * Returns lowercase categories for case-insensitive matching
@@ -65,17 +64,9 @@ export const parseDebugFilter = memoize(
 export function extractDebugCategories(message: string): string[] {
   const categories: string[] = []
 
-  // Pattern 3: MCP server "servername" - Check this first to avoid false positives
-  const mcpMatch = message.match(/^MCP server ["']([^"']+)["']/)
-  if (mcpMatch && mcpMatch[1]) {
-    categories.push('mcp')
-    categories.push(mcpMatch[1].toLowerCase())
-  } else {
-    // Pattern 1: "category: message" (simple prefix) - only if not MCP pattern
-    const prefixMatch = message.match(/^([^:[]+):/)
-    if (prefixMatch && prefixMatch[1]) {
-      categories.push(prefixMatch[1].trim().toLowerCase())
-    }
+  const prefixMatch = message.match(/^([^:[]+):/)
+  if (prefixMatch && prefixMatch[1]) {
+    categories.push(prefixMatch[1].trim().toLowerCase())
   }
 
   // Pattern 2: [CATEGORY] at the start

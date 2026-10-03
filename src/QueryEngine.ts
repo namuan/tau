@@ -34,7 +34,6 @@ import { loadMemoryPrompt } from './memdir/memdir.js'
 import { hasAutoMemPathOverride } from './memdir/paths.js'
 import { query } from './query.js'
 import { categorizeRetryableAPIError } from './services/api/errors.js'
-import type { MCPServerConnection } from './services/mcp/types.js'
 import type { AppState } from './state/AppState.js'
 import { type Tools, type ToolUseContext, toolMatchesName } from './Tool.js'
 import type { AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
@@ -115,7 +114,6 @@ import {
 // Dead code elimination: conditional import for coordinator mode
 /* eslint-disable @typescript-eslint/no-require-imports */
 const getCoordinatorUserContext: (
-  mcpClients: ReadonlyArray<{ name: string }>,
   scratchpadDir?: string,
 ) => { [k: string]: string } = feature('COORDINATOR_MODE')
   ? require('./coordinator/coordinatorMode.js').getCoordinatorUserContext
@@ -136,8 +134,6 @@ export type QueryEngineConfig = {
   cwd: string
   tools: Tools
   commands: Command[]
-  mcpClients: MCPServerConnection[]
-  refreshMcpContext?: ToolUseContext['options']['refreshMcpContext']
   agents: AgentDefinition[]
   canUseTool: CanUseToolFn
   getAppState: () => AppState
@@ -163,8 +159,6 @@ export type QueryEngineConfig = {
   jsonSchema?: Record<string, unknown>
   verbose?: boolean
   replayUserMessages?: boolean
-  /** Handler for URL elicitations triggered by MCP tool -32042 errors. */
-  handleElicitation?: ToolUseContext['handleElicitation']
   includePartialMessages?: boolean
   setSDKStatus?: (status: SDKStatus) => void
   abortController?: AbortController
@@ -238,7 +232,6 @@ export class QueryEngine {
       cwd,
       commands,
       tools,
-      mcpClients,
       verbose = false,
       thinkingConfig,
       maxTurns,
@@ -319,14 +312,12 @@ export class QueryEngine {
       additionalWorkingDirectories: Array.from(
         initialAppState.toolPermissionContext.additionalWorkingDirectories.keys(),
       ),
-      mcpClients,
       customSystemPrompt: customPrompt,
     })
     headlessProfilerCheckpoint('after_getSystemPrompt')
     const userContext = {
       ...baseUserContext,
       ...getCoordinatorUserContext(
-        mcpClients,
         isScratchpadEnabled() ? getScratchpadDir() : undefined,
       ),
     }
@@ -369,17 +360,13 @@ export class QueryEngine {
         this.mutableMessages = fn(this.mutableMessages)
       },
       onChangeAPIKey: () => {},
-      handleElicitation: this.config.handleElicitation,
       options: {
         commands,
         debug: false, // we use stdout, so don't want to clobber it
         tools,
         verbose,
         mainLoopModel: initialMainLoopModel,
-        refreshMcpContext: this.config.refreshMcpContext,
         thinkingConfig: initialThinkingConfig,
-        mcpClients,
-        mcpResources: {},
         ideInstallationStatus: null,
         isNonInteractiveSession: true,
         customSystemPrompt,
@@ -519,17 +506,13 @@ export class QueryEngine {
       messages,
       setMessages: () => {},
       onChangeAPIKey: () => {},
-      handleElicitation: this.config.handleElicitation,
       options: {
         commands,
         debug: false,
         tools,
         verbose,
         mainLoopModel,
-        refreshMcpContext: this.config.refreshMcpContext,
         thinkingConfig: initialThinkingConfig,
-        mcpClients,
-        mcpResources: {},
         ideInstallationStatus: null,
         isNonInteractiveSession: true,
         customSystemPrompt,
@@ -560,7 +543,6 @@ export class QueryEngine {
 
     yield buildSystemInitMessage({
       tools,
-      mcpClients,
       model: mainLoopModel,
       permissionMode: initialAppState.toolPermissionContext
         .mode as PermissionMode, // TODO: avoid the cast
@@ -1210,8 +1192,6 @@ export async function* ask({
   isMeta,
   cwd,
   tools,
-  mcpClients,
-  refreshMcpContext,
   verbose = false,
   thinkingConfig,
   maxTurns,
@@ -1231,7 +1211,6 @@ export async function* ask({
   abortController,
   replayUserMessages = false,
   includePartialMessages = false,
-  handleElicitation,
   agents = [],
   setSDKStatus,
   orphanedPermission,
@@ -1245,8 +1224,6 @@ export async function* ask({
   cwd: string
   tools: Tools
   verbose?: boolean
-  mcpClients: MCPServerConnection[]
-  refreshMcpContext?: ToolUseContext['options']['refreshMcpContext']
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
   maxBudgetUsd?: number
@@ -1265,7 +1242,6 @@ export async function* ask({
   abortController?: AbortController
   replayUserMessages?: boolean
   includePartialMessages?: boolean
-  handleElicitation?: ToolUseContext['handleElicitation']
   agents?: AgentDefinition[]
   setSDKStatus?: (status: SDKStatus) => void
   orphanedPermission?: OrphanedPermission
@@ -1278,8 +1254,6 @@ export async function* ask({
     cwd,
     tools,
     commands,
-    mcpClients,
-    refreshMcpContext,
     agents,
     canUseTool,
     getAppState,
@@ -1298,7 +1272,6 @@ export async function* ask({
     taskBudget,
     jsonSchema,
     verbose,
-    handleElicitation,
     replayUserMessages,
     includePartialMessages,
     setSDKStatus,

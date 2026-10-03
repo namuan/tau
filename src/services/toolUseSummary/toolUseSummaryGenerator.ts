@@ -82,8 +82,7 @@ export async function generateToolUseSummary({
         agents: [],
         isNonInteractiveSession,
         hasAppendSystemPrompt: false,
-        mcpTools: [],
-      },
+              },
     })
 
     const summary = response.message.content

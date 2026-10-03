@@ -25,7 +25,6 @@ import { getSessionIdFromLog, searchSessionsByCustomTitle } from '../utils/sessi
 import { applyCommandSuggestion, findMidInputSlashCommand, generateCommandSuggestions, getBestCommandMatch, isCommandInput } from '../utils/suggestions/commandSuggestions.js';
 import { getDirectoryCompletions, getPathCompletions, isPathLikeToken } from '../utils/suggestions/directoryCompletion.js';
 import { getShellHistoryCompletion } from '../utils/suggestions/shellHistoryCompletion.js';
-import { getSlackChannelSuggestions, hasSlackMcpServer } from '../utils/suggestions/slackChannelSuggestions.js';
 import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js';
 import { applyFileSuggestion, findLongestCommonPrefix, onIndexBuildComplete, startBackgroundCacheRefresh } from './fileSuggestions.js';
 import { generateUnifiedSuggestions } from './unifiedSuggestions.js';
@@ -39,7 +38,6 @@ const PATH_CHAR_HEAD_RE = /^[\p{L}\p{N}\p{M}_\-./\\()[\]~:]+/u;
 const TOKEN_WITH_AT_RE = /(@[\p{L}\p{N}\p{M}_\-./\\()[\]~:]*|[\p{L}\p{N}\p{M}_\-./\\()[\]~:]+)$/u;
 const TOKEN_WITHOUT_AT_RE = /[\p{L}\p{N}\p{M}_\-./\\()[\]~:]+$/u;
 const HAS_AT_SYMBOL_RE = /(^|\s)@([\p{L}\p{N}\p{M}_\-./\\()[\]~:]*|"[^"]*"?)$/u;
-const HASH_CHANNEL_RE = /(^|\s)#([a-z0-9][a-z0-9_-]*)$/;
 
 // Type guard for path completion metadata
 function isPathMetadata(metadata: unknown): metadata is {
@@ -450,7 +448,6 @@ export function useTypeahead({
     return maxLen + 6; // +1 for "/" prefix, +5 for padding
   }, [commands]);
   const [maxColumnWidth, setMaxColumnWidth] = useState<number | undefined>(undefined);
-  const mcpResources = useAppState(s => s.mcp.resources);
   const store = useAppStateStore();
   const promptSuggestion = useAppState(s => s.promptSuggestion);
   // PromptInput hides suggestion ghost text in teammate view — mirror that
@@ -526,8 +523,6 @@ export function useTypeahead({
   const latestPathTokenRef = useRef('');
   // Track the latest bash input to discard stale results from history completion
   const latestBashInputRef = useRef('');
-  // Track the latest slack channel token to discard stale results from MCP
-  const latestSlackTokenRef = useRef('');
   // Track suggestions via ref to avoid updateSuggestions being recreated on selection changes
   const suggestionsRef = useRef(suggestions);
   suggestionsRef.current = suggestions;
@@ -550,7 +545,7 @@ export function useTypeahead({
   const fetchFileSuggestions = useCallback(async (searchToken: string, isAtSymbol = false): Promise<void> => {
     latestSearchTokenRef.current = searchToken;
     latestSearchWasAtSymbolRef.current = isAtSymbol;
-    const unifiedItems = await generateUnifiedSuggestions(searchToken, mcpResources, agents, isAtSymbol);
+    const unifiedItems = await generateUnifiedSuggestions(searchToken, agents, isAtSymbol);
     const combinedItems = isAtSymbol ? mergeAtSuggestions(getAtMemberSuggestions(searchToken), unifiedItems) : unifiedItems;
     // Discard stale results if a newer query was initiated while waiting
     if (latestSearchTokenRef.current !== searchToken) {
@@ -574,7 +569,7 @@ export function useTypeahead({
     }));
     setSuggestionType(combinedItems.length > 0 ? 'file' : 'none');
     setMaxColumnWidth(undefined); // No fixed width for file suggestions
-  }, [mcpResources, setSuggestionsState, setSuggestionType, setMaxColumnWidth, agents, getAtMemberSuggestions]);
+  }, [setSuggestionsState, setSuggestionType, setMaxColumnWidth, agents, getAtMemberSuggestions]);
 
   // Pre-warm the file index on mount so the first @-mention doesn't block.
   // The build runs in background with ~4ms event-loop yields, so it doesn't
@@ -608,25 +603,6 @@ export function useTypeahead({
   // instead of stuttering on each repeated key. The search itself is ~8–15ms
   // on a 270k-file index.
   const debouncedFetchFileSuggestions = useDebounceCallback(fetchFileSuggestions, 50);
-  const fetchSlackChannels = useCallback(async (partial: string): Promise<void> => {
-    latestSlackTokenRef.current = partial;
-    const channels = await getSlackChannelSuggestions(store.getState().mcp.clients, partial);
-    if (latestSlackTokenRef.current !== partial) return;
-    setSuggestionsState(prev => ({
-      commandArgumentHint: undefined,
-      suggestions: channels,
-      selectedSuggestion: getPreservedSelection(prev.suggestions, prev.selectedSuggestion, channels)
-    }));
-    setSuggestionType(channels.length > 0 ? 'slack-channel' : 'none');
-    setMaxColumnWidth(undefined);
-  },
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- store is a stable context ref
-  [setSuggestionsState]);
-
-  // First keystroke after # needs the MCP round-trip; subsequent keystrokes
-  // that share the same first-word segment hit the cache synchronously.
-  const debouncedFetchSlackChannels = useDebounceCallback(fetchSlackChannels, 150);
-
   // Handle immediate suggestion logic (cheap operations)
   // biome-ignore lint/correctness/useExhaustiveDependencies: store is a stable context ref, read imperatively at call-time
   const updateSuggestions = useCallback(async (value: string, inputCursorOffset?: number): Promise<void> => {
@@ -689,20 +665,7 @@ export function useTypeahead({
       }
     }
 
-    // Check for # to trigger Slack channel suggestions (requires Slack MCP server)
-    if (mode === 'prompt') {
-      const hashMatch = value.substring(0, effectiveCursorOffset).match(HASH_CHANNEL_RE);
-      if (hashMatch && hasSlackMcpServer(store.getState().mcp.clients)) {
-        debouncedFetchSlackChannels(hashMatch[2]!);
-        return;
-      } else if (suggestionType === 'slack-channel') {
-        debouncedFetchSlackChannels.cancel();
-        clearSuggestions();
-      }
-    }
-
     // Check for @ symbol to trigger file suggestions (including quoted paths)
-    // Includes colon for MCP resources (e.g., server:resource/path)
     const hasAtSymbol = value.substring(0, effectiveCursorOffset).match(HAS_AT_SYMBOL_RE);
 
     // First, check for slash command suggestions (higher priority than @ symbol)
@@ -884,7 +847,7 @@ export function useTypeahead({
       }
     }
 
-    // Check for @ symbol to trigger file and MCP resource suggestions
+    // Check for @ symbol to trigger file suggestions
     // Skip @ autocomplete in bash mode - @ has no special meaning in shell commands
     if (hasAtSymbol && mode !== 'bash') {
       // Get the @ token (including the @ symbol)
@@ -951,7 +914,7 @@ export function useTypeahead({
         clearSuggestions();
       }
     }
-  }, [suggestionType, commands, setSuggestionsState, clearSuggestions, debouncedFetchFileSuggestions, debouncedFetchSlackChannels, mode, suppressSuggestions,
+  }, [suggestionType, commands, setSuggestionsState, clearSuggestions, debouncedFetchFileSuggestions, mode, suppressSuggestions,
   // Note: using suggestionsRef instead of suggestions to avoid recreating
   // this callback when only selectedSuggestion changes (not the suggestions list)
   allCommandsMaxWidth]);
@@ -1008,7 +971,6 @@ export function useTypeahead({
     if (suggestions.length > 0) {
       // Cancel any pending debounced fetches to prevent flicker when accepting
       debouncedFetchFileSuggestions.cancel();
-      debouncedFetchSlackChannels.cancel();
       const index = selectedSuggestion === -1 ? 0 : selectedSuggestion;
       const suggestion = suggestions[index];
       if (suggestionType === 'command' && index < suggestions.length) {
@@ -1189,13 +1151,13 @@ export function useTypeahead({
         }
       } else {
         suggestionType = 'file';
-        // If no suggestions, fetch file and MCP resource suggestions
+        // If no suggestions, fetch file suggestions
         const completionInfo = extractCompletionToken(input, cursorOffset, true);
         if (completionInfo) {
           // If token starts with @, search without the @ prefix
           const isAtSymbol = completionInfo.token.startsWith('@');
           const searchToken = isAtSymbol ? completionInfo.token.substring(1) : completionInfo.token;
-          const unifiedItems = await generateUnifiedSuggestions(searchToken, mcpResources, agents, isAtSymbol);
+          const unifiedItems = await generateUnifiedSuggestions(searchToken, agents, isAtSymbol);
           suggestionItems = isAtSymbol ? mergeAtSuggestions(getAtMemberSuggestions(searchToken), unifiedItems) : unifiedItems;
         } else {
           suggestionItems = [];
@@ -1212,7 +1174,7 @@ export function useTypeahead({
         setMaxColumnWidth(undefined);
       }
     }
-  }, [suggestions, selectedSuggestion, input, suggestionType, commands, mode, onInputChange, setCursorOffset, onSubmit, clearSuggestions, cursorOffset, updateSuggestions, mcpResources, setSuggestionsState, agents, debouncedFetchFileSuggestions, debouncedFetchSlackChannels, effectiveGhostText, getAtMemberSuggestions]);
+  }, [suggestions, selectedSuggestion, input, suggestionType, commands, mode, onInputChange, setCursorOffset, onSubmit, clearSuggestions, cursorOffset, updateSuggestions, setSuggestionsState, agents, debouncedFetchFileSuggestions, effectiveGhostText, getAtMemberSuggestions]);
 
   // Handle enter key press - apply and execute suggestions
   const handleEnter = useCallback(() => {
@@ -1258,8 +1220,7 @@ export function useTypeahead({
     } else if (suggestionType === 'slack-channel' && selectedSuggestion < suggestions.length) {
       if (suggestion) {
         applyTriggerSuggestion(suggestion, input, cursorOffset, HASH_CHANNEL_RE, onInputChange, setCursorOffset);
-        debouncedFetchSlackChannels.cancel();
-        clearSuggestions();
+          clearSuggestions();
       }
     } else if (suggestionType === 'file' && selectedSuggestion < suggestions.length) {
       if (isDirectMessageSuggestion(suggestion)) {
@@ -1328,7 +1289,7 @@ export function useTypeahead({
     clearSuggestions();
     // Remember the input when dismissed to prevent immediate re-triggering
     dismissedForInputRef.current = input;
-  }, [debouncedFetchFileSuggestions, debouncedFetchSlackChannels, clearSuggestions, input]);
+  }, [debouncedFetchFileSuggestions, clearSuggestions, input]);
 
   // Handler for autocomplete:previous - selects previous suggestion
   const handleAutocompletePrevious = useCallback(() => {

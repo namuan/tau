@@ -45,8 +45,6 @@ const BUILTIN_TEMPLATE_ALIASES: Record<string, string> = {
   'code-interpreter': 'code-interpreter-v1',
   'code-interpreter-v1': 'code-interpreter-v1',
   python: 'code-interpreter-v1',
-  mcp: 'mcp-gateway',
-  'mcp-gateway': 'mcp-gateway',
   // E2B's official desktop sandbox: ships with xvfb + a lightweight desktop
   // environment, so GUI scripts (tkinter, PyQt, pygame, selenium, …) run
   // without extra configuration.
@@ -610,7 +608,7 @@ function detectPlaceholderTemplateId(
     `Safetest cannot start: the alias "${alias ?? resolved}" points at "${resolved}", which is a placeholder, not a real E2B template ID.`,
     '',
     'Edit safetest.config.json (in this folder or ~/.safeclaudecode/) and replace the placeholder with the template ID printed by `e2b template build`.',
-    'Until then, /safetest will use the built-in templates (auto, base, code, desktop, mcp).',
+    'Until then, /safetest will use the built-in templates (auto, base, code, desktop).',
   ].join('\n')
 }
 
@@ -1000,7 +998,6 @@ function templateRows(_config: TemplateConfig): Array<{
     { name: 'base', files: '.sh, .bash, unknown files', runs: 'minimal Linux sandbox' },
     { name: 'code', files: '.py, .ipynb, .js, .ts', runs: 'code-interpreter (Python + Node)' },
     { name: 'desktop', files: 'GUI scripts (tkinter, PyQt, selenium, …)', runs: 'E2B desktop template (xvfb + display)' },
-    { name: 'mcp', files: 'MCP workflows', runs: 'mcp-gateway' },
   ]
 }
 

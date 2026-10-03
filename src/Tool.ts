@@ -382,8 +382,6 @@ export type Tool<
     },
   ): Promise<string>
   readonly inputSchema: Input
-  // Type for MCP tools that can specify their input schema directly in JSON Schema format
-  // rather than converting from Zod schema
   readonly inputJSONSchema?: ToolInputJSONSchema
   // Optional because TungstenTool doesn't define this. TODO: Make it required.
   // When we do that, we can also go through and make this a bit more type-safe.
@@ -423,7 +421,6 @@ export type Tool<
   }
   isOpenWorld?(input: z.infer<Input>): boolean
   requiresUserInteraction?(): boolean
-  isMcp?: boolean
   /**
    * When true, this tool is deferred (sent with defer_loading: true) and requires
    * ToolSearch to be used before it can be called.
@@ -435,7 +432,6 @@ export type Tool<
    * must see on turn 1 without a ToolSearch round-trip.
    */
   readonly alwaysLoad?: boolean
-  mcpInfo?: { serverName: string; toolName: string }
   readonly name: string
   /**
    * Maximum size in characters for tool result before it gets persisted to disk.

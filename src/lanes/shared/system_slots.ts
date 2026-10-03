@@ -43,7 +43,6 @@ export type VolatileSlot = string & { readonly [__volatileSlotBrand]: 'volatile'
  * ONLY cross-turn-stable sections are eligible:
  *   - customInstructions (from user config / env)
  *   - toolsAddendum (from hooks or skill metadata)
- *   - mcpIntro (list of active MCP servers)
  *   - skillsContext (active skill definitions)
  *
  * Each lane pre-pends its own preamble / core-mandates / workflow /
@@ -59,9 +58,6 @@ export function renderStableSlot(parts: SystemPromptParts): StableSlot {
   }
   if (parts.toolsAddendum) {
     sections.push(`## Tool Configuration\n\n${parts.toolsAddendum}`)
-  }
-  if (parts.mcpIntro) {
-    sections.push(`## MCP Tools\n\n${parts.mcpIntro}`)
   }
   if (parts.skillsContext) {
     sections.push(

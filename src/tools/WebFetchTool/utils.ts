@@ -545,8 +545,7 @@ export async function applyPromptToMarkdown(
       agents: [],
       isNonInteractiveSession,
       hasAppendSystemPrompt: false,
-      mcpTools: [],
-    },
+          },
   })
 
   // We need to bubble this up, so that the tool call throws, causing us to return

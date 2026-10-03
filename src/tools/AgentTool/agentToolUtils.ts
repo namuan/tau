@@ -80,10 +80,6 @@ export function filterToolsForAgent({
   permissionMode?: PermissionMode
 }): Tools {
   return tools.filter(tool => {
-    // Allow MCP tools for all agents
-    if (tool.name.startsWith('mcp__')) {
-      return true
-    }
     // Allow ExitPlanMode for agents in plan mode (e.g., in-process teammates)
     // This bypasses both the ALL_AGENT_DISALLOWED_TOOLS and async tool filters
     if (

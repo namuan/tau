@@ -3,7 +3,7 @@ import test from 'node:test'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative } from 'node:path'
-import { loadMcpRuntime } from './helpers/mcp-built-runtime.mjs'
+import { loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
 const tempRoot = realpathSync(tmpdir())
 const directory = mkdtempSync(join(tempRoot, 'tau-opencode-context-'))
@@ -22,7 +22,7 @@ test.after(() => {
   rmSync(resolved, { recursive: true, force: true })
 })
 
-const r = await loadMcpRuntime({
+const r = await loadBuiltRuntime({
   paths: ['src/utils/model/opencodeModelsDevCatalog.ts', 'src/utils/model/contextWindows.ts',
     'src/utils/context.ts', 'src/utils/model/providerCatalog.ts', 'src/utils/forcedProvider.ts'],
   exports: ['getOpencodeModelMeta', 'getOpencodeContextWindow', 'deriveOpencodeModelsDevCache',

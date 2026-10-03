@@ -46,7 +46,6 @@ export const CLAUDE_AI_OAUTH_SCOPES = [
   CLAUDE_AI_PROFILE_SCOPE,
   CLAUDE_AI_INFERENCE_SCOPE,
   'user:sessions:claude_code',
-  'user:mcp_servers',
   'user:file_upload',
 ] as const
 
@@ -65,7 +64,7 @@ type OauthConfig = {
    * The claude.ai web origin. Separate from CLAUDE_AI_AUTHORIZE_URL because
    * that now routes through claude.com/cai/* for attribution — deriving
    * .origin from it would give claude.com, breaking links to /code,
-   * /settings/connectors, and other claude.ai web pages.
+   * and other claude.ai web pages.
    */
   CLAUDE_AI_ORIGIN: string
   TOKEN_URL: string
@@ -76,8 +75,6 @@ type OauthConfig = {
   MANUAL_REDIRECT_URL: string
   CLIENT_ID: string
   OAUTH_FILE_SUFFIX: string
-  MCP_PROXY_URL: string
-  MCP_PROXY_PATH: string
 }
 
 // Production OAuth configuration - Used in normal operation
@@ -99,19 +96,7 @@ const PROD_OAUTH_CONFIG = {
   CLIENT_ID: '9d1c250a-e61b-44d9-88ed-5944d1962f5e',
   // No suffix for production config
   OAUTH_FILE_SUFFIX: '',
-  MCP_PROXY_URL: 'https://mcp-proxy.anthropic.com',
-  MCP_PROXY_PATH: '/v1/mcp/{server_id}',
 } as const
-
-/**
- * Client ID Metadata Document URL for MCP OAuth (CIMD / SEP-991).
- * When an MCP auth server advertises client_id_metadata_document_supported: true,
- * Tau uses this URL as its client_id instead of Dynamic Client Registration.
- * The URL must point to a JSON document hosted by Anthropic.
- * See: https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document-00
- */
-export const MCP_CLIENT_METADATA_URL =
-  'https://claude.ai/oauth/claude-code-client-metadata'
 
 // Staging OAuth configuration - only included in ant builds with staging flag
 // Uses literal check for dead code elimination
@@ -137,8 +122,6 @@ const STAGING_OAUTH_CONFIG =
           'https://platform.staging.ant.dev/oauth/code/callback',
         CLIENT_ID: '22422756-60c9-4084-8eb7-27705fd5cf9a',
         OAUTH_FILE_SUFFIX: '-staging-oauth',
-        MCP_PROXY_URL: 'https://mcp-proxy-staging.anthropic.com',
-        MCP_PROXY_PATH: '/v1/mcp/{server_id}',
       } as const)
     : undefined
 
@@ -168,8 +151,6 @@ function getLocalOauthConfig(): OauthConfig {
     MANUAL_REDIRECT_URL: `${consoleBase}/oauth/code/callback`,
     CLIENT_ID: '22422756-60c9-4084-8eb7-27705fd5cf9a',
     OAUTH_FILE_SUFFIX: '-local-oauth',
-    MCP_PROXY_URL: 'http://localhost:8205',
-    MCP_PROXY_PATH: '/v1/toolbox/shttp/mcp/{server_id}',
   }
 }
 

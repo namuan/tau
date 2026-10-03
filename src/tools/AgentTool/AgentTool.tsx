@@ -53,7 +53,7 @@ import { AGENT_TOOL_NAME, LEGACY_AGENT_TOOL_NAME } from './constants.js';
 import { getOneShotAgentTypes } from './builtInAgents.js';
 import { buildForkedMessages, buildWorktreeNotice, FORK_AGENT, isForkSubagentEnabled, isInForkChild } from './forkSubagent.js';
 import type { AgentDefinition } from './loadAgentsDir.js';
-import { filterAgentsByMcpRequirements, hasRequiredMcpServers, isBuiltInAgent } from './loadAgentsDir.js';
+import { isBuiltInAgent } from './loadAgentsDir.js';
 import { getPrompt } from './prompt.js';
 import { runAgent } from './runAgent.js';
 import { runWithAgentProvider, runWithForcedProvider } from '../../utils/forcedProvider.js';
@@ -190,21 +190,7 @@ export const AgentTool = buildTool({
   }) {
     const toolPermissionContext = await getToolPermissionContext();
 
-    // Get MCP servers that have tools available
-    const mcpServersWithTools: string[] = [];
-    for (const tool of tools) {
-      if (tool.name?.startsWith('mcp__')) {
-        const parts = tool.name.split('__');
-        const serverName = parts[1];
-        if (serverName && !mcpServersWithTools.includes(serverName)) {
-          mcpServersWithTools.push(serverName);
-        }
-      }
-    }
-
-    // Filter agents: first by MCP requirements, then by permission rules
-    const agentsWithMcpRequirementsMet = filterAgentsByMcpRequirements(agents, mcpServersWithTools);
-    const filteredAgents = filterDeniedAgents(agentsWithMcpRequirementsMet, toolPermissionContext, AGENT_TOOL_NAME);
+    const filteredAgents = filterDeniedAgents(agents, toolPermissionContext, AGENT_TOOL_NAME);
 
     // Use inline env check instead of coordinatorModule to avoid circular
     // dependency issues during test module loading.
@@ -327,52 +313,6 @@ export const AgentTool = buildTool({
       selectedAgent = found;
     }
 
-    // Capture for type narrowing — `let selectedAgent` prevents TS from
-    // narrowing property types across the if-else assignment above.
-    const requiredMcpServers = selectedAgent.requiredMcpServers;
-
-    // Check if required MCP servers have tools available
-    // A server that's connected but not authenticated won't have any tools
-    if (requiredMcpServers?.length) {
-      // If any required servers are still pending (connecting), wait for them
-      // before checking tool availability. This avoids a race condition where
-      // the agent is invoked before MCP servers finish connecting.
-      const hasPendingRequiredServers = appState.mcp.clients.some(c => c.type === 'pending' && requiredMcpServers.some(pattern => c.name.toLowerCase().includes(pattern.toLowerCase())));
-      let currentAppState = appState;
-      if (hasPendingRequiredServers) {
-        const MAX_WAIT_MS = 30_000;
-        const POLL_INTERVAL_MS = 500;
-        const deadline = Date.now() + MAX_WAIT_MS;
-        while (Date.now() < deadline) {
-          await sleep(POLL_INTERVAL_MS);
-          currentAppState = toolUseContext.getAppState();
-
-          // Early exit: if any required server has already failed, no point
-          // waiting for other pending servers — the check will fail regardless.
-          const hasFailedRequiredServer = currentAppState.mcp.clients.some(c => c.type === 'failed' && requiredMcpServers.some(pattern => c.name.toLowerCase().includes(pattern.toLowerCase())));
-          if (hasFailedRequiredServer) break;
-          const stillPending = currentAppState.mcp.clients.some(c => c.type === 'pending' && requiredMcpServers.some(pattern => c.name.toLowerCase().includes(pattern.toLowerCase())));
-          if (!stillPending) break;
-        }
-      }
-
-      // Get servers that actually have tools (meaning they're connected AND authenticated)
-      const serversWithTools: string[] = [];
-      for (const tool of currentAppState.mcp.tools) {
-        if (tool.name?.startsWith('mcp__')) {
-          // Extract server name from tool name (format: mcp__serverName__toolName)
-          const parts = tool.name.split('__');
-          const serverName = parts[1];
-          if (serverName && !serversWithTools.includes(serverName)) {
-            serversWithTools.push(serverName);
-          }
-        }
-      }
-      if (!hasRequiredMcpServers(selectedAgent, serversWithTools)) {
-        const missing = requiredMcpServers.filter(pattern => !serversWithTools.some(server => server.toLowerCase().includes(pattern.toLowerCase())));
-        throw new Error(`Agent '${selectedAgent.agentType}' requires MCP servers matching: ${missing.join(', ')}. ` + `MCP servers with tools: ${serversWithTools.length > 0 ? serversWithTools.join(', ') : 'none'}. ` + `Use /mcp to configure and authenticate the required MCP servers.`);
-      }
-    }
 
     // Initialize the color for this agent if it has a predefined one
     if (selectedAgent.color) {
@@ -479,7 +419,7 @@ export const AgentTool = buildTool({
         // GrowthBook state changed between parent turn-start and fork spawn.
         const mainThreadAgentDefinition = appState.agent ? appState.agentDefinitions.activeAgents.find(a => a.agentType === appState.agent) : undefined;
         const additionalWorkingDirectories = Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys());
-        const defaultSystemPrompt = await getSystemPrompt(toolUseContext.options.tools, toolUseContext.options.mainLoopModel, additionalWorkingDirectories, toolUseContext.options.mcpClients);
+        const defaultSystemPrompt = await getSystemPrompt(toolUseContext.options.tools, toolUseContext.options.mainLoopModel, additionalWorkingDirectories);
         forkParentSystemPrompt = buildEffectiveSystemPrompt({
           mainThreadAgentDefinition,
           toolUseContext,

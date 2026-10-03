@@ -456,8 +456,7 @@ async function generateTitle(description: string, abortSignal: AbortSignal): Pro
         isNonInteractiveSession: false,
         agents: [],
         querySource: 'feedback',
-        mcpTools: []
-      }
+              }
     });
     const title = response.message.content[0]?.type === 'text' ? response.message.content[0].text : 'Bug Report';
 

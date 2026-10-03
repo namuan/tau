@@ -160,8 +160,7 @@ export async function generateAgent(
       isNonInteractiveSession: false,
       hasAppendSystemPrompt: false,
       querySource: 'agent_creation',
-      mcpTools: [],
-    },
+          },
   })
 
   const textBlocks = response.message.content.filter(

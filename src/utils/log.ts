@@ -81,17 +81,12 @@ function addToInMemoryErrorLog(errorInfo: {
  */
 export type ErrorLogSink = {
   logError: (error: Error) => void
-  logMCPError: (serverName: string, error: unknown) => void
-  logMCPDebug: (serverName: string, message: string) => void
   getErrorsPath: () => string
-  getMCPLogsPath: (serverName: string) => string
 }
 
 // Queued events for events logged before sink is attached
 type QueuedErrorEvent =
   | { type: 'error'; error: Error }
-  | { type: 'mcpError'; serverName: string; error: unknown }
-  | { type: 'mcpDebug'; serverName: string; message: string }
 
 const errorQueue: QueuedErrorEvent[] = []
 
@@ -121,12 +116,6 @@ export function attachErrorLogSink(newSink: ErrorLogSink): void {
       switch (event.type) {
         case 'error':
           errorLogSink.logError(event.error)
-          break
-        case 'mcpError':
-          errorLogSink.logMCPError(event.serverName, event.error)
-          break
-        case 'mcpDebug':
-          errorLogSink.logMCPDebug(event.serverName, event.message)
           break
       }
     }
@@ -295,34 +284,6 @@ function parseISOString(s: string): Date {
       parseInt(b[6]!, 10),
     ),
   )
-}
-
-export function logMCPError(serverName: string, error: unknown): void {
-  try {
-    // If sink not attached, queue the event
-    if (errorLogSink === null) {
-      errorQueue.push({ type: 'mcpError', serverName, error })
-      return
-    }
-
-    errorLogSink.logMCPError(serverName, error)
-  } catch {
-    // Silently fail
-  }
-}
-
-export function logMCPDebug(serverName: string, message: string): void {
-  try {
-    // If sink not attached, queue the event
-    if (errorLogSink === null) {
-      errorQueue.push({ type: 'mcpDebug', serverName, message })
-      return
-    }
-
-    errorLogSink.logMCPDebug(serverName, message)
-  } catch {
-    // Silently fail
-  }
 }
 
 /**

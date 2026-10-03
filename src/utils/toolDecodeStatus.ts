@@ -17,7 +17,7 @@
  *   dropped and the failure is silently forgotten. Blocks are spread through
  *   the message pipeline, and `input` is the part that gets replaced, so the
  *   envelope is the one place adaptation cannot lose.
- * - Reserving a parameter name means an MCP server that genuinely declares
+ * - Reserving a parameter name means an external tool that genuinely declares
  *   one is broken by the runtime. A server's arguments are its own.
  *
  * Status is set by trusted runtime processing only. `decodeStatusOf` reads

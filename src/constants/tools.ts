@@ -113,9 +113,6 @@ export const IN_PROCESS_TEAMMATE_ALLOWED_TOOLS = new Set([
  * - TungstenTool: Uses singleton virtual terminal abstraction that conflicts between agents.
  *
  * ENABLE LATER (NEED WORK):
- * - MCPTool: TBD
- * - ListMcpResourcesTool: TBD
- * - ReadMcpResourceTool: TBD
  */
 
 /**

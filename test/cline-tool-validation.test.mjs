@@ -1,11 +1,11 @@
 // Exercise the shipped Cline loop and real built-in schemas with a fake network.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { loadMcpRuntime } from './helpers/mcp-built-runtime.mjs'
+import { loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
 // No catalog refresh or credentials are needed by this transport fixture.
 process.env.CLAUDEX_DISABLE_MODEL_PRICING = '1'
-const runtime = await loadMcpRuntime({
+const runtime = await loadBuiltRuntime({
   paths: [
     'src/lanes/cline/loop.ts',
     'src/tools/TaskOutputTool/TaskOutputTool.tsx',

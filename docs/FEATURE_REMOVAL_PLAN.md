@@ -57,17 +57,15 @@ Removed `src/services/lsp`, LSP settings and UI, language-server startup/cleanup
 
 ## Phase 7: Plugins and marketplaces — completed
 
-Removed plugin commands and UI, loading and startup checks, marketplace/install/update logic, bundled plugin contributions, plugin state and telemetry, plugin-only MCP integration, channel notifications/permissions, and plugin-specific keybindings and guidance. User/project skills, ordinary hooks, and generic MCP configuration and transports remain supported. Legacy managed plugin-only customization policy remains fail-closed for backward-compatible security behavior.
+Removed plugin commands and UI, loading and startup checks, marketplace/install/update logic, bundled plugin contributions, plugin state and telemetry, channel notifications/permissions, and plugin-specific keybindings and guidance. User/project skills, ordinary hooks, and legacy managed customization policy remain supported. Legacy managed plugin-only customization policy remains fail-closed for backward-compatible security behavior.
 
 **Verification:** Production build, shrinkwrap check, and `git diff --check` pass. Real-ripgrep GrepTool tests pass (45); focused agent tests pass (31), skill tests pass (4), and focused MCP suites pass (43, 1 skipped).
 
-## Phase 8: MCP
+## Phase 8: MCP — completed
 
-**Likely scope:** `src/services/mcp`, MCP tools/commands/components, MCP server startup and registries, MCP config and persistence, MCP-specific migrations/tests/docs, and `@modelcontextprotocol/sdk` plus other dependencies used only by MCP.
+Removed MCP clients/servers, connection startup, tools/resources, settings and persistence, commands and UI, hooks and elicitation, tool-search integration, protocol SDK dependency, and MCP-only docs/tests. Preserved generic provider tool compatibility, external editor support, user/project skills, ordinary hooks, core tools, permissions, and Tau session APIs.
 
-**Check before deleting:** MCP may underpin external resources and retained integrations. Check remaining MCP imports across `src` before removing the shared layer; preserve generic local tools and their command execution.
-
-**Verify:** Build; test the retained core agent tools and provider flow; confirm startup makes no MCP discovery/connection attempts and no MCP-only command, server config, package, or UI remains.
+**Verification:** Production build, production shrinkwrap check, and `git diff --check` pass. Focused core, session, provider, Cursor, Gemini schema, and placeholder-argument suites pass. One combined test run hit a temporary-directory cleanup collision; the affected suite passed when rerun alone. The standalone ToolSearch Bun test remains blocked by the missing `src/entrypoints/sdk/runtimeTypes.js` module. Source, manifest, and lockfile audits show no MCP client/server implementation or SDK dependency.
 
 ## Completion criteria
 

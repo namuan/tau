@@ -19,8 +19,6 @@ const ALLOWED_TOOLS = [
   'Bash(gh pr view:*)',
   'Bash(gh pr merge:*)',
   'ToolSearch',
-  'mcp__slack__send_message',
-  'mcp__claude_ai_Slack__slack_send_message',
 ]
 
 function getPromptContent(
@@ -43,15 +41,11 @@ function getPromptContent(
 <!-- CHANGELOG:START -->
 [If this PR contains user-facing changes, add a changelog entry here. Otherwise, remove this section.]
 <!-- CHANGELOG:END -->`
-  let slackStep = `
-
-5. After creating/updating the PR, check if the user's CLAUDE.md mentions posting to Slack channels. If it does, use ToolSearch to search for "slack send message" tools. If ToolSearch finds a Slack tool, ask the user if they'd like you to post the PR URL to the relevant Slack channel. Only post if the user confirms. If ToolSearch returns no results or errors, skip this step silently—do not mention the failure, do not attempt workarounds, and do not try alternative approaches.`
   if (process.env.USER_TYPE === 'ant' && isUndercover()) {
     prefix = getUndercoverInstructions() + '\n'
     reviewerArg = ''
     addReviewerArg = ''
     changelogSection = ''
-    slackStep = ''
   }
 
   return `${prefix}## Context
@@ -100,7 +94,7 @@ EOF
 )"
 \`\`\`
 
-You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message.${slackStep}
+You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message.
 
 Return the PR URL when you're done, so the user can see it.`
 }

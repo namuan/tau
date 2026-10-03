@@ -126,7 +126,7 @@ export function clearSessionCaches(
   void import('../../tools/WebFetchTool/utils.js').then(
     ({ clearWebFetchCache }) => clearWebFetchCache(),
   )
-  // Clear ToolSearch description cache (full tool prompts, ~500KB for 50 MCP tools)
+  // Clear ToolSearch description cache for deferred tool prompts
   void import('../../tools/ToolSearchTool/ToolSearchTool.js').then(
     ({ clearToolSearchDescriptionCache }) => clearToolSearchDescriptionCache(),
   )

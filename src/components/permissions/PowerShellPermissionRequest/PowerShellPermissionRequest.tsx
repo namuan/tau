@@ -157,7 +157,6 @@ export function PowerShellPermissionRequest(props: PermissionRequestProps): Reac
       }
       logEvent('tengu_bypass_permissions_prompt_enabled', {
         toolName: toolNameForAnalytics,
-        isMcp: toolUseConfirm.tool.isMcp ?? false
       });
       toolUseConfirm.onAllow(toolUseConfirm.input, []);
       onDone();
@@ -171,7 +170,6 @@ export function PowerShellPermissionRequest(props: PermissionRequestProps): Reac
           // Log accept submission with feedback context
           logEvent('tengu_accept_submitted', {
             toolName: toolNameForAnalytics,
-            isMcp: toolUseConfirm.tool.isMcp ?? false,
             has_instructions: !!trimmedFeedback,
             instructions_length: trimmedFeedback.length,
             entered_feedback_mode: yesFeedbackModeEntered
@@ -196,7 +194,6 @@ export function PowerShellPermissionRequest(props: PermissionRequestProps): Reac
           // Log reject submission with feedback context
           logEvent('tengu_reject_submitted', {
             toolName: toolNameForAnalytics,
-            isMcp: toolUseConfirm.tool.isMcp ?? false,
             has_instructions: !!trimmedFeedback,
             instructions_length: trimmedFeedback.length,
             entered_feedback_mode: noFeedbackModeEntered

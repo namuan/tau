@@ -56,9 +56,6 @@ export function isSessionContainerCompatible(messages: Message[]): boolean {
         continue
       }
       const toolName = block.name as string
-      if (toolName.startsWith('mcp__')) {
-        return false
-      }
       if (toolName === BASH_TOOL_NAME) {
         const input = (block as { input?: Record<string, unknown> }).input
         const command = (input?.command as string) || ''

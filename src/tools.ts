@@ -37,9 +37,6 @@ const cronTools = feature('AGENT_TRIGGERS')
 const RemoteTriggerTool = feature('AGENT_TRIGGERS_REMOTE')
   ? require('./tools/RemoteTriggerTool/RemoteTriggerTool.js').RemoteTriggerTool
   : null
-const MonitorTool = feature('MONITOR_TOOL')
-  ? require('./tools/MonitorTool/MonitorTool.js').MonitorTool
-  : null
 const PushNotificationTool =
   feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION')
     ? require('./tools/PushNotificationTool/PushNotificationTool.js')
@@ -254,7 +251,6 @@ export function getAllBaseTools(): Tools {
     ...(SleepTool ? [SleepTool] : []),
     ...cronTools,
     ...(RemoteTriggerTool ? [RemoteTriggerTool] : []),
-    ...(MonitorTool ? [MonitorTool] : []),
     BriefTool,
     ...(PushNotificationTool ? [PushNotificationTool] : []),
     ...(SubscribePRTool ? [SubscribePRTool] : []),
@@ -278,16 +274,12 @@ export function getAllBaseTools(): Tools {
  * A tool is filtered out if there's a deny rule matching its name with no
  * ruleContent (i.e., a blanket deny for that tool).
  *
- * Uses the same matcher as the runtime permission check (step 1a), so MCP
- * server-prefix rules like `mcp__server` strip all tools from that server
- * before the model sees them — not just at call time.
+ * Uses the same matcher as the runtime permission check.
  */
-export function filterToolsByDenyRules<
-  T extends {
-    name: string
-    mcpInfo?: { serverName: string; toolName: string }
-  },
->(tools: readonly T[], permissionContext: ToolPermissionContext): T[] {
+export function filterToolsByDenyRules<T extends { name: string }>(
+  tools: readonly T[],
+  permissionContext: ToolPermissionContext,
+): T[] {
   return tools.filter(tool => !getDenyRuleForTool(permissionContext, tool))
 }
 

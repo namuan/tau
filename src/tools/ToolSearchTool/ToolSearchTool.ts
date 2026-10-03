@@ -30,7 +30,6 @@ export const outputSchema = lazySchema(() =>
     matches: z.array(z.string()),
     query: z.string(),
     total_deferred_tools: z.number(),
-    pending_mcp_servers: z.array(z.string()).optional(),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -102,53 +101,29 @@ function buildSearchResult(
   matches: string[],
   query: string,
   totalDeferredTools: number,
-  pendingMcpServers?: string[],
 ): { data: Output } {
   return {
     data: {
       matches,
       query,
       total_deferred_tools: totalDeferredTools,
-      ...(pendingMcpServers && pendingMcpServers.length > 0
-        ? { pending_mcp_servers: pendingMcpServers }
-        : {}),
     },
   }
 }
 
 /**
- * Parse tool name into searchable parts.
- * Handles both MCP tools (mcp__server__action) and regular tools (CamelCase).
- */
 function parseToolName(name: string): {
   parts: string[]
   full: string
-  isMcp: boolean
 } {
-  // Check if it's an MCP tool
-  if (name.startsWith('mcp__')) {
-    const withoutPrefix = name.replace(/^mcp__/, '').toLowerCase()
-    const parts = withoutPrefix.split('__').flatMap(p => p.split('_'))
-    return {
-      parts: parts.filter(Boolean),
-      full: withoutPrefix.replace(/__/g, ' ').replace(/_/g, ' '),
-      isMcp: true,
-    }
-  }
-
-  // Regular tool - split by CamelCase and underscores
   const parts = name
-    .replace(/([a-z])([A-Z])/g, '$1 $2') // CamelCase to spaces
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/_/g, ' ')
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
 
-  return {
-    parts,
-    full: parts.join(' '),
-    isMcp: false,
-  }
+  return { parts, full: parts.join(' ') }
 }
 
 /**
@@ -167,12 +142,6 @@ function compileTermPatterns(terms: string[]): Map<string, RegExp> {
 
 /**
  * Keyword-based search over tool names and descriptions.
- * Handles both MCP tools (mcp__server__action) and regular tools (CamelCase).
- *
- * The model typically queries with:
- * - Server names when it knows the integration (e.g., "slack", "github")
- * - Action words when looking for functionality (e.g., "read", "list", "create")
- * - Tool-specific terms (e.g., "notebook", "shell", "kill")
  */
 async function searchToolsWithKeywords(
   query: string,
@@ -192,18 +161,6 @@ async function searchToolsWithKeywords(
     tools.find(t => t.name.toLowerCase() === queryLower)
   if (exactMatch) {
     return [exactMatch.name]
-  }
-
-  // If query looks like an MCP tool prefix (mcp__server), find matching tools.
-  // Handles models searching by server name with mcp__ prefix.
-  if (queryLower.startsWith('mcp__') && queryLower.length > 5) {
-    const prefixMatches = deferredTools
-      .filter(t => t.name.toLowerCase().startsWith(queryLower))
-      .slice(0, maxResults)
-      .map(t => t.name)
-    if (prefixMatches.length > 0) {
-      return prefixMatches
-    }
   }
 
   const queryTerms = queryLower.split(/\s+/).filter(term => term.length > 0)
@@ -258,11 +215,10 @@ async function searchToolsWithKeywords(
       for (const term of allScoringTerms) {
         const pattern = termPatterns.get(term)!
 
-        // Exact part match (high weight for MCP server names, tool name parts)
         if (parsed.parts.includes(term)) {
-          score += parsed.isMcp ? 12 : 10
+          score += 10
         } else if (parsed.parts.some(part => part.includes(term))) {
-          score += parsed.isMcp ? 6 : 5
+          score += 5
         }
 
         // Full name fallback (for edge cases)
@@ -316,18 +272,11 @@ export const ToolSearchTool = buildTool({
   get outputSchema(): OutputSchema {
     return outputSchema()
   },
-  async call(input, { options: { tools }, getAppState }) {
+  async call(input, { options: { tools } }) {
     const { query, max_results = 5 } = input
 
     const deferredTools = tools.filter(isDeferredTool)
     maybeInvalidateCache(deferredTools)
-
-    // Check for MCP servers still connecting
-    function getPendingServerNames(): string[] | undefined {
-      const appState = getAppState()
-      const pending = appState.mcp.clients.filter(c => c.type === 'pending')
-      return pending.length > 0 ? pending.map(s => s.name) : undefined
-    }
 
     // Helper to log search outcome
     function logSearchOutcome(
@@ -376,13 +325,7 @@ export const ToolSearchTool = buildTool({
           `ToolSearchTool: select failed — none found: ${missing.join(', ')}`,
         )
         logSearchOutcome([], 'select')
-        const pendingServers = getPendingServerNames()
-        return buildSearchResult(
-          [],
-          query,
-          deferredTools.length,
-          pendingServers,
-        )
+        return buildSearchResult([], query, deferredTools.length)
       }
 
       if (missing.length > 0) {
@@ -410,17 +353,6 @@ export const ToolSearchTool = buildTool({
 
     logSearchOutcome(matches, 'keyword')
 
-    // Include pending server info when search finds no matches
-    if (matches.length === 0) {
-      const pendingServers = getPendingServerNames()
-      return buildSearchResult(
-        matches,
-        query,
-        deferredTools.length,
-        pendingServers,
-      )
-    }
-
     return buildSearchResult(matches, query, deferredTools.length)
   },
   renderToolUseMessage() {
@@ -438,12 +370,6 @@ export const ToolSearchTool = buildTool({
   ): ToolResultBlockParam {
     if (content.matches.length === 0) {
       let text = 'No matching deferred tools found'
-      if (
-        content.pending_mcp_servers &&
-        content.pending_mcp_servers.length > 0
-      ) {
-        text += `. Some MCP servers are still connecting: ${content.pending_mcp_servers.join(', ')}. Their tools will become available shortly — try searching again.`
-      }
       return {
         type: 'tool_result',
         tool_use_id: toolUseID,

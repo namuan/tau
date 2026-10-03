@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { loadMcpRuntime } from './helpers/mcp-built-runtime.mjs'
+import { loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
-const r = await loadMcpRuntime({
+const r = await loadBuiltRuntime({
   paths: ['src/utils/sessionContextUsage.ts', 'src/utils/contextBaseline.ts', 'src/utils/forcedProvider.ts'],
   exports: ['getSessionContextUsage', 'setContextBaselineTokens', 'runWithForcedProvider'],
 })

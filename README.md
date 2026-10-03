@@ -78,7 +78,7 @@ See the full command list and usage notes in **[COMMANDS.md](COMMANDS.md)**.
 
 ### The full agent loop
 
-Everything a full agent loop needs is built in: tools, skills, subagents, MCP servers, and hooks. It all works the same way with every provider.
+Everything a full agent loop needs is built in: tools, skills, subagents, and hooks. It all works the same way with every provider.
 
 <p align="center">
   <img src="docs/AgentLoop.PNG" alt="Tau listing its tools, grouped by purpose">
@@ -104,7 +104,7 @@ Tau keeps snapshots of your working tree in a shadow git repo, separate from you
 
 ### Web search
 
-Web search works out of the box. Tau has a native MCP search built in as a tool, so there is no key to add and nothing to configure, and it is free with no limits. If you prefer Firecrawl, add your key through `/login`, then **Firecrawl Search**, and Tau will use the Firecrawl search backend instead. Their free plan includes 1,000 searches a month.
+Web search works out of the box through Tau's built-in search tool, so there is no key to add and nothing to configure, and it is free with no limits. If you prefer Firecrawl, add your key through `/login`, then **Firecrawl Search**, and Tau will use the Firecrawl search backend instead. Their free plan includes 1,000 searches a month.
 
 ### Python kernel in the loop
 
@@ -156,7 +156,7 @@ Here a named agent looks for bugs, gets a follow-up task after it has finished, 
 
 ### Pay only for what you use
 
-Tau thinks about your money and your preferences before anything else. A normal workflow doesn't need skills, agents or MCP servers, so you can leave them off and stay in cheap mode. When you need them, one command turns them on: `/mode normal`. You don't need an MCP server for things like diagrams or browser automation either, because those tools are built into Tau. Switch each of them on or off with `/tools`, so you pay less, or nothing, for what you don't use.
+Tau thinks about your money and your preferences before anything else. A normal workflow doesn't need optional tools, skills, or agents, so you can leave them off and stay in cheap mode. When you need them, one command turns them on: `/mode normal`. Diagramming and browser tools are built into Tau. Switch each optional tool on or off with `/tools`, so you pay less, or nothing, for what you don't use.
 
 <p align="center">
   <img src="docs/Capture.PNG" alt="Tau start screen in cheap mode" width="720">

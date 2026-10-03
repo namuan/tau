@@ -14,7 +14,7 @@ import type { AgentModelEnv } from './agentEnv.js'
  *
  * Returns undefined, leaving those variables unset, for every other command:
  * `!`/`!!` commands the user typed, skill and slash-command `!` blocks, and
- * `tau mcp serve` calls from another program. Only the tool runner passes the
+ * commands launched by another program. Only the tool runner passes the
  * assistant message that holds this call's tool_use block.
  */
 export function getAgentModelEnv(

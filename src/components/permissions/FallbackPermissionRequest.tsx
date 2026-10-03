@@ -29,7 +29,7 @@ export function FallbackPermissionRequest(t0) {
   let t1;
   if ($[0] !== toolUseConfirm.input || $[1] !== toolUseConfirm.tool) {
     originalUserFacingName = toolUseConfirm.tool.userFacingName(toolUseConfirm.input as never);
-    t1 = originalUserFacingName.endsWith(" (MCP)") ? originalUserFacingName.slice(0, -6) : originalUserFacingName;
+    t1 = originalUserFacingName;
     $[0] = toolUseConfirm.input;
     $[1] = toolUseConfirm.tool;
     $[2] = originalUserFacingName;
@@ -251,12 +251,10 @@ export function FallbackPermissionRequest(t0) {
   } else {
     t8 = $[23];
   }
-  const t9 = toolUseConfirm.tool.isMcp ?? false;
   let t10;
   if ($[24] !== t8 || $[25] !== t9) {
     t10 = {
       toolName: t8,
-      isMcp: t9
     };
     $[24] = t8;
     $[25] = t9;
@@ -280,7 +278,7 @@ export function FallbackPermissionRequest(t0) {
   }
   let t12;
   if ($[31] !== originalUserFacingName) {
-    t12 = originalUserFacingName.endsWith(" (MCP)") ? <Text dimColor={true}> (MCP)</Text> : "";
+    t12 = "";
     $[31] = originalUserFacingName;
     $[32] = t12;
   } else {

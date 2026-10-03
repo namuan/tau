@@ -59,7 +59,6 @@ const TASK_TYPES = new Set<string>([
   'remote_agent',
   'in_process_teammate',
   'local_workflow',
-  'monitor_mcp',
   'dream',
 ])
 const FINISHED_STATUSES = new Set<string>(['completed', 'failed', 'killed'])

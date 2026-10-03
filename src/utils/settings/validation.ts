@@ -1,4 +1,3 @@
-import type { ConfigScope } from 'src/services/mcp/types.js'
 import type { ZodError, ZodIssue } from 'zod/v4'
 import { jsonParse } from '../slowOperations.js'
 import { plural } from '../stringUtils.js'
@@ -60,15 +59,6 @@ export type ValidationError = {
   suggestion?: string
   /** Link to relevant documentation */
   docLink?: string
-  /** MCP-specific metadata - only present for MCP configuration errors */
-  mcpErrorMetadata?: {
-    /** Which configuration scope this error came from */
-    scope: ConfigScope
-    /** The server name if error is specific to a server */
-    serverName?: string
-    /** Severity of the error */
-    severity?: 'fatal' | 'warning'
-  }
 }
 
 export type SettingsWithErrors = {

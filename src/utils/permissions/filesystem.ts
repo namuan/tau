@@ -63,7 +63,6 @@ export const DANGEROUS_FILES = [
   '.zprofile',
   '.profile',
   '.ripgreprc',
-  '.mcp.json',
   '.claude.json',
 ] as const
 
@@ -608,8 +607,7 @@ function hasSuspiciousWindowsPathPattern(path: string): boolean {
  * This function performs comprehensive safety checks including:
  * - Suspicious Windows path patterns (NTFS streams, 8.3 names, long path prefixes, etc.)
  * - Claude config files (.claude/settings.json, .claude/commands/, .claude/agents/)
- * - MCP CLI state files (managed internally by Tau)
- * - Dangerous files (.bashrc, .gitconfig, .git/, .vscode/, .idea/, etc.)
+ * * - Dangerous files (.bashrc, .gitconfig, .git/, .vscode/, .idea/, etc.)
  *
  * IMPORTANT: This function checks BOTH the original path AND resolved symlink paths
  * to prevent bypasses via symlinks pointing to protected files.
@@ -1440,7 +1438,7 @@ export function generateSuggestions(
   // mode the classifier already auto-approves edits; in bypassPermissions
   // everything is allowed; in acceptEdits it's a no-op. Suggesting it
   // anyway and having the SDK host apply it on "Always allow" silently
-  // downgrades auto → acceptEdits, which then prompts for MCP/Bash.
+  // downgrades auto → acceptEdits, which then prompts for tool/Bash.
   const shouldSuggestAcceptEdits =
     toolPermissionContext.mode === 'default' ||
     toolPermissionContext.mode === 'plan'

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { executeBlock, fixtureTool, loadMcpRuntime } from './helpers/mcp-built-runtime.mjs'
+import { executeBlock, fixtureTool, loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
 // A model can name an optional prebuilt tool that this session does not offer
 // (it saw the tool earlier, or the user toggled it off). That branch of
@@ -10,7 +10,7 @@ import { executeBlock, fixtureTool, loadMcpRuntime } from './helpers/mcp-built-r
 // returning its notice. esbuild cannot catch an out-of-scope read, so this
 // runs the real bundle.
 
-const runtime = await loadMcpRuntime()
+const runtime = await loadBuiltRuntime()
 
 // Every optional prebuilt tool reaches the same branch; naming them keeps the
 // coverage honest if the list changes.

@@ -74,7 +74,6 @@ import {
   getDefaultHaikuModel,
   getDefaultOpusModel,
 } from './model/model.js'
-import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js'
 import { getSkillToolCommands } from '../commands.js'
 import type { Command } from '../types/command.js'
 import { getProjectRoot } from '../bootstrap/state.js'
@@ -115,7 +114,6 @@ import {
   isFileWithinReadSizeLimit,
 } from './file.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import { filterAgentsByMcpRequirements } from '../tools/AgentTool/loadAgentsDir.js'
 import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import {
   formatAgentLine,
@@ -123,7 +121,6 @@ import {
 } from '../tools/AgentTool/prompt.js'
 import { filterDeniedAgents } from './permissions/permissions.js'
 import { getSubscriptionType } from './auth.js'
-import { mcpInfoFromString } from '../services/mcp/mcpStringUtils.js'
 import {
   matchingRuleForInput,
   pathInAllowedWorkingPath,
@@ -168,12 +165,6 @@ import {
   modelSupportsToolReference,
   type DeferredToolsDeltaScanContext,
 } from './toolSearch.js'
-import {
-  getMcpInstructionsDelta,
-  isMcpInstructionsDeltaEnabled,
-  mcpServersForTools,
-} from './mcpInstructionsDelta.js'
-import type { MCPServerConnection } from '../services/mcp/types.js'
 import type {
   HookEvent,
   SyncHookJSONOutput,
@@ -586,14 +577,6 @@ export type Attachment =
       planContent: string
     }
   | {
-      type: 'mcp_resource'
-      server: string
-      uri: string
-      name: string
-      description?: string
-      content: ReadResourceResult
-    }
-  | {
       type: 'command_permissions'
       allowedTools: string[]
       model?: string
@@ -691,14 +674,6 @@ export type Attachment =
       showConcurrencyNote: boolean
     }
   | {
-      type: 'mcp_instructions_delta'
-      addedNames: string[]
-      addedBlocks: string[]
-      /** addedNames whose block replaces one announced earlier */
-      updatedNames?: string[]
-      removedNames: string[]
-    }
-  | {
       type: 'mermaid_diagrams'
       /** The "Draw diagrams" state being announced to the model. */
       enabled: boolean
@@ -783,9 +758,6 @@ export async function getAttachments(
         maybe('at_mentioned_files', () =>
           processAtMentionedFiles(input, context),
         ),
-        maybe('mcp_resources', () =>
-          processMcpResourceAttachments(input, context),
-        ),
         maybe('agent_mentions', () =>
           Promise.resolve(
             processAgentMentions(
@@ -859,7 +831,6 @@ export async function getAttachments(
     maybe('agent_listing_delta', () =>
       Promise.resolve(getAgentListingDeltaAttachment(toolUseContext, messages)),
     ),
-    // mcp_instructions_delta is not collected here: query.ts announces it
     // right before each request, from the server state that request's tools
     // come from (the list captured here can predate both).
     maybe('power_mode_change', () =>
@@ -1536,9 +1507,8 @@ export function getDeferredToolsDeltaAttachment(
  * in this conversation (reconstructed from prior agent_listing_delta
  * attachments). Returns [] if nothing changed or the gate is off.
  *
- * The agent list was embedded in AgentTool's description, causing ~10.2% of
- * fleet cache_creation: MCP async connect or permission-mode changes alter
- * the description and cause a full tool-schema cache bust.
+ * The agent list was embedded in AgentTool's description, causing unnecessary
+ * tool-schema cache misses when the filtered agent list changed.
  * Moving the list here keeps the tool description static.
  *
  * Exported for compact.ts — re-announces the full set after compaction eats
@@ -1560,19 +1530,8 @@ export function getAgentListingDeltaAttachment(
   const { activeAgents, allowedAgentTypes } =
     toolUseContext.options.agentDefinitions
 
-  // Mirror AgentTool.prompt()'s filtering: MCP requirements → deny rules →
-  // allowedAgentTypes restriction. Keep this in sync with AgentTool.tsx.
-  const mcpServers = new Set<string>()
-  for (const tool of toolUseContext.options.tools) {
-    const info = mcpInfoFromString(tool.name)
-    if (info) mcpServers.add(info.serverName)
-  }
   const permissionContext = toolUseContext.getAppState().toolPermissionContext
-  let filtered = filterDeniedAgents(
-    filterAgentsByMcpRequirements(activeAgents, [...mcpServers]),
-    permissionContext,
-    AGENT_TOOL_NAME,
-  )
+  let filtered = filterDeniedAgents(activeAgents, permissionContext, AGENT_TOOL_NAME)
   if (allowedAgentTypes) {
     filtered = filtered.filter(a => allowedAgentTypes.includes(a.agentType))
   }
@@ -1595,8 +1554,7 @@ export function getAgentListingDeltaAttachment(
 
   if (added.length === 0 && removed.length === 0) return []
 
-  // Sort for deterministic output — agent load order is nondeterministic
-  // (plugin load races, MCP async connect).
+  // Sort for deterministic output because agent load order is nondeterministic.
   added.sort((a, b) => a.agentType.localeCompare(b.agentType))
   removed.sort()
 
@@ -1612,43 +1570,10 @@ export function getAgentListingDeltaAttachment(
   ]
 }
 
-// Called by query.ts before each request and by compact.ts /
-// reactiveCompact.ts — single source of truth for the gate.
-export function getMcpInstructionsDeltaAttachment(
-  mcpClients: MCPServerConnection[],
-  tools: Tools,
-  model: string,
-  messages: Message[] | undefined,
-): Attachment[] {
-  if (!isMcpInstructionsDeltaEnabled()) return []
-
-  // Cheap power mode hides MCP from the model. Servers connected in an
-  // earlier mode may still be open (kept warm for switch-back); treating the
-  // connected set as empty blocks new instruction announcements AND emits
-  // removals for anything already announced in the transcript.
-  const effectiveMcpClients =
-    getPowerModeFromSettings(getInitialSettings()) === 'cheap'
-      ? []
-      : mcpClients
-
-  // Instructions travel with the tools they describe: only servers this
-  // request can use are announced, and a server whose tools left the request
-  // has its instructions retracted.
-  const delta = getMcpInstructionsDelta(
-    mcpServersForTools(effectiveMcpClients, tools.filter(tool =>
-      getProviderFilteredToolCallDecision(getAPIProvider(), tool.name, model) === null,
-    )),
-    messages ?? [],
-    [],
-  )
-  if (!delta) return []
-  return [{ type: 'mcp_instructions_delta', ...delta }]
-}
-
 /**
  * Announce power-mode transitions that change model-visible capabilities.
  *
- * The listings the model sees (skills, agent types, MCP instructions) are
+ * The listings the model sees (skills and agent types) are
  * append-only in the transcript; entering cheap mode removes the underlying
  * tools but can't unsay what was already announced. This attachment closes
  * that gap: it fires once per effective transition (reconstructed from prior
@@ -2023,74 +1948,6 @@ function processAgentMentions(
   return results.filter(
     (result): result is NonNullable<typeof result> => result !== null,
   )
-}
-
-async function processMcpResourceAttachments(
-  input: string,
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  const resourceMentions = extractMcpResourceMentions(input)
-  if (resourceMentions.length === 0) return []
-
-  const mcpClients = toolUseContext.options.mcpClients || []
-
-  const results = await Promise.all(
-    resourceMentions.map(async mention => {
-      try {
-        const [serverName, ...uriParts] = mention.split(':')
-        const uri = uriParts.join(':') // Rejoin in case URI contains colons
-
-        if (!serverName || !uri) {
-          logEvent('tengu_at_mention_mcp_resource_error', {})
-          return null
-        }
-
-        // Find the MCP client
-        const client = mcpClients.find(c => c.name === serverName)
-        if (!client || client.type !== 'connected') {
-          logEvent('tengu_at_mention_mcp_resource_error', {})
-          return null
-        }
-
-        // Find the resource in available resources to get its metadata
-        const serverResources =
-          toolUseContext.options.mcpResources?.[serverName] || []
-        const resourceInfo = serverResources.find(r => r.uri === uri)
-        if (!resourceInfo) {
-          logEvent('tengu_at_mention_mcp_resource_error', {})
-          return null
-        }
-
-        try {
-          const result = await client.client.readResource({
-            uri,
-          })
-
-          logEvent('tengu_at_mention_mcp_resource_success', {})
-
-          return {
-            type: 'mcp_resource' as const,
-            server: serverName,
-            uri,
-            name: resourceInfo.name || uri,
-            description: resourceInfo.description,
-            content: result,
-          }
-        } catch (error) {
-          logEvent('tengu_at_mention_mcp_resource_error', {})
-          logError(error)
-          return null
-        }
-      } catch {
-        logEvent('tengu_at_mention_mcp_resource_error', {})
-        return null
-      }
-    }),
-  )
-
-  return results.filter(
-    (result): result is NonNullable<typeof result> => result !== null,
-  ) as Attachment[]
 }
 
 export async function getChangedFiles(
@@ -2799,16 +2656,6 @@ export function extractAtMentionedFiles(content: string): string[] {
 
   // Combine and deduplicate
   return uniq([...quotedMatches, ...regularMatches])
-}
-
-export function extractMcpResourceMentions(content: string): string[] {
-  // Extract MCP resources mentioned with @ symbol in format @server:uri
-  // Example: "@server1:resource/path" would extract "server1:resource/path"
-  const atMentionRegex = /(^|\s)@([^\s]+:[^\s]+)\b/g
-  const matches = content.match(atMentionRegex) || []
-
-  // Remove the prefix (everything before @) from each match
-  return uniq(matches.map(match => match.slice(match.indexOf('@') + 1)))
 }
 
 export function extractAgentMentions(content: string): string[] {

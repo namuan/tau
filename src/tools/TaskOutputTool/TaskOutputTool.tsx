@@ -72,8 +72,6 @@ function inferTaskTypeFromId(taskId: string): TaskType | null {
       return 'local_bash';
     case 'd':
       return 'dream';
-    case 'm':
-      return 'monitor_mcp';
     case 'r':
       return 'remote_agent';
     case 't':

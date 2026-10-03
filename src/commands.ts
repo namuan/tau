@@ -592,7 +592,7 @@ export const getSlashCommandToolSkills = memoize(
 /**
  * Commands that are safe to use in remote mode (--remote).
  * These only affect local TUI state and don't depend on local filesystem,
- * git, shell, IDE, MCP, or other local execution context.
+ * git, shell, IDE, or other local execution context.
  *
  * Used in two places:
  * 1. Pre-filtering commands in main.tsx before REPL renders (prevents race with CCR init)

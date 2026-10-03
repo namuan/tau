@@ -39,8 +39,7 @@ export async function generateSessionName(
         agents: [],
         isNonInteractiveSession: false,
         hasAppendSystemPrompt: false,
-        mcpTools: [],
-      },
+              },
     })
 
     const content = extractTextContent(result.message.content)

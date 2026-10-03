@@ -18,7 +18,6 @@ export const CURSOR_CLIENT_SIDE_TOOL_V2 = {
   RUN_TERMINAL_COMMAND_V2: 15,
   FETCH_RULES: 16,
   WEB_SEARCH: 18,
-  MCP: 19,
   SEARCH_SYMBOLS: 23,
   BACKGROUND_COMPOSER_FOLLOWUP: 24,
   KNOWLEDGE_BASE: 25,
@@ -38,12 +37,9 @@ export const CURSOR_CLIENT_SIDE_TOOL_V2 = {
   RIPGREP_RAW_SEARCH: 41,
   GLOB_FILE_SEARCH: 42,
   CREATE_PLAN: 43,
-  LIST_MCP_RESOURCES: 44,
-  READ_MCP_RESOURCE: 45,
   READ_PROJECT: 46,
   UPDATE_PROJECT: 47,
   TASK_V2: 48,
-  CALL_MCP_TOOL: 49,
   APPLY_AGENT_DIFF: 50,
   ASK_QUESTION: 51,
   SWITCH_MODE: 52,
@@ -318,45 +314,6 @@ function _schemaForTool(
   return options?.toolSchemas?.get(toolName)
 }
 
-function _normalizeMcpNamePart(value: string): string {
-  return value.toLowerCase().replace(/[-_\s]+/g, '')
-}
-
-function _mcpNameParts(name: string): { server: string; toolName: string } | null {
-  if (!name.startsWith('mcp__')) return null
-  const rest = name.slice('mcp__'.length)
-  const idx = rest.indexOf('__')
-  if (idx < 0) return null
-  return {
-    server: rest.slice(0, idx),
-    toolName: rest.slice(idx + 2),
-  }
-}
-
-function _resolveMcpImplId(
-  server: string,
-  toolName: string,
-  options?: CursorToolResolutionOptions,
-): string {
-  const exact = `mcp__${server}__${toolName}`
-  if (options?.toolSchemas?.has(exact)) return exact
-
-  const normalizedServer = _normalizeMcpNamePart(server)
-  const normalizedToolName = _normalizeMcpNamePart(toolName)
-  for (const candidate of options?.toolSchemas?.keys() ?? []) {
-    const parts = _mcpNameParts(candidate)
-    if (!parts) continue
-    if (
-      _normalizeMcpNamePart(parts.server) === normalizedServer &&
-      _normalizeMcpNamePart(parts.toolName) === normalizedToolName
-    ) {
-      return candidate
-    }
-  }
-
-  return exact
-}
-
 function _unwrapCursorToolInput(
   nativeInput: Record<string, unknown>,
   schema?: JsonSchema,
@@ -623,48 +580,6 @@ const CURSOR_EXTRA_TOOL_REGISTRY: LaneToolRegistration[] = [
     adaptOutput: _stringifyToolOutput,
   },
   {
-    nativeName: 'list_mcp_resources',
-    implId: 'ListMcpResourcesTool',
-    nativeDescription: 'List MCP resources from configured servers.',
-    nativeSchema: {
-      type: 'object',
-      properties: {
-        server: { type: 'string', description: 'Optional MCP server name.' },
-      },
-    },
-    adaptInput(native) {
-      const input: Record<string, unknown> = { ...native }
-      if (input.path == null && native.target_directory != null) {
-        input.path = native.target_directory
-      }
-      if (input.pattern == null && native.query != null) {
-        input.pattern = native.query
-      }
-      if (input.glob == null && native.glob_pattern != null) {
-        input.glob = native.glob_pattern
-      }
-      return input
-    },
-    adaptOutput: _stringifyToolOutput,
-  },
-  {
-    nativeName: 'read_mcp_resource',
-    implId: 'ReadMcpResourceTool',
-    nativeDescription: 'Read a specific MCP resource by URI.',
-    nativeSchema: {
-      type: 'object',
-      properties: {
-        server: { type: 'string', description: 'MCP server name.' },
-        uri: { type: 'string', description: 'Resource URI.' },
-      },
-      required: ['server', 'uri'],
-    },
-    adaptInput(native) {
-      return native
-    },
-    adaptOutput: _stringifyToolOutput,
-  },
-  {
     nativeName: 'task',
     implId: 'Agent',
     nativeDescription: 'Spawn a delegated subagent for a bounded task.',
@@ -816,14 +731,7 @@ const CURSOR_PRESERVE_SHARED_SCHEMA_IMPL_IDS = new Set([
   'AskUserQuestion',
   'EnterPlanMode',
   'ExitPlanMode',
-  'ListMcpResourcesTool',
-  'ReadMcpResourceTool',
 ])
-
-const CURSOR_MCP_TOOL_ENUMS = [
-  CT.MCP,
-  CT.CALL_MCP_TOOL,
-] as const
 
 const CURSOR_TOOL_ENUMS_BY_NAME: Record<string, readonly number[]> = {
   Read: [CT.READ_FILE, CT.READ_FILE_V2],
@@ -868,10 +776,6 @@ const CURSOR_TOOL_ENUMS_BY_NAME: Record<string, readonly number[]> = {
   ExitPlanMode: [CT.CREATE_PLAN, CT.SWITCH_MODE],
   exit_plan_mode: [CT.CREATE_PLAN, CT.SWITCH_MODE],
 
-  ListMcpResourcesTool: [CT.LIST_MCP_RESOURCES],
-  list_mcp_resources: [CT.LIST_MCP_RESOURCES],
-  ReadMcpResourceTool: [CT.READ_MCP_RESOURCE],
-  read_mcp_resource: [CT.READ_MCP_RESOURCE],
   TodoWrite: [CT.TODO_READ, CT.TODO_WRITE],
 }
 
@@ -888,8 +792,6 @@ const CURSOR_TOOL_ALIAS_BY_NAME: Record<string, string> = {
   AskUserQuestion: 'ask_question',
   EnterPlanMode: 'create_plan',
   ExitPlanMode: 'create_plan',
-  ListMcpResourcesTool: 'list_mcp_resources',
-  ReadMcpResourceTool: 'read_mcp_resource',
   read_file_v2: 'read_file',
   list_dir: 'list_directory',
   list_dir_v2: 'list_directory',
@@ -970,12 +872,6 @@ export function buildCursorToolDefinitions(tools: ProviderTool[]): ProviderTool[
 export function buildCursorSupportedToolEnums(tools: ProviderTool[]): number[] {
   const enums = new Set<number>()
 
-  if (tools.length > 0) {
-    for (const toolEnum of CURSOR_MCP_TOOL_ENUMS) {
-      enums.add(toolEnum)
-    }
-  }
-
   for (const tool of tools) {
     for (const toolEnum of _cursorToolEnumsForName(tool.name)) {
       enums.add(toolEnum)
@@ -990,11 +886,7 @@ export function buildCursorSupportedToolEnums(tools: ProviderTool[]): number[] {
       }
     }
 
-    if (tool.name.startsWith('mcp__')) {
-      for (const toolEnum of CURSOR_MCP_TOOL_ENUMS) {
-        enums.add(toolEnum)
-      }
-    }
+
   }
 
   return [...enums]
@@ -1063,51 +955,6 @@ export function resolveCursorToolCall(
     return { implId: 'Bash', input }
   }
 
-  if (nativeName === 'list_mcp_resources') {
-    return { implId: 'ListMcpResourcesTool', input: nativeInput }
-  }
-
-  if (nativeName === 'read_mcp_resource') {
-    return { implId: 'ReadMcpResourceTool', input: nativeInput }
-  }
-
-  if (nativeName === 'call_mcp_tool') {
-    const server =
-      typeof nativeInput.server === 'string'
-        ? nativeInput.server
-        : typeof nativeInput.server_name === 'string'
-          ? nativeInput.server_name
-          : typeof nativeInput.serverName === 'string'
-            ? nativeInput.serverName
-            : typeof nativeInput.mcp_server === 'string'
-              ? nativeInput.mcp_server
-              : ''
-    const toolName =
-      typeof nativeInput.tool_name === 'string'
-        ? nativeInput.tool_name
-        : typeof nativeInput.toolName === 'string'
-          ? nativeInput.toolName
-          : typeof nativeInput.name === 'string'
-            ? nativeInput.name
-            : ''
-    if (server && toolName) {
-      const implId = _resolveMcpImplId(server, toolName, options)
-      const toolArgs =
-        _asRecord(nativeInput.tool_args) ??
-        _asRecord(nativeInput.arguments) ??
-        _asRecord(nativeInput.args) ??
-        _asRecord(nativeInput.input) ??
-        nativeInput
-      return {
-        implId,
-        input: normalizeCursorSchemaToolInput(
-          toolArgs,
-          _schemaForTool(implId, options),
-        ),
-      }
-    }
-  }
-
   if (normalizedName === 'replace' || nativeName === 'edit_file' || nativeName === 'edit_file_v2') {
     return _adaptCursorEditInput(nativeInput)
   }
@@ -1166,19 +1013,6 @@ export function resolveCursorToolCall(
     return {
       implId: 'WebFetch',
       input: { url: finalUrl, prompt: finalPrompt },
-    }
-  }
-
-  // ── MCP tools called by direct mcp__* name ──────────────────────
-  // When the model calls an MCP tool directly (e.g. mcp__context7__resolve-library-id)
-  // instead of going through call_mcp_tool, pass through with the native input.
-  if (nativeName.startsWith('mcp__')) {
-    return {
-      implId: nativeName,
-      input: normalizeCursorSchemaToolInput(
-        nativeInput,
-        _schemaForTool(nativeName, options),
-      ),
     }
   }
 

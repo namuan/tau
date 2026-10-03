@@ -27,7 +27,7 @@ import type {
  *
  * Unlike pane-based backends (tmux/iTerm2), in-process teammates run in the
  * same Node.js process with isolated context via AsyncLocalStorage. They:
- * - Share resources (API client, MCP connections) with the leader
+ * - Share the API client with the leader
  * - Communicate via file-based mailbox (same as pane-based teammates)
  * - Are terminated via AbortController (not kill-pane)
  *

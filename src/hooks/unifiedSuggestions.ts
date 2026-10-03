@@ -2,7 +2,6 @@ import Fuse from 'fuse.js'
 import { basename } from 'path'
 import type { SuggestionItem } from 'src/components/PromptInput/PromptInputFooterSuggestions.js'
 import { generateFileSuggestions } from 'src/hooks/fileSuggestions.js'
-import type { ServerResource } from 'src/services/mcp/types.js'
 import { getAgentColor } from 'src/tools/AgentTool/agentColorManager.js'
 import type { AgentDefinition } from 'src/tools/AgentTool/loadAgentsDir.js'
 import { truncateToWidth } from 'src/utils/format.js'
@@ -18,15 +17,6 @@ type FileSuggestionSource = {
   score?: number
 }
 
-type McpResourceSuggestionSource = {
-  type: 'mcp_resource'
-  displayText: string
-  description: string
-  server: string
-  uri: string
-  name: string
-}
-
 type AgentSuggestionSource = {
   type: 'agent'
   displayText: string
@@ -35,10 +25,7 @@ type AgentSuggestionSource = {
   color?: keyof Theme
 }
 
-type SuggestionSource =
-  | FileSuggestionSource
-  | McpResourceSuggestionSource
-  | AgentSuggestionSource
+type SuggestionSource = FileSuggestionSource | AgentSuggestionSource
 
 /**
  * Creates a unified suggestion item from a source
@@ -48,12 +35,6 @@ function createSuggestionFromSource(source: SuggestionSource): SuggestionItem {
     case 'file':
       return {
         id: `file-${source.path}`,
-        displayText: source.displayText,
-        description: source.description,
-      }
-    case 'mcp_resource':
-      return {
-        id: `mcp-resource-${source.server}__${source.uri}`,
         displayText: source.displayText,
         description: source.description,
       }
@@ -110,7 +91,6 @@ function generateAgentSuggestions(
 
 export async function generateUnifiedSuggestions(
   query: string,
-  mcpResources: Record<string, ServerResource[]>,
   agents: AgentDefinition[],
   showOnEmpty = false,
 ): Promise<SuggestionItem[]> {
@@ -134,26 +114,11 @@ export async function generateUnifiedSuggestions(
     }),
   )
 
-  const mcpSources: McpResourceSuggestionSource[] = Object.values(mcpResources)
-    .flat()
-    .map(resource => ({
-      type: 'mcp_resource' as const,
-      displayText: `${resource.server}:${resource.uri}`,
-      description: truncateDescription(
-        resource.description || resource.name || resource.uri,
-      ),
-      server: resource.server,
-      uri: resource.uri,
-      name: resource.name || resource.uri,
-    }))
-
   if (!query) {
     const agentBudget = Math.min(agentSources.length, 5)
-    const mcpBudget = Math.min(mcpSources.length, 3)
-    const fileBudget = Math.max(0, MAX_UNIFIED_SUGGESTIONS - agentBudget - mcpBudget)
+    const fileBudget = Math.max(0, MAX_UNIFIED_SUGGESTIONS - agentBudget)
     const allSources = [
       ...fileSources.slice(0, fileBudget),
-      ...mcpSources.slice(0, mcpBudget),
       ...agentSources.slice(0, agentBudget),
     ]
     return allSources
@@ -161,7 +126,7 @@ export async function generateUnifiedSuggestions(
       .map(createSuggestionFromSource)
   }
 
-  const nonFileSources: SuggestionSource[] = [...mcpSources, ...agentSources]
+  const nonFileSources: SuggestionSource[] = agentSources
 
   // Score non-file sources with Fuse.js
   // File sources are already scored by Rust/nucleo
@@ -183,8 +148,6 @@ export async function generateUnifiedSuggestions(
       threshold: 0.6, // Allow more matches through, we'll sort by score
       keys: [
         { name: 'displayText', weight: 2 },
-        { name: 'name', weight: 3 },
-        { name: 'server', weight: 1 },
         { name: 'description', weight: 1 },
         { name: 'agentType', weight: 3 },
       ],

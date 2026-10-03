@@ -31,7 +31,7 @@ function getClaudeCodeGuideBasePrompt(): string {
 
 **Your expertise spans three domains:**
 
-1. **Tau** (the CLI tool): Installation, configuration, hooks, skills, MCP servers, keyboard shortcuts, settings, and workflows.
+1. **Tau** (the CLI tool): Installation, configuration, hooks, skills, keyboard shortcuts, settings, and workflows.
 
 2. **Claude Agent SDK**: A framework for building custom AI agents based on Tau technology. Available for Node.js/TypeScript and Python.
 
@@ -43,7 +43,6 @@ function getClaudeCodeGuideBasePrompt(): string {
   - Installation, setup, and getting started
   - Hooks (pre/post command execution)
   - Custom skills
-  - MCP server configuration
   - Settings files and configuration
   - Keyboard shortcuts and hotkeys
   - Subagents
@@ -63,7 +62,6 @@ function getClaudeCodeGuideBasePrompt(): string {
   - Tool use (function calling) and Anthropic-defined tools (code execution, web search, text editor, bash, programmatic tool calling, tool search tool, context editing, Files API, structured outputs)
   - Vision, PDF support, and citations
   - Extended thinking and structured outputs
-  - MCP connector for remote MCP servers
   - Cloud provider integrations (Bedrock, Vertex AI, Foundry)
 
 **Approach:**
@@ -96,7 +94,7 @@ function getFeedbackGuideline(): string {
 
 export const CLAUDE_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
   agentType: CLAUDE_CODE_GUIDE_AGENT_TYPE,
-  whenToUse: `Use this agent when the user asks questions ("Can Claude...", "Does Claude...", "How do I...") about: (1) Tau (the CLI tool) - features, hooks, slash commands, MCP servers, settings, keyboard shortcuts; (2) Claude Agent SDK - building custom agents; (3) Claude API (formerly Anthropic API) - API usage, tool use, Anthropic SDK usage. **IMPORTANT:** Before spawning a new agent, check if there is already a running or recently completed claude-code-guide agent that you can continue via ${SEND_MESSAGE_TOOL_NAME}.`,
+  whenToUse: `Use this agent when the user asks questions ("Can Claude...", "Does Claude...", "How do I...") about: (1) Tau (the CLI tool) - features, hooks, slash commands, settings, keyboard shortcuts; (2) Claude Agent SDK - building custom agents; (3) Claude API (formerly Anthropic API) - API usage, tool use, Anthropic SDK usage. **IMPORTANT:** Before spawning a new agent, check if there is already a running or recently completed claude-code-guide agent that you can continue via ${SEND_MESSAGE_TOOL_NAME}.`,
   // Ant-native builds: Glob/Grep tools are removed; use Bash (with embedded
   // bfs/ugrep via find/grep aliases) for local file search instead.
   tools: hasEmbeddedSearchTools()
@@ -146,15 +144,6 @@ export const CLAUDE_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
       contextSections.push(
         `**Available custom agents configured:**\n${agentList}`,
       )
-    }
-
-    // 3. MCP servers
-    const mcpClients = toolUseContext.options.mcpClients
-    if (mcpClients && mcpClients.length > 0) {
-      const mcpList = mcpClients
-        .map((client: { name: string }) => `- ${client.name}`)
-        .join('\n')
-      contextSections.push(`**Configured MCP servers:**\n${mcpList}`)
     }
 
     // 5. User settings

@@ -19,7 +19,6 @@ import {
   getParentSessionId as getParentSessionIdFromState,
 } from '../../bootstrap/state.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import { isOfficialMcpUrl } from '../mcp/officialRegistry.js'
 import { isClaudeAISubscriber, getSubscriptionType } from '../../utils/auth.js'
 import { getRepoRemoteHash } from '../../utils/git.js'
 import {
@@ -55,128 +54,14 @@ import { feature } from 'bun:bundle'
  */
 export type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS = never
 
-/**
- * Sanitizes tool names for analytics logging to avoid PII exposure.
- *
- * MCP tool names follow the format `mcp__<server>__<tool>` and can reveal
- * user-specific server configurations, which is considered PII-medium.
- * This function redacts MCP tool names while preserving built-in tool names
- * (Bash, Read, Write, etc.) which are safe to log.
- *
- * @param toolName - The tool name to sanitize
- * @returns The original name for built-in tools, or 'mcp_tool' for MCP tools
- */
 export function sanitizeToolNameForAnalytics(
   toolName: string,
 ): AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {
-  if (toolName.startsWith('mcp__')) {
-    return 'mcp_tool' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-  }
   return toolName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
 }
 
-/**
- * Check if detailed tool name logging is enabled for OTLP events.
- * When enabled, MCP server/tool names and Skill names are logged.
- * Disabled by default to protect PII (user-specific server configurations).
- *
- * Enable with OTEL_LOG_TOOL_DETAILS=1
- */
 export function isToolDetailsLoggingEnabled(): boolean {
   return isEnvTruthy(process.env.OTEL_LOG_TOOL_DETAILS)
-}
-
-/**
- * Check if detailed tool name logging (MCP server/tool names) is enabled
- * for analytics events.
- *
- * Per go/taxonomy, MCP names are medium PII. We log them for:
- * - Cowork (entrypoint=local-agent) — no ZDR concept, log all MCPs
- * - claude.ai-proxied connectors — always official (from claude.ai's list)
- * - Servers whose URL matches the official MCP registry — directory
- *   connectors added via `claude mcp add`, not customer-specific config
- *
- * Custom/user-configured MCPs stay sanitized (toolName='mcp_tool').
- */
-export function isAnalyticsToolDetailsLoggingEnabled(
-  mcpServerType: string | undefined,
-  mcpServerBaseUrl: string | undefined,
-): boolean {
-  if (process.env.CLAUDE_CODE_ENTRYPOINT === 'local-agent') {
-    return true
-  }
-  if (mcpServerType === 'claudeai-proxy') {
-    return true
-  }
-  if (mcpServerBaseUrl && isOfficialMcpUrl(mcpServerBaseUrl)) {
-    return true
-  }
-  return false
-}
-
-/**
- * Spreadable helper for logEvent payloads — returns {mcpServerName, mcpToolName}
- * if the gate passes, empty object otherwise. Consolidates the identical IIFE
- * pattern at each tengu_tool_use_* call site.
- */
-export function mcpToolDetailsForAnalytics(
-  toolName: string,
-  mcpServerType: string | undefined,
-  mcpServerBaseUrl: string | undefined,
-): {
-  mcpServerName?: AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-  mcpToolName?: AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-} {
-  const details = extractMcpToolDetails(toolName)
-  if (!details) {
-    return {}
-  }
-  if (!isAnalyticsToolDetailsLoggingEnabled(mcpServerType, mcpServerBaseUrl)) {
-    return {}
-  }
-  return {
-    mcpServerName: details.serverName,
-    mcpToolName: details.mcpToolName,
-  }
-}
-
-/**
- * Extract MCP server and tool names from a full MCP tool name.
- * MCP tool names follow the format: mcp__<server>__<tool>
- *
- * @param toolName - The full tool name (e.g., 'mcp__slack__read_channel')
- * @returns Object with serverName and toolName, or undefined if not an MCP tool
- */
-export function extractMcpToolDetails(toolName: string):
-  | {
-      serverName: AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      mcpToolName: AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    }
-  | undefined {
-  if (!toolName.startsWith('mcp__')) {
-    return undefined
-  }
-
-  // Format: mcp__<server>__<tool>
-  const parts = toolName.split('__')
-  if (parts.length < 3) {
-    return undefined
-  }
-
-  const serverName = parts[1]
-  // Tool name may contain __ so rejoin remaining parts
-  const mcpToolName = parts.slice(2).join('__')
-
-  if (!serverName || !mcpToolName) {
-    return undefined
-  }
-
-  return {
-    serverName:
-      serverName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    mcpToolName:
-      mcpToolName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  }
 }
 
 /**
@@ -259,7 +144,7 @@ function truncateToolInputValue(value: unknown, depth = 0): unknown {
 /**
  * Serialize a tool's input arguments for the OTel tool_result event.
  * Truncates long strings and deep nesting to keep the output bounded while
- * preserving forensically useful fields like file paths, URLs, and MCP args.
+ * preserving forensically useful fields like file paths and URLs.
  * Returns undefined when OTEL_LOG_TOOL_DETAILS is not enabled.
  */
 export function extractToolInputForTelemetry(

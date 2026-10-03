@@ -17,7 +17,7 @@
  * ever knows the name the provider echoed back — it cannot know which schema
  * produced the call. So when two different schemas are registered under one
  * name (concurrent subagents carrying their own StructuredOutput contract, two
- * MCP servers exposing a same-named tool), a parameter whose declared type
+ * external integrations exposing a same-named tool), a parameter whose declared type
  * disagrees between them is marked ambiguous and never coerced. Skipping the
  * repair leaves the raw provider value untouched — the pre-repair behavior,
  * and a visible validation failure downstream — whereas coercing against the

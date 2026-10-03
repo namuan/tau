@@ -3,7 +3,7 @@ import test from 'node:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, isAbsolute } from 'node:path'
-import { loadMcpRuntime, fixtureTool, executeBlock } from './helpers/mcp-built-runtime.mjs'
+import { loadBuiltRuntime, fixtureTool, executeBlock } from './helpers/built-runtime.mjs'
 
 // Exercise the built CLI's real schema builder, both request paths, stream
 // assembler, executor, and task storage. Only the external API is simulated.
@@ -15,7 +15,7 @@ process.env.ENABLE_TOOL_SEARCH = 'true'
 process.env.TAU_NATIVE_LAZY_TOOLS = 'true'
 test.after(() => rmSync(testDirectory, { recursive: true, force: true }))
 
-const r = await loadMcpRuntime({
+const r = await loadBuiltRuntime({
   paths: ['src/utils/api.ts', 'src/utils/toolSearchRequestFilter.ts',
     'src/tools/TaskCreateTool/TaskCreateTool.ts', 'src/tools/TaskUpdateTool/TaskUpdateTool.ts',
     'src/tools/FileWriteTool/FileWriteTool.ts', 'src/tools/FileEditTool/FileEditTool.ts',
@@ -29,7 +29,7 @@ const r = await loadMcpRuntime({
 r.setSessionPowerMode('normal')
 const model = 'example/model'
 const source = [r.TaskCreateTool, r.TaskUpdateTool, r.FileWriteTool, r.FileEditTool,
-  fixtureTool({ name: 'mcp__fixture__publish_record', isMcp: true, shouldDefer: true,
+  fixtureTool({ name: 'custom_publish_record', shouldDefer: true,
     inputJSONSchema: { type: 'object', properties: { recordKey: { type: 'string' },
       payload: { type: 'object', properties: { score: { type: 'number' } }, required: ['score'] } },
     required: ['recordKey', 'payload'], additionalProperties: false },

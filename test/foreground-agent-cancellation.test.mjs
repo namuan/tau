@@ -81,7 +81,6 @@ function fixture() {
       mode: 'default', additionalWorkingDirectories: new Map(),
       alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {},
     },
-    mcp: { clients: [], tools: [] },
     speculation: { status: 'idle' },
   })
   const parent = new AbortController()
@@ -92,7 +91,7 @@ function fixture() {
     toolUseId: 'foreground-test-tool',
     messages: [],
     options: {
-      tools: [], mcpClients: [], mainLoopModel: 'test-model',
+      tools: [], mainLoopModel: 'test-model',
       agentDefinitions: { activeAgents: [{
         agentType: 'cancellation-test', source: 'projectSettings',
         getSystemPrompt: () => 'Test agent.',

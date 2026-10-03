@@ -115,7 +115,6 @@ function operationalGuidelines(): string {
 - Bash autonomy: run shell commands yourself by default. \`! <cmd>\` paste-to-user is for interactive logins/TUIs, not routine installs or config.
 - Skills: if \`/skill-name\` is invoked or a listed relevant skill is surfaced, use the Skill tool. Only use listed skills; don't invent names.
 - Subagents: for broad exploration, deep research, or independent parallel work, delegate with the Agent tool and matching \`subagent_type\`; don't duplicate that work.
-- MCP management (\`claude mcp add <name> <cmd>\`, \`claude mcp list\`, \`claude mcp remove\`) is normal Bash. Run it yourself; don't paste it to the user.
 - For unfamiliar CLIs, libraries, or APIs, verify the exact syntax once (\`--help\`, official docs, the tool's source) instead of guessing flags and iterating.`
 }
 
@@ -157,7 +156,7 @@ export function assembleGeminiSystemPrompt(
   ].join('\n\n')
 
   // Stable slot: lane preamble + user/project stable additions
-  // (customInstructions, toolsAddendum, mcpIntro, skillsContext).
+  // (customInstructions, toolsAddendum, skillsContext).
   const stable = stableFrom(lanePreamble, parts)
 
   // Volatile slot: memory + environment + git status.

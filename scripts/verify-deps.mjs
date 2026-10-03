@@ -65,19 +65,6 @@ export const TAU_RUNTIME_ALLOW_SCRIPTS = Object.freeze([
 // Node's real package resolver, not merely contain a package.json file.
 const EXPLICIT_DEPENDENCY_RUNTIME_FILES = Object.freeze({
   '@alcalzone/ansi-tokenize': ['build/index.js'],
-  '@modelcontextprotocol/sdk': [
-    'dist/esm/types.js',
-    'dist/esm/server/index.js',
-    'dist/esm/server/stdio.js',
-    'dist/esm/server/auth/errors.js',
-    'dist/esm/client/index.js',
-    'dist/esm/client/sse.js',
-    'dist/esm/client/stdio.js',
-    'dist/esm/client/streamableHttp.js',
-    'dist/esm/client/auth.js',
-    'dist/esm/shared/auth.js',
-    'dist/esm/shared/transport.js',
-  ],
 });
 const MANIFEST_ONLY_DEPENDENCIES = new Set([
   // Imported only through TypeScript `import type`; no runtime entry exists.

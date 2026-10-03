@@ -130,7 +130,7 @@ function callSafe(listener: GrowthBookRefreshListener): void {
  * (remoteEvalFeatureValues is populated), the listener fires once on the
  * next microtask. This catch-up handles the race where GB's network response
  * lands before the REPL's useEffect commits — on external builds with fast
- * networks and MCP-heavy configs, init can finish in ~100ms while REPL mount
+ * large configurations, init can finish in ~100ms while REPL mount
  * takes ~600ms (see #20951 external-build trace at 30.540 vs 31.046).
  *
  * Change detection is on the subscriber: the callback fires on every refresh;

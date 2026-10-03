@@ -408,7 +408,7 @@ export interface NormalizedCursorMessage {
   content: string | CursorContentPart[]
 }
 
-export interface EncodeMcpToolInput {
+export interface EncodeCursorToolInput {
   name: string
   description?: string
   parameters?: Record<string, unknown>
@@ -516,7 +516,7 @@ function encodeCoreMessage(message: NormalizedCursorMessage): Uint8Array {
 }
 
 function encodeCustomToolFormat(
-  tool: EncodeMcpToolInput,
+  tool: EncodeCursorToolInput,
 ): Uint8Array {
   if (!tool.customToolFormat) return new Uint8Array(0)
   return concat(
@@ -526,7 +526,7 @@ function encodeCustomToolFormat(
   )
 }
 
-function encodeTool(tool: EncodeMcpToolInput): Uint8Array {
+function encodeTool(tool: EncodeCursorToolInput): Uint8Array {
   const parameters = encodeJsonStruct(tool.parameters ?? {})
   const customToolFormat = encodeCustomToolFormat(tool)
   return concat(
@@ -584,7 +584,7 @@ function encodeModelConfig(config: {
 export function encodeRequest(
   messages: NormalizedCursorMessage[],
   modelName: string,
-  tools: EncodeMcpToolInput[],
+  tools: EncodeCursorToolInput[],
   _supportedToolEnums: number[],
   _reasoningEffort: 'medium' | 'high' | null,
   opts?: {
@@ -650,7 +650,7 @@ export function wrapConnectFrame(payload: Uint8Array, compress = false): Uint8Ar
 export function generateCursorBody(
   messages: NormalizedCursorMessage[],
   modelName: string,
-  tools: EncodeMcpToolInput[],
+  tools: EncodeCursorToolInput[],
   supportedToolEnums: number[],
   reasoningEffort: 'medium' | 'high' | null,
   opts?: {

@@ -141,14 +141,6 @@ test('Cursor injects precondition guidance for fragile local tools', () => {
       { name: 'NotebookEdit', input_schema: { type: 'object' } },
       { name: 'EnterWorktree', input_schema: { type: 'object' } },
       { name: 'ExitWorktree', input_schema: { type: 'object' } },
-      {
-        name: 'mcp__context7__resolve-library-id',
-        input_schema: {
-          type: 'object',
-          properties: { libraryName: { type: 'string' } },
-          required: ['libraryName'],
-        },
-      },
     ],
     conversationId: 'conv-4',
   })
@@ -158,7 +150,6 @@ test('Cursor injects precondition guidance for fragile local tools', () => {
   assert(text.includes('Before NotebookEdit, read the target .ipynb'), 'missing notebook precondition')
   assert(text.includes('Use EnterWorktree only after confirming'), 'missing worktree precondition')
   assert(text.includes('git rev-parse --is-inside-work-tree'), 'missing git repo precondition')
-  assert(text.includes('mcp__server__tool calls'), 'missing MCP schema precondition')
 })
 
 console.log(`\n${passed} passed, ${failed} failed`)

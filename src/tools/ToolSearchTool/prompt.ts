@@ -42,12 +42,7 @@ Queries: "select:Read,Edit,Grep" for exact names; "notebook jupyter" for keyword
 
 /**
  * Check if a tool should be deferred (requires ToolSearch to load).
- * A tool is deferred if:
- * - It's an MCP tool (always deferred - workflow-specific)
- * - It has shouldDefer: true
- *
- * A tool is NEVER deferred if it has alwaysLoad: true (MCP tools set this via
- * _meta['anthropic/alwaysLoad']). This check runs first, before any other rule.
+ * A tool is deferred when it has shouldDefer: true, unless alwaysLoad is set.
  */
 export function isDeferredTool(tool: Tool): boolean {
   // Provider gate. Deferral is enabled only for Anthropic's native discovery
@@ -61,11 +56,8 @@ export function isDeferredTool(tool: Tool): boolean {
   }
 
   // Explicit opt-out via _meta['anthropic/alwaysLoad'] — tool appears in the
-  // initial prompt with full schema. Checked first so MCP tools can opt out.
+  // initial prompt with full schema.
   if (tool.alwaysLoad === true) return false
-
-  // MCP tools are always deferred (workflow-specific)
-  if (tool.isMcp === true) return true
 
   // Never defer ToolSearch itself — the model needs it to load everything else
   if (tool.name === TOOL_SEARCH_TOOL_NAME) return false
@@ -100,15 +92,14 @@ export function isDeferredTool(tool: Tool): boolean {
  * Format a compact discovery catalog entry. Name-only entries encouraged
  * weaker models to call hidden tools with guessed parameters. A one-line
  * intent provides enough routing signal while keeping the parameter schema
- * deferred. MCP metadata is untrusted, so normalize and cap it here even when
- * an upstream adapter already sanitized it.
+ * deferred.
  */
 export const MAX_DEFERRED_TOOL_INTENT_CHARS = 120
 
 function normalizeDeferredToolIntent(intent: string): string {
   // Catalog lines are embedded inside an XML-ish system-reminder wrapper.
   // Reject delimiter characters instead of escaping them: escaping can grow a
-  // 10k untrusted MCP hint before the cap is applied, and truncating an entity
+  // A long hint is capped before it can grow the prompt, and truncating an entity
   // can leave a raw `&` at the boundary. Removing the three delimiters first
   // keeps the cap deterministic and makes closing-tag injection impossible.
   const normalized = intent
@@ -122,16 +113,11 @@ function normalizeDeferredToolIntent(intent: string): string {
 
 export function formatDeferredToolLine(tool: Tool): string {
   const inferredIntent = tool.name
-    .replace(/^mcp__/, '')
-    .replace(/__/g, ' via ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/_/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .toLowerCase()
-  // MCP metadata is controlled by an external server. The callable name is
-  // already enough to infer a compact intent, so never place its searchHint in
-  // model-visible XML. Built-in hints are still normalized defensively.
-  const isUntrustedMcpTool = tool.isMcp === true || tool.name.startsWith('mcp__')
-  const explicitIntent = !isUntrustedMcpTool && tool.searchHint
+  const explicitIntent = tool.searchHint
     ? normalizeDeferredToolIntent(tool.searchHint)
     : ''
   return `${tool.name} — ${explicitIntent || normalizeDeferredToolIntent(inferredIntent)}`

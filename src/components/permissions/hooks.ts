@@ -133,7 +133,6 @@ export function usePermissionRequestLogging(
       messageID: toolUseConfirm.assistantMessage.message
         .id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       toolName: sanitizeToolNameForAnalytics(toolUseConfirm.tool.name),
-      isMcp: toolUseConfirm.tool.isMcp ?? false,
       decisionReasonType: toolUseConfirm.permissionResult.decisionReason
         ?.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       sandboxEnabled: SandboxManager.isSandboxingEnabled(),
@@ -151,7 +150,6 @@ export function usePermissionRequestLogging(
           messageID: toolUseConfirm.assistantMessage.message
             .id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           toolName: sanitizeToolNameForAnalytics(toolUseConfirm.tool.name),
-          isMcp: toolUseConfirm.tool.isMcp ?? false,
           decisionReasonType: (permissionResult.decisionReason?.type ??
             'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           sandboxEnabled: SandboxManager.isSandboxingEnabled(),

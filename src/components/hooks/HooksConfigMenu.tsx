@@ -84,18 +84,8 @@ export function HooksConfigMenu(t0) {
   const mode = modeState.mode;
   const selectedEvent = "event" in modeState ? modeState.event : "PreToolUse";
   const selectedMatcher = "matcher" in modeState ? modeState.matcher : null;
-  const mcp = useAppState(_temp3);
   const appStateStore = useAppStateStore();
-  let t3;
-  if ($[2] !== mcp.tools || $[3] !== toolNames) {
-    t3 = [...toolNames, ...mcp.tools.map(_temp4)];
-    $[2] = mcp.tools;
-    $[3] = toolNames;
-    $[4] = t3;
-  } else {
-    t3 = $[4];
-  }
-  const combinedToolNames = t3;
+  const combinedToolNames = toolNames;
   let t4;
   if ($[5] !== appStateStore || $[6] !== combinedToolNames) {
     t4 = groupHooksByEventAndMatcher(appStateStore.getState(), combinedToolNames);
@@ -560,12 +550,6 @@ function _temp6() {
 }
 function _temp5(sum, hooks) {
   return sum + hooks.length;
-}
-function _temp4(tool) {
-  return tool.name;
-}
-function _temp3(s) {
-  return s.mcp;
 }
 function _temp2() {
   return getSettingsForSource("policySettings")?.allowManagedHooksOnly === true;

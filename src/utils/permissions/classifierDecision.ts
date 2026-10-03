@@ -5,7 +5,6 @@ import { EXIT_PLAN_MODE_TOOL_NAME } from '../../tools/ExitPlanModeTool/constants
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { GLOB_TOOL_NAME } from '../../tools/GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../../tools/GrepTool/prompt.js'
-import { LIST_MCP_RESOURCES_TOOL_NAME } from '../../tools/ListMcpResourcesTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
 import { SLEEP_TOOL_NAME } from '../../tools/SleepTool/prompt.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
@@ -57,8 +56,6 @@ const SAFE_YOLO_ALLOWLISTED_TOOLS = new Set([
   GREP_TOOL_NAME,
   GLOB_TOOL_NAME,
   TOOL_SEARCH_TOOL_NAME,
-  LIST_MCP_RESOURCES_TOOL_NAME,
-  'ReadMcpResourceTool', // no exported constant
   // Task management (metadata only)
   TODO_WRITE_TOOL_NAME,
   TASK_CREATE_TOOL_NAME,

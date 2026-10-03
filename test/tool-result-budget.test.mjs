@@ -308,7 +308,6 @@ test('two one-shot QueryEngine turns retain byte-identical headless previews', a
     cwd: process.cwd(),
     tools: [],
     commands: [],
-    mcpClients: [],
     agents: [],
     canUseTool: async () => ({ behavior: 'allow', updatedInput: {} }),
     getAppState: () => ({}),

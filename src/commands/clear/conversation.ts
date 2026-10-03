@@ -179,13 +179,6 @@ export async function clearConversation({
           trackedFiles: new Set(),
           snapshotSequence: 0,
         },
-        // Reset MCP state to default to trigger re-initialization.
-        mcp: {
-          clients: [],
-          tools: [],
-          commands: [],
-          resources: {},
-        },
       }
     })
   }

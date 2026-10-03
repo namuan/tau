@@ -74,15 +74,6 @@ Settings load in order: user → project → local (later overrides earlier).
 \`\`\`
 Set \`commit\` or \`pr\` to empty string \`""\` to hide that attribution.
 
-### MCP Server Management
-\`\`\`json
-{
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["server1", "server2"],
-  "disabledMcpjsonServers": ["blocked-server"]
-}
-\`\`\`
-
 ### Other Settings
 - \`language\`: Preferred response language (e.g., "japanese")
 - \`cleanupPeriodDays\`: Days to keep transcripts (default: 30; 0 disables persistence entirely)
@@ -332,7 +323,6 @@ When the user's request is ambiguous, use AskUserQuestion to clarify:
 - Hooks (PreToolUse, PostToolUse, etc.)
 - Complex permission rules (allow/deny arrays)
 - Environment variables
-- MCP server configuration
 
 ## Workflow
 

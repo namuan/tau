@@ -179,13 +179,6 @@ export interface LaneRunContext {
   availableTools: SharedTool[]
 
   /**
-   * MCP tools active in this session (already in ProviderTool shape).
-   * The lane sanitizes these into its native tool format and includes
-   * them alongside built-in tools.
-   */
-  mcpTools: ProviderTool[]
-
-  /**
    * Execute a tool by its shared implementation ID.
    * The shared layer handles permissions, sandboxing, audit logging.
    * The lane calls this when the model invokes a tool — the lane
@@ -224,9 +217,6 @@ export interface SystemPromptParts {
 
   /** Additional tool-use guidance from hooks or user config */
   toolsAddendum: string
-
-  /** MCP tools introduction text (when MCP is active) */
-  mcpIntro: string
 
   /** Active skills context */
   skillsContext: string

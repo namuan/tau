@@ -33,13 +33,11 @@ type Props = {
 type ToolBucket = {
   name: string;
   toolNames: Set<string>;
-  isMcp?: boolean;
 };
 type ToolBuckets = {
   READ_ONLY: ToolBucket;
   EDIT: ToolBucket;
   EXECUTION: ToolBucket;
-  MCP: ToolBucket;
   OTHER: ToolBucket;
 };
 function getToolBuckets(): ToolBuckets {
@@ -55,12 +53,6 @@ function getToolBuckets(): ToolBuckets {
     EXECUTION: {
       name: 'Execution tools',
       toolNames: new Set([BashTool.name, "external" === 'ant' ? TungstenTool.name : undefined].filter(n => n !== undefined))
-    },
-    MCP: {
-      name: 'MCP tools',
-      toolNames: new Set(),
-      // Dynamic - no static list
-      isMcp: true
     },
     OTHER: {
       name: 'Other tools',
@@ -193,7 +185,6 @@ export function ToolSelector(t0) {
       readOnly: [] as Tool[],
       edit: [] as Tool[],
       execution: [] as Tool[],
-      mcp: [] as Tool[],
       other: [] as Tool[]
     };
     customAgentTools.forEach(tool => {
@@ -236,7 +227,7 @@ export function ToolSelector(t0) {
   }
   const createBucketToggleAction = t9;
   let navigableItems;
-  if ($[24] !== createBucketToggleAction || $[25] !== customAgentTools || $[26] !== focusIndex || $[27] !== handleConfirm || $[28] !== isAllSelected || $[29] !== selectedSet || $[30] !== showIndividualTools || $[31] !== toolsByBucket.edit || $[32] !== toolsByBucket.execution || $[33] !== toolsByBucket.mcp || $[34] !== toolsByBucket.other || $[35] !== toolsByBucket.readOnly) {
+  if ($[24] !== createBucketToggleAction || $[25] !== customAgentTools || $[26] !== focusIndex || $[27] !== handleConfirm || $[28] !== isAllSelected || $[29] !== selectedSet || $[30] !== showIndividualTools || $[31] !== toolsByBucket.edit || $[32] !== toolsByBucket.execution || $[34] !== toolsByBucket.other || $[35] !== toolsByBucket.readOnly) {
     navigableItems = [];
     navigableItems.push({
       id: "continue",
@@ -274,10 +265,6 @@ export function ToolSelector(t0) {
       id: "bucket-execution",
       name: toolBuckets_0.EXECUTION.name,
       tools: toolsByBucket.execution
-    }, {
-      id: "bucket-mcp",
-      name: toolBuckets_0.MCP.name,
-      tools: toolsByBucket.mcp
     }, {
       id: "bucket-other",
       name: toolBuckets_0.OTHER.name,
@@ -323,36 +310,6 @@ export function ToolSelector(t0) {
       isToggle: true
     });
     if (showIndividualTools) {
-      if (mcpServerBuckets.length > 0) {
-        navigableItems.push({
-          id: "mcp-servers-header",
-          label: "MCP Servers:",
-          action: _temp6,
-          isHeader: true
-        });
-        mcpServerBuckets.forEach(t13 => {
-          const {
-            serverName,
-            tools: serverTools
-          } = t13;
-          const selected_1 = count(serverTools, t_9 => selectedSet.has(t_9.name));
-          const isFullySelected_0 = selected_1 === serverTools.length;
-          navigableItems.push({
-            id: `mcp-server-${serverName}`,
-            label: `${isFullySelected_0 ? figures.checkboxOn : figures.checkboxOff} ${serverName} (${serverTools.length} ${plural(serverTools.length, "tool")})`,
-            action: () => {
-              const toolNames_2 = serverTools.map(_temp7);
-              handleToggleTools(toolNames_2, !isFullySelected_0);
-            }
-          });
-        });
-        navigableItems.push({
-          id: "tools-header",
-          label: "Individual Tools:",
-          action: _temp8,
-          isHeader: true
-        });
-      }
       customAgentTools.forEach(tool_0 => {
         let displayName = tool_0.name;
           navigableItems.push({
@@ -371,7 +328,6 @@ export function ToolSelector(t0) {
     $[30] = showIndividualTools;
     $[31] = toolsByBucket.edit;
     $[32] = toolsByBucket.execution;
-    $[33] = toolsByBucket.mcp;
     $[34] = toolsByBucket.other;
     $[35] = toolsByBucket.readOnly;
     $[36] = navigableItems;

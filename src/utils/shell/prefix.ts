@@ -237,8 +237,7 @@ async function getCommandPrefixImpl(
         agents: [],
         isNonInteractiveSession,
         hasAppendSystemPrompt: false,
-        mcpTools: [],
-      },
+              },
     })
 
     // Clear the timeout since the query completed

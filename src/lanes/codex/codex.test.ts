@@ -587,7 +587,7 @@ async function main(): Promise<void> {
   })
 
   await test('stable slot byte-identical across turns when volatile changes', () => {
-    const base = { toolsAddendum: '', mcpIntro: '', skillsContext: '', customInstructions: 'c' }
+    const base = { toolsAddendum: '', skillsContext: '', customInstructions: 'c' }
     const t1 = assembleCodexSystemPrompt('gpt-5-codex', {
       ...base, memory: 'a', environment: 'e1', gitStatus: 'g1',
     })
@@ -600,7 +600,7 @@ async function main(): Promise<void> {
   await test('apply_patch mentioned in stable preamble', () => {
     const p = assembleCodexSystemPrompt('gpt-5-codex', {
       memory: '', environment: '', gitStatus: '',
-      toolsAddendum: '', mcpIntro: '', skillsContext: '', customInstructions: '',
+      toolsAddendum: '', skillsContext: '', customInstructions: '',
     })
     assert(String(p.stable).includes('apply_patch'),
       'codex system prompt should call out apply_patch as the edit primitive')

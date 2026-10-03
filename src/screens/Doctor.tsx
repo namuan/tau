@@ -101,18 +101,8 @@ export function Doctor(t0) {
     onDone
   } = t0;
   const agentDefinitions = useAppState(_temp);
-  const mcpTools = useAppState(_temp2);
   const toolPermissionContext = useAppState(_temp3);
   useExitOnCtrlCDWithKeybindings();
-  let t1;
-  if ($[0] !== mcpTools) {
-    t1 = mcpTools || [];
-    $[0] = mcpTools;
-    $[1] = t1;
-  } else {
-    t1 = $[1];
-  }
-  const tools = t1;
   const [diagnostic, setDiagnostic] = useState(null);
   const [agentInfo, setAgentInfo] = useState(null);
   const [contextWarnings, setContextWarnings] = useState(null);
@@ -129,13 +119,13 @@ export function Doctor(t0) {
   const autoUpdatesChannel = getInitialSettings()?.autoUpdatesChannel ?? "latest";
   let t3;
   if ($[3] !== validationErrors) {
-    t3 = validationErrors.filter(_temp7);
+    t3 = validationErrors;
     $[3] = validationErrors;
     $[4] = t3;
   } else {
     t3 = $[4];
   }
-  const errorsExcludingMcp = t3;
+  const settingsErrors = t3;
   let t4;
   if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
     const envVars = [{
@@ -158,7 +148,7 @@ export function Doctor(t0) {
   const envValidationErrors = t4;
   let t5;
   let t6;
-  if ($[6] !== agentDefinitions || $[7] !== toolPermissionContext || $[8] !== tools) {
+  if ($[6] !== agentDefinitions || $[7] !== toolPermissionContext) {
     t5 = () => {
       getDoctorDiagnostic().then(setDiagnostic);
       (async () => {
@@ -179,7 +169,7 @@ export function Doctor(t0) {
           failedFiles
         };
         setAgentInfo(agentInfoData);
-        const warnings = await checkContextWarnings(tools, {
+        const warnings = await checkContextWarnings({
           activeAgents,
           allAgents,
           failedFiles
@@ -205,10 +195,9 @@ export function Doctor(t0) {
         }
       })();
     };
-    t6 = [toolPermissionContext, tools, agentDefinitions];
+    t6 = [toolPermissionContext, agentDefinitions];
     $[6] = agentDefinitions;
     $[7] = toolPermissionContext;
-    $[8] = tools;
     $[9] = t5;
     $[10] = t6;
   } else {
@@ -344,9 +333,9 @@ export function Doctor(t0) {
     t21 = $[37];
   }
   let t22;
-  if ($[38] !== errorsExcludingMcp) {
-    t22 = errorsExcludingMcp.length > 0 && <Box flexDirection="column" marginTop={1} marginBottom={1}><Text bold={true}>Invalid Settings</Text><ValidationErrorsList errors={errorsExcludingMcp} /></Box>;
-    $[38] = errorsExcludingMcp;
+  if ($[38] !== settingsErrors) {
+    t22 = settingsErrors.length > 0 && <Box flexDirection="column" marginTop={1} marginBottom={1}><Text bold={true}>Invalid Settings</Text><ValidationErrorsList errors={settingsErrors} /></Box>;
+    $[38] = settingsErrors;
     $[39] = t22;
   } else {
     t22 = $[39];
@@ -456,7 +445,7 @@ export function Doctor(t0) {
   }
   let t39;
   if ($[73] !== contextWarnings) {
-    t39 = contextWarnings && (contextWarnings.claudeMdWarning || contextWarnings.agentWarning || contextWarnings.mcpWarning) && <Box flexDirection="column"><Text bold={true}>Context Usage Warnings</Text>{contextWarnings.claudeMdWarning && <><Text>└{" "}<Text color="warning">{figures.warning} {contextWarnings.claudeMdWarning.message}</Text></Text><Text>{"  "}└ Files:</Text>{contextWarnings.claudeMdWarning.details.map(_temp16)}</>}{contextWarnings.agentWarning && <><Text>└{" "}<Text color="warning">{figures.warning} {contextWarnings.agentWarning.message}</Text></Text><Text>{"  "}└ Top contributors:</Text>{contextWarnings.agentWarning.details.map(_temp17)}</>}{contextWarnings.mcpWarning && <><Text>└{" "}<Text color="warning">{figures.warning} {contextWarnings.mcpWarning.message}</Text></Text><Text>{"  "}└ MCP servers:</Text>{contextWarnings.mcpWarning.details.map(_temp18)}</>}</Box>;
+    t39 = contextWarnings && (contextWarnings.claudeMdWarning || contextWarnings.agentWarning) && <Box flexDirection="column"><Text bold={true}>Context Usage Warnings</Text>{contextWarnings.claudeMdWarning && <><Text>└{" "}<Text color="warning">{figures.warning} {contextWarnings.claudeMdWarning.message}</Text></Text><Text>{"  "}└ Files:</Text>{contextWarnings.claudeMdWarning.details.map(_temp16)}</>}{contextWarnings.agentWarning && <><Text>└{" "}<Text color="warning">{figures.warning} {contextWarnings.agentWarning.message}</Text></Text><Text>{"  "}└ Top contributors:</Text>{contextWarnings.agentWarning.details.map(_temp17)}</>}</Box>;
     $[73] = contextWarnings;
     $[74] = t39;
   } else {
@@ -528,9 +517,6 @@ function _temp8(v) {
     ...result
   };
 }
-function _temp7(error) {
-  return error.mcpErrorMetadata === undefined;
-}
 function _temp6(diag) {
   const fetchDistTags = diag.installationType === "native" ? getGcsDistTags : getNpmDistTags;
   return fetchDistTags().catch(_temp5);
@@ -543,9 +529,6 @@ function _temp5() {
 }
 function _temp3(s_1) {
   return s_1.toolPermissionContext;
-}
-function _temp2(s_0) {
-  return s_0.mcp.tools;
 }
 function _temp(s) {
   return s.agentDefinitions;

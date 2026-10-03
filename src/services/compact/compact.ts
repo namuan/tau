@@ -36,7 +36,6 @@ import {
   generateFileAttachment,
   getAgentListingDeltaAttachment,
   getDeferredToolsDeltaAttachment,
-  getMcpInstructionsDeltaAttachment,
 } from '../../utils/attachments.js'
 import { getMemoryPath } from '../../utils/config.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
@@ -591,14 +590,6 @@ export async function compactConversation(
     for (const att of getAgentListingDeltaAttachment(context, [])) {
       postCompactFileAttachments.push(createAttachmentMessage(att))
     }
-    for (const att of getMcpInstructionsDeltaAttachment(
-      context.options.mcpClients,
-      context.options.tools,
-      context.options.mainLoopModel,
-      [],
-    )) {
-      postCompactFileAttachments.push(createAttachmentMessage(att))
-    }
 
     context.onCompactProgress?.({
       type: 'hooks_start',
@@ -1067,14 +1058,6 @@ export async function partialCompactConversation(
     for (const att of getAgentListingDeltaAttachment(context, messagesToKeep)) {
       postCompactFileAttachments.push(createAttachmentMessage(att))
     }
-    for (const att of getMcpInstructionsDeltaAttachment(
-      context.options.mcpClients,
-      context.options.tools,
-      context.options.mainLoopModel,
-      messagesToKeep,
-    )) {
-      postCompactFileAttachments.push(createAttachmentMessage(att))
-    }
 
     context.onCompactProgress?.({
       type: 'hooks_start',
@@ -1388,7 +1371,6 @@ async function streamCompactSummary({
       context.setResponseLength?.(() => 0)
 
       // Check if tool search is enabled using the main loop's tools list.
-      // context.options.tools includes MCP tools merged via useMergedTools.
       const useToolSearch = await isToolSearchEnabled(
         context.options.mainLoopModel,
         context.options.tools,
@@ -1397,23 +1379,8 @@ async function streamCompactSummary({
         'compact',
       )
 
-      // When tool search is enabled, include ToolSearchTool and MCP tools. They get
-      // defer_loading: true and don't count against context - the API filters them out
-      // of system_prompt_tools before token counting (see api/token_count_api/counting.py:188
-      // and api/public_api/messages/handler.py:324).
-      // Filter MCP tools from context.options.tools (not appState.mcp.tools) so we
-      // get the permission-filtered set from useMergedTools — same source used for
-      // isToolSearchEnabled above and normalizeMessagesForAPI below.
-      // Deduplicate by name to avoid API errors when MCP tools share names with built-in tools.
       const tools: Tool[] = useToolSearch
-        ? uniqBy(
-            [
-              FileReadTool,
-              ToolSearchTool,
-              ...context.options.tools.filter(t => t.isMcp),
-            ],
-            'name',
-          )
+        ? [FileReadTool, ToolSearchTool]
         : [FileReadTool]
 
       const streamingGen = queryModelWithStreaming({
@@ -1447,7 +1414,6 @@ async function streamCompactSummary({
           ),
           querySource: 'compact',
           agents: context.options.agentDefinitions.activeAgents,
-          mcpTools: [],
           effortValue: appState.effortValue,
         },
       })

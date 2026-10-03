@@ -19,11 +19,6 @@ import {
   runFirecrawlWebSearch,
   type FirecrawlSearchHit,
 } from './firecrawl.js'
-import {
-  runMcpWebSearch,
-  type McpWebSearchHit,
-  type McpWebSearchProvider,
-} from './mcpWebSearch.js'
 import { getWebSearchPrompt, WEB_SEARCH_TOOL_NAME } from './prompt.js'
 import {
   getToolUseSummary,
@@ -173,37 +168,6 @@ function makeOutputFromFirecrawlResponse(
         content: hits,
       },
     ],
-    durationSeconds,
-  }
-}
-
-function getMcpProviderLabel(provider: McpWebSearchProvider): string {
-  return provider === 'parallel' ? 'Parallel Web Search' : 'Exa Web Search'
-}
-
-function makeOutputFromMcpSearchResponse(
-  text: string,
-  hits: McpWebSearchHit[],
-  provider: McpWebSearchProvider,
-  query: string,
-  durationSeconds: number,
-): Output {
-  if (hits.length) {
-    return {
-      query,
-      results: [
-        {
-          tool_use_id: `mcp-search-${provider}-${Date.now()}`,
-          content: hits,
-        },
-      ],
-      durationSeconds,
-    }
-  }
-
-  return {
-    query,
-    results: [`${getMcpProviderLabel(provider)} results:\n\n${text}`],
     durationSeconds,
   }
 }
@@ -386,37 +350,6 @@ export const WebSearchTool = buildTool({
       }
     }
 
-    const runMcpSearch = async () => {
-      onProgress?.({
-        toolUseID: 'mcp-search-query',
-        data: {
-          type: 'query_update',
-          query,
-        },
-      })
-      const result = await runMcpWebSearch(
-        input,
-        context.abortController.signal,
-      )
-      onProgress?.({
-        toolUseID: 'mcp-search-results',
-        data: {
-          type: 'search_results_received',
-          resultCount: result.hits.length || 1,
-          query,
-        },
-      })
-      return {
-        data: makeOutputFromMcpSearchResponse(
-          result.text,
-          result.hits,
-          result.provider,
-          query,
-          result.durationSeconds,
-        ),
-      }
-    }
-
     const runAnthropicServerSearch = async () => {
       const userMessage = createUserMessage({
         content: 'Perform a web search for the query: ' + query,
@@ -450,8 +383,7 @@ export const WebSearchTool = buildTool({
           extraToolSchemas: [toolSchema],
           querySource: 'web_search_tool',
           agents: context.options.agentDefinitions.activeAgents,
-          mcpTools: [],
-          agentId: context.agentId,
+                    agentId: context.agentId,
           effortValue: appState.effortValue,
         },
       })
@@ -573,14 +505,6 @@ export const WebSearchTool = buildTool({
       }
     }
 
-    try {
-      return await runMcpSearch()
-    } catch (error) {
-      logError(error instanceof Error ? error : new Error(String(error)))
-      if (!supportsAnthropicServerWebSearch()) {
-        throw error
-      }
-    }
 
     return runAnthropicServerSearch()
   },

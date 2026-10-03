@@ -105,8 +105,8 @@ Opens an interactive picker for optional Tau prebuilt tools. Basic agent tools s
 **`/mode` - Switch Tau mode (cheap / normal)**
 One switch for how Tau operates, with a matching identity and accent color that cross-fades on change.
 
-- `cheap` - a compact core-tool contract. Optional tools, skills, agents, and MCP are all off AND hidden from the model (system prompt and listings included); folder configs (`.claude/skills`, `.claude/agents`, `.mcp.json`) are ignored. Repetitive guidance is enforced by runtime guards, large results are parked with bounded previews and paginated retrieval, and every provider receives the whole compact schema block up front - cheap never hides a tool behind a lookup, so the model always has real parameter schemas and the request prefix stays byte-stable. Soft bronze accents.
-- `normal` - default behavior. Your `/tools` toggles apply; MCP, skills, and agents load as configured. Standard theme.
+- `cheap` - a compact core-tool contract. Optional tools, skills, and agents are all off AND hidden from the model (system prompt and listings included); folder configs (`.claude/skills`, `.claude/agents`) are ignored. Repetitive guidance is enforced by runtime guards, large results are parked with bounded previews and paginated retrieval, and every provider receives the whole compact schema block up front - cheap never hides a tool behind a lookup, so the model always has real parameter schemas and the request prefix stays byte-stable. Soft bronze accents.
+- `normal` - default behavior. Your `/tools` toggles apply; skills and agents load as configured. Standard theme.
 - `full` - everything on. Every optional tool is enabled regardless of saved `/tools` toggles. Soft gold accents.
 
 ```

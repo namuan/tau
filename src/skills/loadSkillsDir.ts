@@ -176,8 +176,8 @@ function parseSkillPaths(frontmatter: FrontmatterData): string[] | undefined {
 }
 
 /**
- * Parses all skill frontmatter fields that are shared between file-based and
- * MCP skill loading. Caller supplies the resolved skill name and the
+ * Parses shared skill frontmatter fields. Caller supplies the resolved skill
+ * name and the
  * source/loadedFrom/baseDir/paths fields separately.
  */
 export function parseSkillFrontmatterFields(

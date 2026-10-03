@@ -154,7 +154,7 @@ export async function initUpstreamProxy(opts?: {
 
 /**
  * Env vars to merge into every agent subprocess. Empty when the proxy is
- * disabled. Called from subprocessEnv() so Bash/MCP/hooks all inherit the
+ * disabled. Called from subprocessEnv() so Bash/hooks all inherit the
  * same recipe.
  */
 export function getUpstreamProxyEnv(): Record<string, string> {

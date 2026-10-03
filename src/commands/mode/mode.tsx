@@ -41,8 +41,8 @@ type OnDone = (
 
 const MODE_SUMMARY: Record<PowerMode, string> = {
   cheap:
-    'core tools only — optional tools, skills, agents, and MCP are off and hidden from the model',
-  normal: 'default behavior — your /tools toggles, MCP, and skills apply',
+    'core tools only — optional tools, skills, and agents are off and hidden from the model',
+  normal: 'default behavior — your /tools toggles and skills apply',
   full: 'everything on — all optional tools enabled (/tools hidden; saved toggles return in normal mode)',
 }
 
@@ -110,7 +110,7 @@ export function applyPowerMode(
   // getPowerModeFromSettings reader — reactive or not — agrees immediately.
   setSessionPowerMode(next)
 
-  // Reactive settings for hooks (tool pool, MCP connections, footer chip).
+  // Reactive settings for hooks (tool pool, footer chip).
   setAppState(prev => ({
     ...prev,
     settings: {

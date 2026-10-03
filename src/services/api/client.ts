@@ -147,7 +147,7 @@ export async function getAnthropicClient({
   // ── Third-party (non-Anthropic) providers ──────────────────────────
   // Route to the provider shim BEFORE checking Bedrock/Vertex/Foundry.
   // The shim duck-types the Anthropic SDK interface so withRetry,
-  // streaming, and MCP tool loops all work unchanged.
+  // streaming, and tool execution all work unchanged.
   //
   // Auto-correct provider when the model clearly belongs to another.
   // Prevents "openai API error 404: gemini-3.1-pro-low does not exist"

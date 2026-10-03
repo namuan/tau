@@ -248,8 +248,7 @@ Rules:
       temperatureOverride: 0,
       agents: [],
       querySource: 'skill_improvement_apply',
-      mcpTools: [],
-    },
+          },
   })
 
   const responseText = extractTextContent(response.message.content).trim()

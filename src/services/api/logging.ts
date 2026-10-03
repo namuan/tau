@@ -665,8 +665,7 @@ export function logAPISuccessAndDuration({
           thinkingLen += block.thinking.length
         } else if (
           block.type === 'tool_use' ||
-          block.type === 'server_tool_use' ||
-          block.type === 'mcp_tool_use'
+          block.type === 'server_tool_use'
         ) {
           const inputLen = jsonStringify(block.input).length
           const sanitizedName = sanitizeToolNameForAnalytics(block.name)

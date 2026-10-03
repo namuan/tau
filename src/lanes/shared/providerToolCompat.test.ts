@@ -1,13 +1,3 @@
-/**
- * MCP bridge schema sanitizer tests — Gemini deep sanitization.
- *
- * Regression coverage for the v0.2.0-next field bug where an MCP tool
- * with `const` / `anyOf` inside `properties[N].value` triggered a 400:
- *   "Unknown name 'const' at ...parameters.properties[4].value.any_of[1]"
- *
- * Run:  bun run src/lanes/shared/mcp_bridge.test.ts
- */
-
 import { sanitizeSchemaForLane } from './providerToolCompat.js'
 
 let passed = 0
@@ -48,7 +38,7 @@ function deepContainsKey(obj: unknown, key: string): boolean {
 }
 
 function main(): void {
-  console.log('mcp_bridge gemini deep sanitizer:')
+  console.log('provider tool compatibility Gemini schema sanitizer:')
 
   // ── The exact failing shape from the 400 error ──────────────────
   test('strips const inside nested properties[N].value.any_of[i]', () => {

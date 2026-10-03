@@ -28,7 +28,6 @@ type CommandLike = { name: string; userInvocable?: boolean }
 
 export type SystemInitInputs = {
   tools: ReadonlyArray<{ name: string }>
-  mcpClients: ReadonlyArray<{ name: string; type: string }>
   model: string
   permissionMode: PermissionMode
   commands: ReadonlyArray<CommandLike>
@@ -55,10 +54,6 @@ export function buildSystemInitMessage(inputs: SystemInitInputs): SDKMessage {
     cwd: getCwd(),
     session_id: getSessionId(),
     tools: inputs.tools.map(tool => sdkCompatToolName(tool.name)),
-    mcp_servers: inputs.mcpClients.map(client => ({
-      name: client.name,
-      status: client.type,
-    })),
     model: inputs.model,
     permissionMode: inputs.permissionMode,
     slash_commands: inputs.commands

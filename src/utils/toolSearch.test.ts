@@ -242,26 +242,11 @@ test('ToolSearch repairs guessed parameter aliases without changing its public d
 
 const builtinToolFixture = {
   name: 'NotebookEdit',
-  isMcp: false,
   inputSchema: z.object({
     notebook_path: z.string(),
     new_source: z.string(),
     cell_type: z.enum(['code', 'markdown']).optional(),
   }),
-} as never
-
-const mcpToolFixture = {
-  name: 'mcp__github__create_issue',
-  isMcp: true,
-  inputSchema: z.object({}),
-  inputJSONSchema: {
-    type: 'object',
-    properties: {
-      repo: { type: 'string' },
-      title: { type: 'string' },
-    },
-    required: ['repo', 'title'],
-  },
 } as never
 
 test('blind deferred call runs when its arguments match the real schema', () => {
@@ -303,25 +288,6 @@ test('blind deferred call runs when its arguments match the real schema', () => 
     discoveryIsActive: true,
   })
   assert(retry.action === 'execute', 'schema-loaded retry stayed guarded')
-})
-
-test('blind MCP call is validated against the server-declared JSON schema', () => {
-  resetBlindCallValidatorCache()
-  const ok = checkBlindDeferredCallInput(mcpToolFixture, {
-    repo: 'a/b',
-    title: 'hello',
-  })
-  assert(ok.ok, 'a correct blind MCP call was refused')
-
-  const missing = checkBlindDeferredCallInput(mcpToolFixture, { repo: 'a/b' })
-  assert(!missing.ok, 'blind MCP call ran without a required argument')
-
-  const invented = checkBlindDeferredCallInput(mcpToolFixture, {
-    repo: 'a/b',
-    title: 'hello',
-    assignee: 'nobody',
-  })
-  assert(!invented.ok, 'blind MCP call ran with an invented argument')
 })
 
 console.log(`\n${passed} passed, ${failed} failed`)

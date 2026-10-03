@@ -18,7 +18,6 @@ export type PermissionPromptOption<T extends string> = {
 };
 export type ToolAnalyticsContext = {
   toolName: string;
-  isMcp: boolean;
 };
 export type PermissionPromptProps<T extends string> = {
   options: PermissionPromptOption<T>[];
@@ -134,7 +133,7 @@ export function PermissionPrompt(t0) {
   }
   const selectOptions = t3;
   let t4;
-  if ($[12] !== acceptInputMode || $[13] !== options || $[14] !== rejectInputMode || $[15] !== toolAnalyticsContext?.isMcp || $[16] !== toolAnalyticsContext?.toolName) {
+  if ($[12] !== acceptInputMode || $[13] !== options || $[14] !== rejectInputMode || $[16] !== toolAnalyticsContext?.toolName) {
     t4 = value_0 => {
       const option = options.find(opt_1 => opt_1.value === value_0);
       if (!option?.feedbackConfig) {
@@ -145,7 +144,6 @@ export function PermissionPrompt(t0) {
       } = option.feedbackConfig;
       const analyticsProps = {
         toolName: toolAnalyticsContext?.toolName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        isMcp: toolAnalyticsContext?.isMcp ?? false
       };
       if (type_0 === "accept") {
         if (acceptInputMode) {
@@ -172,7 +170,6 @@ export function PermissionPrompt(t0) {
     $[12] = acceptInputMode;
     $[13] = options;
     $[14] = rejectInputMode;
-    $[15] = toolAnalyticsContext?.isMcp;
     $[16] = toolAnalyticsContext?.toolName;
     $[17] = t4;
   } else {
@@ -180,7 +177,7 @@ export function PermissionPrompt(t0) {
   }
   const handleInputModeToggle = t4;
   let t5;
-  if ($[18] !== acceptFeedback || $[19] !== acceptFeedbackModeEntered || $[20] !== onSelect || $[21] !== options || $[22] !== rejectFeedback || $[23] !== rejectFeedbackModeEntered || $[24] !== toolAnalyticsContext?.isMcp || $[25] !== toolAnalyticsContext?.toolName) {
+  if ($[18] !== acceptFeedback || $[19] !== acceptFeedbackModeEntered || $[20] !== onSelect || $[21] !== options || $[22] !== rejectFeedback || $[23] !== rejectFeedbackModeEntered || $[25] !== toolAnalyticsContext?.toolName) {
     t5 = value_1 => {
       const option_0 = options.find(opt_2 => opt_2.value === value_1);
       if (!option_0) {
@@ -195,7 +192,6 @@ export function PermissionPrompt(t0) {
         }
         const analyticsProps_0 = {
           toolName: toolAnalyticsContext?.toolName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          isMcp: toolAnalyticsContext?.isMcp ?? false,
           has_instructions: !!trimmedFeedback,
           instructions_length: trimmedFeedback?.length ?? 0,
           entered_feedback_mode: option_0.feedbackConfig.type === "accept" ? acceptFeedbackModeEntered : rejectFeedbackModeEntered
@@ -216,7 +212,6 @@ export function PermissionPrompt(t0) {
     $[21] = options;
     $[22] = rejectFeedback;
     $[23] = rejectFeedbackModeEntered;
-    $[24] = toolAnalyticsContext?.isMcp;
     $[25] = toolAnalyticsContext?.toolName;
     $[26] = t5;
   } else {

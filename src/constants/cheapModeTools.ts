@@ -24,7 +24,7 @@ import { EVAL_TOOL_NAME } from '../tools/EvalTool/constants.js'
 
 /**
  * Core tool names kept in cheap power mode. Everything else — optional
- * prebuilt tools, agents, skills, MCP, and the auxiliary built-ins — is
+ * prebuilt tools, agents, skills, and the auxiliary built-ins — is
  * dropped so the request stays minimal. Conditional availability (embedded
  * search, todo v2, PowerShell platform gate) is handled upstream by
  * getAllBaseTools(); this set only needs to name the allowed core.

@@ -65,7 +65,6 @@ const RUN_FLAG_NAMES = [
   'TAU_ANTIGRAVITY_TRAJECTORY',
   'TAU_ANTIGRAVITY_KEEPALIVE',
   // Whether the claude.ai connectors (about 40 tools) join the prompt.
-  'ENABLE_CLAUDEAI_MCP_SERVERS',
 ] as const
 
 let _runRowWritten = false

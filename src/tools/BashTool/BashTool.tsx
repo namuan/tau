@@ -372,7 +372,7 @@ async function readPersistedTailSample(filePath: string, fileSize: number, headB
 const outputSchema = lazySchema(() => z.object({
   stdout: z.string().describe('The standard output of the command'),
   stderr: z.string().describe('The standard error output of the command'),
-  rawOutputPath: z.string().optional().describe('Path to raw output file for large MCP tool outputs'),
+  rawOutputPath: z.string().optional().describe('Path to raw output file for large tool outputs'),
   interrupted: z.boolean().describe('Whether the command was interrupted'),
   isImage: z.boolean().optional().describe('Flag to indicate if stdout contains image data'),
   backgroundTaskId: z.string().optional().describe('ID of the background task if command is running in background'),
@@ -664,16 +664,6 @@ export const BashTool = buildTool({
         return {
           result: false,
           message: detachedBackgroundMessage,
-          errorCode: 10
-        };
-      }
-    }
-    if (feature('MONITOR_TOOL') && !isBackgroundTasksDisabled && !input.run_in_background) {
-      const sleepPattern = detectBlockedSleepPattern(input.command);
-      if (sleepPattern !== null) {
-        return {
-          result: false,
-          message: `Blocked: ${sleepPattern}. Run blocking commands in the background with run_in_background: true — you'll get a completion notification when done. For streaming events (watching logs, polling APIs), use the Monitor tool. If you genuinely need a delay (rate limiting, deliberate pacing), keep it under 2 seconds.`,
           errorCode: 10
         };
       }

@@ -193,24 +193,6 @@ export const getHookEventMetadata = memoize(
         description:
           'Input to command is JSON with task_id, task_subject, task_description, teammate_name, and team_name.\nExit code 0 - stdout/stderr not shown\nExit code 2 - show stderr to model and prevent task completion\nOther exit codes - show stderr to user only',
       },
-      Elicitation: {
-        summary: 'When an MCP server requests user input (elicitation)',
-        description:
-          'Input to command is JSON with mcp_server_name, message, and requested_schema.\nOutput JSON with hookSpecificOutput containing action (accept/decline/cancel) and optional content.\nExit code 0 - use hook response if provided\nExit code 2 - deny the elicitation\nOther exit codes - show stderr to user only',
-        matcherMetadata: {
-          fieldToMatch: 'mcp_server_name',
-          values: [],
-        },
-      },
-      ElicitationResult: {
-        summary: 'After a user responds to an MCP elicitation',
-        description:
-          'Input to command is JSON with mcp_server_name, action, content, mode, and elicitation_id.\nOutput JSON with hookSpecificOutput containing optional action and content to override the response.\nExit code 0 - use hook response if provided\nExit code 2 - block the response (action becomes decline)\nOther exit codes - show stderr to user only',
-        matcherMetadata: {
-          fieldToMatch: 'mcp_server_name',
-          values: [],
-        },
-      },
       ConfigChange: {
         summary: 'When configuration files change during a session',
         description:

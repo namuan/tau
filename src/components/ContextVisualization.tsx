@@ -115,7 +115,6 @@ export function ContextVisualization(t0) {
     gridRows,
     model,
     memoryFiles,
-    mcpTools,
     deferredBuiltinTools: t1,
     systemTools,
     systemPromptSections,
@@ -133,18 +132,9 @@ export function ContextVisualization(t0) {
   let t7;
   let t8;
   let t9;
-  if ($[0] !== categories || $[1] !== gridRows || $[2] !== mcpTools || $[3] !== model || $[4] !== percentage || $[5] !== rawMaxTokens || $[6] !== systemTools || $[7] !== t1 || $[8] !== totalTokens) {
+  if ($[0] !== categories || $[1] !== gridRows || $[3] !== model || $[4] !== percentage || $[5] !== rawMaxTokens || $[6] !== systemTools || $[7] !== t1 || $[8] !== totalTokens) {
     const deferredBuiltinTools = t1 === undefined ? [] : t1;
     const visibleCategories = categories.filter(_temp);
-    let t10;
-    if ($[19] !== categories) {
-      t10 = categories.some(_temp2);
-      $[19] = categories;
-      $[20] = t10;
-    } else {
-      t10 = $[20];
-    }
-    const hasDeferredMcpTools = t10;
     const hasDeferredBuiltinTools = deferredBuiltinTools.length > 0;
     const autocompactCategory = categories.find(_temp3);
     T1 = Box;
@@ -262,18 +252,9 @@ export function ContextVisualization(t0) {
     T0 = Box;
     t2 = "column";
     t3 = -1;
-    if ($[51] !== hasDeferredMcpTools || $[52] !== mcpTools) {
-      t4 = mcpTools.length > 0 && <Box flexDirection="column" marginTop={1}><Box><Text bold={true}>MCP tools</Text><Text dimColor={true}>{" "}· /mcp{hasDeferredMcpTools ? " (loaded on-demand)" : ""}</Text></Box>{mcpTools.some(_temp9) && <Box flexDirection="column" marginTop={1}><Text dimColor={true}>Loaded</Text>{mcpTools.filter(_temp0).map(_temp1)}</Box>}{hasDeferredMcpTools && mcpTools.some(_temp10) && <Box flexDirection="column" marginTop={1}><Text dimColor={true}>Available</Text>{mcpTools.filter(_temp11).map(_temp12)}</Box>}{!hasDeferredMcpTools && mcpTools.map(_temp13)}</Box>;
-      $[51] = hasDeferredMcpTools;
-      $[52] = mcpTools;
-      $[53] = t4;
-    } else {
-      t4 = $[53];
-    }
     t5 = (systemTools && systemTools.length > 0 || hasDeferredBuiltinTools) && false && <Box flexDirection="column" marginTop={1}><Box><Text bold={true}>[ANT-ONLY] System tools</Text>{hasDeferredBuiltinTools && <Text dimColor={true}> (some loaded on-demand)</Text>}</Box><Box flexDirection="column" marginTop={1}><Text dimColor={true}>Loaded</Text>{systemTools?.map(_temp14)}{deferredBuiltinTools.filter(_temp15).map(_temp16)}</Box>{hasDeferredBuiltinTools && deferredBuiltinTools.some(_temp17) && <Box flexDirection="column" marginTop={1}><Text dimColor={true}>Available</Text>{deferredBuiltinTools.filter(_temp18).map(_temp19)}</Box>}</Box>;
     $[0] = categories;
     $[1] = gridRows;
-    $[2] = mcpTools;
     $[3] = model;
     $[4] = percentage;
     $[5] = rawMaxTokens;
@@ -343,8 +324,8 @@ export function ContextVisualization(t0) {
     t14 = $[63];
   }
   let t15;
-  if ($[64] !== T0 || $[65] !== t10 || $[66] !== t11 || $[67] !== t12 || $[68] !== t13 || $[69] !== t14 || $[70] !== t2 || $[71] !== t3 || $[72] !== t4 || $[73] !== t5) {
-    t15 = <T0 flexDirection={t2} marginLeft={t3}>{t4}{t5}{t10}{t11}{t12}{t13}{t14}</T0>;
+  if ($[64] !== T0 || $[65] !== t10 || $[66] !== t11 || $[67] !== t12 || $[68] !== t13 || $[69] !== t14 || $[70] !== t2 || $[71] !== t3 || $[73] !== t5) {
+    t15 = <T0 flexDirection={t2} marginLeft={t3}>{t5}{t10}{t11}{t12}{t13}{t14}</T0>;
     $[64] = T0;
     $[65] = t10;
     $[66] = t11;
@@ -353,7 +334,6 @@ export function ContextVisualization(t0) {
     $[69] = t14;
     $[70] = t2;
     $[71] = t3;
-    $[72] = t4;
     $[73] = t5;
     $[74] = t15;
   } else {
@@ -435,27 +415,13 @@ function _temp15(t_3) {
 function _temp14(tool_2, i_2) {
   return <Box key={`sys-${i_2}`}><Text>└ {tool_2.name}: </Text><Text dimColor={true}>{formatTokens(tool_2.tokens)} tokens</Text></Box>;
 }
-function _temp13(tool_1, i_1) {
-  return <Box key={i_1}><Text>└ {tool_1.name}: </Text><Text dimColor={true}>{formatTokens(tool_1.tokens)} tokens</Text></Box>;
-}
-function _temp12(tool_0, i_0) {
-  return <Box key={i_0}><Text dimColor={true}>└ {tool_0.name}</Text></Box>;
-}
-function _temp11(t_1) {
-  return !t_1.isLoaded;
-}
-function _temp10(t_2) {
-  return !t_2.isLoaded;
-}
-function _temp1(tool, i) {
-  return <Box key={i}><Text>└ {tool.name}: </Text><Text dimColor={true}>{formatTokens(tool.tokens)} tokens</Text></Box>;
-}
-function _temp0(t) {
-  return t.isLoaded;
-}
-function _temp9(t_0) {
-  return t_0.isLoaded;
-}
+
+
+
+
+
+
+
 function _temp8(c_0) {
   return c_0.name === "Free space";
 }
@@ -480,9 +446,7 @@ function _temp4(square, colIndex) {
 function _temp3(cat_1) {
   return cat_1.name === RESERVED_CATEGORY_NAME;
 }
-function _temp2(cat_0) {
-  return cat_0.isDeferred && cat_0.name.includes("MCP");
-}
+
 function _temp(cat) {
   return cat.tokens > 0 && cat.name !== "Free space" && cat.name !== RESERVED_CATEGORY_NAME && !cat.isDeferred;
 }

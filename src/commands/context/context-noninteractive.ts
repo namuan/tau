@@ -95,7 +95,6 @@ function formatContextAsMarkdownTable(data: ContextData): string {
     percentage,
     model,
     memoryFiles,
-    mcpTools,
     agents,
     skills,
     messageBreakdown,
@@ -185,17 +184,6 @@ function formatContextAsMarkdownTable(data: ContextData): string {
       output += `| Autocompact buffer | ${formatTokens(autocompactCategory.tokens)} | ${percentDisplay}% |\n`
     }
 
-    output += `\n`
-  }
-
-  // MCP tools
-  if (mcpTools.length > 0) {
-    output += `### MCP Tools\n\n`
-    output += `| Tool | Server | Tokens |\n`
-    output += `|------|--------|--------|\n`
-    for (const tool of mcpTools) {
-      output += `| ${tool.name} | ${tool.serverName} | ${formatTokens(tool.tokens)} |\n`
-    }
     output += `\n`
   }
 

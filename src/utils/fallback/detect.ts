@@ -10,7 +10,6 @@ import type { AssistantMessage } from '../../types/message.js'
  *
  * Intentionally excluded:
  *   - tool/Read/Write failures
- *   - MCP server failures
  *   - fetch/connection/timeout/abort errors
  *   - 400 invalid_request cases like prompt-too-long, PDFs, images, and
  *     tool_use mismatches
@@ -47,7 +46,6 @@ function hasOperationalFailureText(text: string): boolean {
       text,
     ) ||
     /\b(?:ECONNRESET|EPIPE|ECONNREFUSED|ENOTFOUND|ETIMEDOUT)\b/i.test(text) ||
-    /\bMCP\b/i.test(text) ||
     /\b(?:operation failed|failed operation)\b/i.test(text) ||
     /\btool[_\s-]?(?:use|result)\b/i.test(text) ||
     /\b(?:prompt is too long|request too large|image|pdf)\b/i.test(text)

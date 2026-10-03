@@ -29,7 +29,7 @@ import type {
 import {
   generateCursorBody,
   type NormalizedCursorMessage,
-  type EncodeMcpToolInput,
+  type EncodeCursorToolInput,
   type CursorContentPart,
 } from './protobuf.js'
 import {
@@ -71,7 +71,7 @@ export function buildCursorBody(params: BuildCursorBodyParams): Uint8Array {
   )
 }
 
-function _encodeTools(tools: ProviderTool[]): EncodeMcpToolInput[] {
+function _encodeTools(tools: ProviderTool[]): EncodeCursorToolInput[] {
   return buildCursorToolDefinitions(tools).map(t => ({
     name: t.name,
     description: (t.description && t.description.trim()) || `Tool: ${t.name}`,
@@ -81,7 +81,7 @@ function _encodeTools(tools: ProviderTool[]): EncodeMcpToolInput[] {
 
 function _buildCursorToolHint(
   originalTools: ProviderTool[],
-  encodedTools: EncodeMcpToolInput[],
+  encodedTools: EncodeCursorToolInput[],
 ): string {
   if (encodedTools.length === 0) return ''
   const toolNames = encodedTools.map(t => t.name).filter(Boolean)
@@ -91,7 +91,7 @@ function _buildCursorToolHint(
     .filter(name => CURSOR_NATIVE_TOOL_HINT_NAMES.has(name))
   return [
     '[Cursor Tool Surface]',
-    'You are running inside Tau through the native Cursor provider. The tools advertised in this request are active and callable; do not claim that workspace, shell, MCP, skill, task, or agent tools are unavailable when their names are listed.',
+    'You are running inside Tau through the native Cursor provider. The tools advertised in this request are active and callable; do not claim that workspace, shell, skill, task, or agent tools are unavailable when their names are listed.',
     `Available tool names include: ${shownToolNames.join(', ')}${toolNames.length > shownToolNames.length ? `, and ${toolNames.length - shownToolNames.length} more` : ''}.`,
     ...(nativeNames.length > 0
       ? [`Use Cursor-native tool names when calling these tools: ${nativeNames.join(', ')}.`]
@@ -99,7 +99,7 @@ function _buildCursorToolHint(
     ...(_buildCursorAliasGuide(originalTools)
       ? [_buildCursorAliasGuide(originalTools)]
       : []),
-    'Tau tools without a Cursor-native alias keep their advertised names, including Skill, TaskCreate, TaskUpdate, TaskList, TaskGet, EnterWorktree, ExitWorktree, and mcp__server__tool MCP names.',
+    'Tau tools without a Cursor-native alias keep their advertised names, including Skill, TaskCreate, TaskUpdate, TaskList, TaskGet, EnterWorktree, and ExitWorktree.',
     _buildCursorToolSelectionGuide(originalTools, encodedTools),
     _buildCursorPreconditionGuide(originalTools),
   ].join('\n')
@@ -122,15 +122,13 @@ const CURSOR_NATIVE_TOOL_HINT_NAMES = new Set([
   'enter_plan_mode',
   'create_plan',
   'exit_plan_mode',
-  'list_mcp_resources',
-  'read_mcp_resource',
   'task',
   'task_v2',
 ])
 
 function _buildCursorToolSelectionGuide(
   originalTools: ProviderTool[],
-  encodedTools: EncodeMcpToolInput[],
+  encodedTools: EncodeCursorToolInput[],
 ): string {
   const originalNames = new Set(originalTools.map(tool => tool.name))
   const encodedNames = new Set(encodedTools.map(tool => tool.name))
@@ -181,18 +179,6 @@ function _buildCursorToolSelectionGuide(
     hasEncoded('web_fetch') ? 'web_fetch (fetch a specific URL)' : null,
   ]))
 
-  addCategory('MCP', add([
-    hasEncoded('list_mcp_resources') ? 'list_mcp_resources (list MCP resources)' : null,
-    hasEncoded('read_mcp_resource') ? 'read_mcp_resource (read an MCP resource)' : null,
-  ]))
-
-  const mcpServerTools = originalTools
-    .map(tool => tool.name)
-    .filter(name => name.startsWith('mcp__'))
-  if (mcpServerTools.length > 0) {
-    lines.push(`- MCP server tools: ${mcpServerTools.length} tool(s) named mcp__* are available; use the exact tool name shown when you need a specific MCP server tool.`)
-  }
-
   if (lines.length === 0) return ''
 
   return [
@@ -216,10 +202,6 @@ function _buildCursorPreconditionGuide(originalTools: ProviderTool[]): string {
 
   if (originalNames.has('Bash')) {
     lines.push('When repo state is uncertain, run git rev-parse --is-inside-work-tree before git diff, git status, or other git-only commands.')
-  }
-
-  if (originalTools.some(tool => tool.name.startsWith('mcp__'))) {
-    lines.push('For mcp__server__tool calls, follow the advertised JSON schema exactly. If a tool asks for a named string field, send that exact key rather than a generic query key.')
   }
 
   if (lines.length === 0) return ''

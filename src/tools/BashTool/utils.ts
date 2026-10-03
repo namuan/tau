@@ -193,7 +193,7 @@ export function resetCwdIfOutsideProject(
 
 /**
  * Creates a human-readable summary of structured content blocks.
- * Used to display MCP results with images and text in the UI.
+ * Used to display structured tool results with images and text in the UI.
  */
 export function createContentSummary(content: ContentBlockParam[]): string {
   const parts: string[] = []
@@ -219,5 +219,5 @@ export function createContentSummary(content: ContentBlockParam[]): string {
     summary.push(`[${textCount} text ${plural(textCount, 'block')}]`)
   }
 
-  return `MCP Result: ${summary.join(', ')}${parts.length > 0 ? '\n\n' + parts.join('\n\n') : ''}`
+  return `Tool result: ${summary.join(', ')}${parts.length > 0 ? '\n\n' + parts.join('\n\n') : ''}`
 }

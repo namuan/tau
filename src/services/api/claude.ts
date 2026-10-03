@@ -181,7 +181,6 @@ import {
 } from 'src/utils/fastMode.js'
 import { returnValue } from 'src/utils/generators.js'
 import { headlessProfilerCheckpoint } from 'src/utils/headlessProfiler.js'
-import { isMcpInstructionsDeltaEnabled } from 'src/utils/mcpInstructionsDelta.js'
 import { calculateUSDCost } from 'src/utils/modelCost.js'
 import { endQueryProfile, queryCheckpoint } from 'src/utils/queryProfiler.js'
 import {
@@ -811,8 +810,6 @@ export type Options = {
   skipCacheWrite?: boolean
   temperatureOverride?: number
   effortValue?: EffortValue
-  mcpTools: Tools
-  hasPendingMcpServers?: boolean
   queryTracking?: QueryChainTracking
   agentId?: AgentId // Only set for subagents
   outputFormat?: BetaJSONOutputFormat
@@ -1162,9 +1159,7 @@ function hasUsableAnthropicContent(content: unknown): boolean {
     }
 
     if (
-      record.type === 'tool_use' ||
-      record.type === 'server_tool_use' ||
-      record.type === 'mcp_tool_use'
+      record.type === 'tool_use' || record.type === 'server_tool_use'
     ) {
       hasVisibleTextOrToolUse = true
       continue
@@ -1174,7 +1169,6 @@ function hasUsableAnthropicContent(content: unknown): boolean {
       record.type === 'thinking' ||
       record.type === 'redacted_thinking' ||
       record.type === 'code_execution_tool_result' ||
-      record.type === 'mcp_tool_result' ||
       record.type === 'container_upload'
     ) {
       continue
@@ -1587,7 +1581,7 @@ async function* queryModel(
   }
 
   // Check if tool search is enabled (checks mode, model support, and threshold for auto mode)
-  // This is async because it may need to calculate MCP tool description sizes for TstAuto mode
+  // This is async because it may need to calculate deferred tool description sizes for TstAuto mode
   let useToolSearch = await isToolSearchEnabled(
     options.model,
     tools,
@@ -1618,14 +1612,8 @@ async function* queryModel(
     }
   }
 
-  // Even if tool search mode is enabled, skip if there are no deferred tools
-  // AND no MCP servers are still connecting. When servers are pending, keep
-  // ToolSearch available so the model can discover tools after they connect.
-  if (
-    useToolSearch &&
-    deferredToolNames.size === 0 &&
-    !options.hasPendingMcpServers
-  ) {
+  // Skip tool search when there are no deferred tools available.
+  if (useToolSearch && deferredToolNames.size === 0) {
     logForDebugging(
       'Tool search disabled: no deferred tools available to search',
     )
@@ -1637,11 +1625,7 @@ async function* queryModel(
     )
     useNativeLaneToolSearch = false
   }
-  if (
-    useNativeLaneToolSearch &&
-    deferredToolNames.size === 0 &&
-    !options.hasPendingMcpServers
-  ) {
+  if (useNativeLaneToolSearch && deferredToolNames.size === 0) {
     logForDebugging(
       'Native lane lazy tools disabled: no deferred tools available to search',
     )
@@ -1718,10 +1702,7 @@ async function* queryModel(
       : 'system_prompt'
     : 'none'
 
-  // Build tool schemas, adding defer_loading for MCP tools when tool search is enabled
-  // Note: We pass the full `tools` list (not filteredTools) to toolToAPISchema so that
-  // ToolSearchTool's prompt can list ALL available MCP tools. The filtering only affects
-  // which tools are actually sent to the API, not what the model sees in tool descriptions.
+  // Build tool schemas, including deferred tools when tool search is enabled.
   const toolSchemas = await Promise.all(
     filteredTools.map(tool =>
       toolToAPISchema(tool, {
@@ -1945,7 +1926,7 @@ async function* queryModel(
     // Exclude defer_loading tools from the hash -- the API strips them from the
     // prompt, so they never affect the actual cache key. Including them creates
     // false-positive "tool schemas changed" breaks when tools are discovered or
-    // MCP servers reconnect.
+    // tools are discovered or reconfigured.
     const toolsForCacheDetection = allTools.filter(
       t => !('defer_loading' in t && t.defer_loading),
     )

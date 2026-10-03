@@ -51,8 +51,7 @@ export function SkillsMenu(t0) {
       userSettings: [],
       projectSettings: [],
       localSettings: [],
-      flagSettings: [],
-      mcp: []
+      flagSettings: []
     };
     for (const skill of skills) {
       const source = skill.source as SkillSource;
@@ -161,7 +160,7 @@ export function SkillsMenu(t0) {
   }
   let t11;
   if ($[22] !== renderSkillGroup) {
-    t11 = renderSkillGroup("mcp");
+    t11 = null;
     $[22] = renderSkillGroup;
     $[23] = t11;
   } else {

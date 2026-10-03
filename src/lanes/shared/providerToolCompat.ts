@@ -1,25 +1,19 @@
 /**
- * Shared MCP bridge.
+ * Shared provider tool compatibility.
  *
- * MCP servers expose tools via JSON-Schema 2020-12. Each lane's provider
- * accepts a *subset* of that schema vocabulary — requesting unsupported
- * keywords trips 400s at varying points in the pipeline, quietly breaks
- * tool-calling on some models, or produces tools the model can't actually
- * invoke because the schema shape is foreign.
+ * Provider APIs accept different subsets of JSON Schema. Requesting unsupported
+ * keywords can cause API errors or produce tools the model cannot invoke.
  *
- * This module is the single place where we normalize MCP tool schemas
- * into each lane's accepted subset. Adding a new lane = add one row to
- * the strip-list map.
+ * This module normalizes tool schemas into each lane's accepted subset.
  *
  * Reference behaviors:
- *   - gemini-cli's mcp-tool.ts sanitizer (Gemini subset)
- *   - codex-rs/codex-mcp/src/mcp_tool_names.rs (Responses API subset)
+ *   - Gemini's provider schema sanitizer
+ *   - Codex Responses API schema conventions
  *   - litellm/groq + claude-code-router/groq transformers (Groq subset)
  *   - OpenAI strict-mode tool-schema restrictions
  */
 
 import type { ProviderTool } from '../../services/api/providers/base_provider.js'
-import { MCP_INSTRUCTION_UPDATES_GUIDANCE } from '../../constants/mcpInstructions.js'
 import { sanitizeGeminiToolParameters } from './gemini_schema.js'
 import { walkSchemaByPosition } from './schema_positions.js'
 
@@ -106,7 +100,7 @@ const DROP_BY_PROFILE: Record<LaneSchemaProfile, Set<string>> = {
 
 /**
  * Sanitize a JSON Schema for the target lane. Returns a fresh object —
- * never mutates the input. Safe to call on MCP schemas before forwarding.
+ * never mutates the input. Safe to call on provider schemas before forwarding.
  *
  * The walk is schema-position aware (see schema_positions.ts): drop-list
  * filtering applies only where a key really is a schema keyword, so a tool
@@ -130,7 +124,7 @@ export function sanitizeSchemaForLane(
   const result = walkSchemaByPosition(schema, (key, value, recurse) => {
     if (drop.has(key)) return undefined
     // OpenAPI 3.0 vendor extensions (x-google-enum-descriptions, x-stripe-*,
-    // x-aws-*, …) leak in from MCP tool schemas. Strict validators on
+    // x-aws-*, …) leak in from provider tool schemas. Strict validators on
     // Gemini/Mistral/OpenAI-strict 400 on unknown fields, so strip the
     // whole x-* family for every non-gemini profile too.
     if (key.startsWith('x-')) return undefined
@@ -182,15 +176,12 @@ export function sanitizeSchemaForLane(
  * Keep each preamble SHORT — every byte lands on every turn.
  */
 export const GEMINI_TOOL_USAGE_RULES = `<TOOL_USAGE_RULES>
-${MCP_INSTRUCTION_UPDATES_GUIDANCE}
-
 Tool schemas OVERRIDE training memory. Treat each tool's "parameters" as authoritative:
 - Use parameter NAMES exactly as listed in "properties" (case-sensitive).
 - Supply EVERY parameter listed in "required"; never omit one, never send empty objects.
 - Match parameter TYPES exactly. Do not invent extra parameters.
 
 When a tool call fails, diagnose: read exit code/error text, verify binaries/paths/shell, check --help/docs, then make one corrected retry. Keep balance: don't retry blindly, don't abandon a viable approach after one failure, and don't punt/paste commands to the user. If you start a background retry, monitor output; don't end with only "retry started".
-Bash autonomy: run them yourself. Skill tool: use relevant skills; Only use listed skills. Agent tool: use matching subagent_type. MCP: \`claude mcp add\`/list/remove are normal Bash commands; run them.
 </TOOL_USAGE_RULES>
 `
 
@@ -200,8 +191,6 @@ Bash autonomy: run them yourself. Skill tool: use relevant skills; Only use list
  * exactly, apply_patch is the edit primitive."
  */
 export const CODEX_TOOL_USAGE_RULES = `<tool_use_rules>
-${MCP_INSTRUCTION_UPDATES_GUIDANCE}
-
 Tool parameter schemas are authoritative. Never call a tool with missing required fields, never send empty arguments, never invent extra parameters. Parameter names are case-sensitive — copy them exactly from "properties". Match parameter types exactly (array means array, object means object, string means string).
 
 Each tool description ends with a "STRICT PARAMETERS:" line listing required fields first. Use it as your quick reference before you emit the call.
@@ -218,8 +207,6 @@ When a shell or tool call fails, diagnose first: exit code, error text, binary/p
  * prompt reminder does more of the enforcement work.
  */
 export const KIRO_TOOL_USAGE_RULES = `<tool_usage_rules>
-${MCP_INSTRUCTION_UPDATES_GUIDANCE}
-
 Tool schemas are authoritative. For every tool call:
 - include every field listed in "required"
 - use parameter names exactly as declared in "properties"
@@ -239,8 +226,6 @@ When a tool call fails, diagnose first — exit code, error text, what's actuall
  * schema field names. Extra nudge on case-sensitivity + required fields.
  */
 export const QWEN_TOOL_USAGE_RULES = `<tool_usage>
-${MCP_INSTRUCTION_UPDATES_GUIDANCE}
-
 Tool schemas are authoritative — they override anything you remember from training data about tool names or shapes.
 
 Rules for every tool call:
@@ -262,8 +247,6 @@ When a command fails, diagnose first — read the exit code (127=not found, 2=mi
  */
 export function buildOpenAICompatToolUsageRules(discovery = true): string {
   return `<tool_usage_rules>
-${MCP_INSTRUCTION_UPDATES_GUIDANCE}
-
 Tool parameter schemas are authoritative. Before every tool call:
 - Fill in every parameter listed in "required". Never send empty {} when the schema requires fields.
 - Use parameter names exactly as they appear in "properties" (case-sensitive).
@@ -381,7 +364,7 @@ export function appendStrictParamsHint(
 }
 
 /**
- * Normalize a MCP ProviderTool for a given lane. Returns a tool shape
+ * Normalize a provider tool for a given lane. Returns a tool shape
  * compatible with that lane's tool registration format.
  *
  *   Gemini:  { name, description, parameters }
@@ -419,32 +402,4 @@ export function buildLaneTool(
         },
       }
   }
-}
-
-/**
- * MCP tool namespacing. Codex Rust uses `mcp_<server>_<tool>`;
- * gemini-cli uses the same. Keep the convention uniform across lanes
- * so a single dispatch map works regardless of which lane invokes.
- */
-export const MCP_TOOL_PREFIX = 'mcp_'
-
-export function isMcpToolName(name: string): boolean {
-  return name.startsWith(MCP_TOOL_PREFIX)
-}
-
-export interface ParsedMcpToolName {
-  server: string
-  tool: string
-}
-
-export function parseMcpToolName(name: string): ParsedMcpToolName | null {
-  if (!isMcpToolName(name)) return null
-  const body = name.slice(MCP_TOOL_PREFIX.length)
-  const idx = body.indexOf('_')
-  if (idx <= 0) return null
-  return { server: body.slice(0, idx), tool: body.slice(idx + 1) }
-}
-
-export function buildMcpToolName(server: string, tool: string): string {
-  return `${MCP_TOOL_PREFIX}${server}_${tool}`
 }

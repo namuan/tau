@@ -35,12 +35,6 @@ function getStdinOverride(): ReadStream | undefined {
     return undefined
   }
 
-  // Skip if running MCP (input hijacking breaks MCP)
-  if (process.argv.includes('mcp')) {
-    cachedStdinOverride = undefined
-    return undefined
-  }
-
   // On Windows, try CONIN$ — the console input pseudo-file, equivalent
   // to Unix /dev/tty. This works even when process.stdin is a pipe
   // (e.g., npm .cmd shims, Bun-compiled binaries).

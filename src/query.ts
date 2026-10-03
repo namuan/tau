@@ -70,7 +70,6 @@ import {
   createAttachmentMessage,
   filterDuplicateMemoryAttachments,
   getAttachmentMessages,
-  getMcpInstructionsDeltaAttachment,
   startRelevantMemoryPrefetch,
 } from './utils/attachments.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -608,31 +607,6 @@ async function* queryLoop(
       }
     }
 
-    // MCP server instructions go out with the tools they describe: diffed
-    // against what this conversation was already told, from the same server
-    // list this request's tools came from, and appended to the newest message
-    // so no earlier byte changes. Conversations only (main thread, SDK,
-    // agents); helper forks resend a conversation's prefix as it stands.
-    if (isConversationQuerySource(querySource)) {
-      const fresh = toolUseContext.options.refreshMcpContext?.()
-      if (fresh) {
-        toolUseContext = {
-          ...toolUseContext,
-          options: { ...toolUseContext.options, ...fresh },
-        }
-      }
-      for (const attachment of getMcpInstructionsDeltaAttachment(
-        toolUseContext.options.mcpClients,
-        toolUseContext.options.tools,
-        toolUseContext.options.mainLoopModel,
-        messagesForQuery,
-      )) {
-        const message = createAttachmentMessage(attachment)
-        yield message
-        messagesForQuery = [...messagesForQuery, message]
-      }
-    }
-
     //TODO: no need to set toolUseContext.messages during set-up since it is updated here
     toolUseContext = {
       ...toolUseContext,
@@ -897,10 +871,6 @@ async function* queryLoop(
                 !!toolUseContext.options.appendSystemPrompt,
               maxOutputTokensOverride,
               fetchOverride: dumpPromptsFetch,
-              mcpTools: appState.mcp.tools,
-              hasPendingMcpServers: appState.mcp.clients.some(
-                c => c.type === 'pending',
-              ),
               queryTracking,
               effortValue: currentEffortValue,
               advisorModel: appState.advisorModel,
@@ -1524,7 +1494,7 @@ async function* queryLoop(
       if (lastMessage?.isApiErrorMessage) {
         // Configured /fallback chain: only provider API/auth/quota/status
         // failures route through fallback (see isFallbackEligibleAPIErrorMessage).
-        // Tool, MCP, fetch, invalid_request, prompt_too_long, image, etc.
+        // Tool, fetch, invalid_request, prompt_too_long, image, etc.
         // fall through to the normal stop-hook + return path.
         if (
           fallbackAllowed &&
@@ -2019,12 +1989,7 @@ async function* queryLoop(
       }
     }
 
-    // Legacy tool-only refresh. Contexts with an atomic MCP refresh read both
-    // pools immediately before the next request, after any compaction awaits.
-    if (
-      updatedToolUseContext.options.refreshTools &&
-      !updatedToolUseContext.options.refreshMcpContext
-    ) {
+    if (updatedToolUseContext.options.refreshTools) {
       const refreshedTools = updatedToolUseContext.options.refreshTools()
       if (refreshedTools !== updatedToolUseContext.options.tools) {
         updatedToolUseContext = {

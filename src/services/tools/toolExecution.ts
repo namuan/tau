@@ -2,8 +2,6 @@ import { feature } from 'bun:bundle'
 import { randomUUID } from 'node:crypto'
 import type {
   ContentBlockParam,
-  ImageBlockParam,
-  TextBlockParam,
   ToolResultBlockParam,
   ToolUseBlock,
 } from '@anthropic-ai/sdk/resources/index.mjs'
@@ -12,13 +10,11 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import {
-  extractMcpToolDetails,
   extractSkillName,
   extractToolInputForTelemetry,
   getFileExtensionForAnalytics,
   getFileExtensionsFromBashCommand,
   isToolDetailsLoggingEnabled,
-  mcpToolDetailsForAnalytics,
   sanitizeToolNameForAnalytics,
 } from 'src/services/analytics/metadata.js'
 import {
@@ -141,42 +137,10 @@ import {
   type BlindCallCheck,
   checkBlindDeferredCallInput,
 } from '../../utils/blindToolCallValidation.js'
-import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
-import { coerceMcpInput } from '../mcp/coerceMcpInput.js'
-import {
-  checkMcpArguments,
-  contractArgumentJudge,
-} from '../mcp/contractValidation.js'
-import {
-  decodeStatusOf,
-  describeDecodeFailure,
-} from '../mcp/decodeStatus.js'
+import { decodeStatusOf, describeDecodeFailure } from '../../utils/toolDecodeStatus.js'
 import { blindCallRecoveryHint } from '../../utils/toolSearchCallDecision.js'
 import { getLazyToolCallDecision } from '../../utils/toolSearchCallGuard.js'
 import { normalizeToolSearchInput } from '../../utils/toolSearchInput.js'
-import {
-  McpAuthError,
-  McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from '../mcp/client.js'
-import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
-import { normalizeNameForMCP } from '../mcp/normalization.js'
-import {
-  describeOutcome,
-  failedOutcome,
-  finalizeOutcome,
-  isRepeatedFailingCall,
-  refusedOutcome,
-} from '../mcp/outcomes.js'
-import {
-  getBinaryBlobSavedMessage,
-  persistBinaryContent,
-} from '../../utils/binaryContentStorage.js'
-import type { MCPServerConnection } from '../mcp/types.js'
-import {
-  getLoggingSafeMcpBaseUrl,
-  getMcpServerScopeFromToolName,
-  isMcpTool,
-} from '../mcp/utils.js'
 import {
   resolveHookPermissionDecision,
   runPostToolUseFailureHooks,
@@ -323,109 +287,6 @@ export type MessageUpdateLazy<M extends Message = Message> = {
   }
 }
 
-export type McpServerType =
-  | 'stdio'
-  | 'sse'
-  | 'http'
-  | 'ws'
-  | 'sdk'
-  | 'claudeai-proxy'
-  | undefined
-
-function findMcpServerConnection(
-  toolName: string,
-  mcpClients: MCPServerConnection[],
-): MCPServerConnection | undefined {
-  if (!toolName.startsWith('mcp__')) {
-    return undefined
-  }
-
-  const mcpInfo = mcpInfoFromString(toolName)
-  if (!mcpInfo) {
-    return undefined
-  }
-
-  // mcpInfo.serverName is normalized (e.g., "claude_ai_Slack"), but client.name
-  // is the original name (e.g., "claude.ai Slack"). Normalize both for comparison.
-  return mcpClients.find(
-    client => normalizeNameForMCP(client.name) === mcpInfo.serverName,
-  )
-}
-
-/**
- * Extracts the MCP server transport type from a tool name.
- * Returns the server type (stdio, sse, http, ws, sdk, etc.) for MCP tools,
- * or undefined for built-in tools.
- */
-function getMcpServerType(
-  toolName: string,
-  mcpClients: MCPServerConnection[],
-): McpServerType {
-  const serverConnection = findMcpServerConnection(toolName, mcpClients)
-
-  if (serverConnection?.type === 'connected') {
-    // Handle stdio configs where type field is optional (defaults to 'stdio')
-    return serverConnection.config.type ?? 'stdio'
-  }
-
-  return undefined
-}
-
-/**
- * Extracts the MCP server base URL for a tool by looking up its server connection.
- * Returns undefined for stdio servers, built-in tools, or if the server is not connected.
- */
-function getMcpServerBaseUrlFromToolName(
-  toolName: string,
-  mcpClients: MCPServerConnection[],
-): string | undefined {
-  const serverConnection = findMcpServerConnection(toolName, mcpClients)
-  if (serverConnection?.type !== 'connected') {
-    return undefined
-  }
-  return getLoggingSafeMcpBaseUrl(serverConnection.config)
-}
-
-/**
- * Turn an image block bound for an error tool_result into a saved-file
- * reference.
- *
- * An error tool_result must be text-only, and the outbound sanitizer drops
- * non-text blocks without saying so — an image left in place would vanish
- * between the executor and the model. `callMCPTool` already persists binary
- * evidence this way for the normal path; this keeps the failure path's
- * evidence equally durable.
- *
- * Falls back to describing the image inline. A failure to save evidence must
- * not replace the server's diagnostic with a storage error.
- */
-async function persistErrorImageBlock(
-  source: Extract<ImageBlockParam['source'], { type: 'base64' }>,
-  toolName: string,
-): Promise<string> {
-  const { media_type: mediaType, data } = source
-  const sourceDescription = `[Error attachment from ${toolName}] `
-  try {
-    const bytes = Buffer.from(data, 'base64')
-    const result = await persistBinaryContent(
-      bytes,
-      mediaType,
-      `error-${normalizeNameForMCP(toolName)}-${randomUUID()}`,
-    )
-    if ('error' in result) {
-      return `${sourceDescription}Image evidence (${mediaType || 'unknown type'}, ${bytes.length} bytes) could not be saved to disk: ${result.error}`
-    }
-    return getBinaryBlobSavedMessage(
-      result.filepath,
-      mediaType,
-      result.size,
-      sourceDescription,
-    )
-  } catch (persistError) {
-    return `${sourceDescription}Image evidence could not be saved: ${formatError(persistError)}`
-  }
-}
-
 /**
  * Append the repeat-guard reminder to a tool_result block, in place.
  *
@@ -558,10 +419,8 @@ async function* runToolUseInner(
     // permission/call chain instead is what produced a read of an
     // out-of-scope variable, and a ReferenceError on every tool call.
     //
-    // Not gated on TAU_MCP_ARG_VALIDATION: a call whose arguments never
-    // arrived is not an argument-validation question, and it applies to
-    // built-in tools too, whose Zod schemas would accept the fragment that
-    // did arrive.
+    // A call whose arguments never arrived is not an argument-validation
+    // question; a partial object could otherwise pass a permissive schema.
     const content = describeDecodeFailure(toolName, decodeFailure)
     logForDebugging(`Incomplete tool arguments ${toolName}: ${toolUse.id}`)
     logEvent('tengu_tool_use_error', {
@@ -572,7 +431,6 @@ async function* runToolUseInner(
       toolName: sanitizeToolNameForAnalytics(toolName),
       toolUseID:
         toolUse.id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      isMcp: toolName.startsWith('mcp__'),
       queryChainId: toolUseContext.queryTracking
         ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       queryDepth: toolUseContext.queryTracking?.depth,
@@ -611,14 +469,6 @@ async function* runToolUseInner(
   }
   const messageId = assistantMessage.message.id
   const requestId = assistantMessage.requestId
-  const mcpServerType = getMcpServerType(
-    toolName,
-    toolUseContext.options.mcpClients,
-  )
-  const mcpServerBaseUrl = getMcpServerBaseUrlFromToolName(
-    toolName,
-    toolUseContext.options.mcpClients,
-  )
 
   // Check if the tool exists
   if (!tool) {
@@ -635,10 +485,7 @@ async function* runToolUseInner(
               type: 'tool_result',
               // `content` is already the plain sentence declared above, and
               // this result is informational (`is_error: false`), not a
-              // failure envelope. The text-only rule that applies to MCP error
-              // results is enforced where those are built, in
-              // `checkPermissionsAndCallTool`; its `errorText` is a local there
-              // and is not in scope in this function.
+              // failure envelope.
               content,
               is_error: false,
               tool_use_id: toolUse.id,
@@ -659,23 +506,13 @@ async function* runToolUseInner(
       toolName: sanitizedToolName,
       toolUseID:
         toolUse.id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      isMcp: toolName.startsWith('mcp__'),
       queryChainId: toolUseContext.queryTracking
         ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       queryDepth: toolUseContext.queryTracking?.depth,
-      ...(mcpServerType && {
-        mcpServerType:
-          mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-      ...(mcpServerBaseUrl && {
-        mcpServerBaseUrl:
-          mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
       ...(requestId && {
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(toolName, mcpServerType, mcpServerBaseUrl),
     })
     yield {
       message: createUserMessage({
@@ -701,28 +538,14 @@ async function* runToolUseInner(
         toolName: sanitizeToolNameForAnalytics(tool.name),
         toolUseID:
           toolUse.id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        isMcp: tool.isMcp ?? false,
 
         queryChainId: toolUseContext.queryTracking
           ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         queryDepth: toolUseContext.queryTracking?.depth,
-        ...(mcpServerType && {
-          mcpServerType:
-            mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
-        ...(mcpServerBaseUrl && {
-          mcpServerBaseUrl:
-            mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
         ...(requestId && {
           requestId:
             requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }),
-        ...mcpToolDetailsForAnalytics(
-          tool.name,
-          mcpServerType,
-          mcpServerBaseUrl,
-        ),
       })
       const content = createToolResultStopMessage(toolUse.id)
       content.content = withMemoryCorrectionHint(CANCEL_MESSAGE)
@@ -745,8 +568,6 @@ async function* runToolUseInner(
       assistantMessage,
       messageId,
       requestId,
-      mcpServerType,
-      mcpServerBaseUrl,
     )) {
       yield update
     }
@@ -754,19 +575,7 @@ async function* runToolUseInner(
     logError(error)
     const errorMessage = error instanceof Error ? error.message : String(error)
     const toolInfo = tool ? ` (${tool.name})` : ''
-    // Execution failures are handled by `checkPermissionsAndCallTool`'s own
-    // catch, so what reaches here is normally scaffolding that ran BEFORE
-    // dispatch — hence the `not_run` fallback rather than assuming a send.
-    // An error that crossed the transport carries its own outcome, and that
-    // always wins: the alternative is telling the model a timed-out write
-    // definitely did not happen.
-    const outcome = finalizeOutcome(
-      error,
-      refusedOutcome('validation', 'tool_setup_failed'),
-    )
-    const uncertainty =
-      outcome.outcome === 'unknown' ? ` ${describeOutcome(outcome)}` : ''
-    const detailedError = `Error calling tool${toolInfo}: ${errorMessage}${uncertainty}`
+    const detailedError = `Error calling tool${toolInfo}: ${errorMessage}`
 
     yield {
       message: createUserMessage({
@@ -794,8 +603,6 @@ function streamedCheckPermissionsAndCallTool(
   assistantMessage: AssistantMessage,
   messageId: string,
   requestId: string | undefined,
-  mcpServerType: McpServerType,
-  mcpServerBaseUrl: ReturnType<typeof getLoggingSafeMcpBaseUrl>,
 ): AsyncIterable<MessageUpdateLazy> {
   // This is a bit of a hack to get progress events and final results
   // into a single async iterable.
@@ -812,35 +619,19 @@ function streamedCheckPermissionsAndCallTool(
     assistantMessage,
     messageId,
     requestId,
-    mcpServerType,
-    mcpServerBaseUrl,
     progress => {
       logEvent('tengu_tool_use_progress', {
         messageID:
           messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         toolName: sanitizeToolNameForAnalytics(tool.name),
-        isMcp: tool.isMcp ?? false,
 
         queryChainId: toolUseContext.queryTracking
           ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         queryDepth: toolUseContext.queryTracking?.depth,
-        ...(mcpServerType && {
-          mcpServerType:
-            mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
-        ...(mcpServerBaseUrl && {
-          mcpServerBaseUrl:
-            mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
         ...(requestId && {
           requestId:
             requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }),
-        ...mcpToolDetailsForAnalytics(
-          tool.name,
-          mcpServerType,
-          mcpServerBaseUrl,
-        ),
       })
       stream.enqueue({
         message: createProgressMessage({
@@ -892,43 +683,6 @@ export function buildSchemaNotSentHint(
     `\n\nThis tool's schema was not sent to the API for the attempted call — it was not loaded in the request that produced this tool_use. ` +
     `This failed direct call will load ${tool.name}'s schema for the next request. Retry ${tool.name} directly using the expected schema above; do not call ${TOOL_SEARCH_TOOL_NAME} first.`
   )
-}
-
-/**
- * Prior attempts at one tool in this conversation, oldest first.
- *
- * Pairs each `tool_use` block with the `tool_result` that answered it, so a
- * caller can tell a run of failures from a recovered one. A `tool_use` with
- * no result yet is skipped: it is in flight, not an outcome.
- */
-function collectPriorAttempts(
-  messages: Message[],
-  toolName: string,
-): Array<{ input: unknown; failed: boolean }> {
-  const failedByToolUseId = new Map<string, boolean>()
-  for (const message of messages) {
-    if (message.type !== 'user') continue
-    const content = message.message.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      if (block.type !== 'tool_result') continue
-      failedByToolUseId.set(block.tool_use_id, block.is_error === true)
-    }
-  }
-
-  const attempts: Array<{ input: unknown; failed: boolean }> = []
-  for (const message of messages) {
-    if (message.type !== 'assistant') continue
-    const content = message.message.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      if (block.type !== 'tool_use' || block.name !== toolName) continue
-      const failed = failedByToolUseId.get(block.id)
-      if (failed === undefined) continue
-      attempts.push({ input: block.input, failed })
-    }
-  }
-  return attempts
 }
 
 function appendToolInputValidationRecoveryHint(
@@ -992,29 +746,18 @@ type ArgumentSchema = {
 /**
  * Read optional arguments that the contract rejects as the omissions they
  * stand for (see utils/placeholderArguments.ts), for every tool on every
- * lane. A built-in tool is judged by its Zod schema; an MCP tool by its
- * server's JSON Schema, with schema coercion rerun once a placeholder is out
- * of the way. A malformed advisory field (Tool.advisoryInputFields) that is
- * the only problem with a call is dropped the same way. Anything else comes
- * back untouched, so the usual validation error still reports it.
+ * lane. A malformed advisory field (Tool.advisoryInputFields) that is the
+ * only problem with a call is dropped the same way. Anything else comes back
+ * untouched, so the usual validation error still reports it.
  */
 export function repairOptionalToolArguments(
   tool: Pick<Tool, 'advisoryInputFields'>,
   schema: ArgumentSchema,
   input: Record<string, unknown>,
-  mcpContract?: Record<string, unknown>,
 ): ArgumentRepair {
-  return dropInvalidPlaceholderArguments(
-    input,
-    mcpContract ? contractArgumentJudge(mcpContract) : zodArgumentJudge(schema),
-    {
-      advisoryFields: tool.advisoryInputFields,
-      ...(mcpContract && {
-        normalize: (value: Record<string, unknown>) =>
-          coerceMcpInput(value, mcpContract) as Record<string, unknown>,
-      }),
-    },
-  )
+  return dropInvalidPlaceholderArguments(input, zodArgumentJudge(schema), {
+    advisoryFields: tool.advisoryInputFields,
+  })
 }
 
 /** The top-level arguments a tool's contract requires, or null if unreadable. */
@@ -1112,8 +855,6 @@ async function checkPermissionsAndCallTool(
   assistantMessage: AssistantMessage,
   messageId: string,
   requestId: string | undefined,
-  mcpServerType: McpServerType,
-  mcpServerBaseUrl: ReturnType<typeof getLoggingSafeMcpBaseUrl>,
   onToolProgress: (
     progress: ToolProgress<ToolProgressData> | ProgressMessage<HookProgress>,
   ) => void,
@@ -1140,7 +881,6 @@ async function checkPermissionsAndCallTool(
     )
     logEvent('tengu_deferred_tool_blind_call_blocked', {
       toolName: sanitizeToolNameForAnalytics(tool.name),
-      isMcp: tool.isMcp ?? false,
     })
     return [
       {
@@ -1160,16 +900,8 @@ async function checkPermissionsAndCallTool(
     ]
   }
 
-  // Validate input types with zod (surprisingly, the model is not great at generating valid input).
-  // Use .strip() mode: silently drop unknown properties instead of rejecting.
-  // Third-party models (Gemini, DeepSeek, etc.) frequently hallucinate extra
-  // params from their native tool schemas (e.g., multiSelect on AskUserQuestion).
-  // Stripping is safe for tools with defined Zod schemas — unknown props can't
-  // affect tool behavior. But tools that carry a dynamic `inputJSONSchema`
-  // (MCP tools, SyntheticOutputTool) use `z.object({}).passthrough()` as a
-  // placeholder Zod schema; calling .strip() on that drops EVERY argument
-  // because no keys are defined in the Zod layer. Those tools validate against
-  // `inputJSONSchema` elsewhere (MCP server-side; Ajv in SyntheticOutputTool).
+  // Strip unknown fields from declared schemas while preserving arguments for
+  // tools with dynamic JSON schemas.
   const hasDynamicJsonSchema = 'inputJSONSchema' in tool && !!tool.inputJSONSchema
   const strippedSchema =
     !hasDynamicJsonSchema && tool.inputSchema instanceof Object && 'strip' in tool.inputSchema
@@ -1187,29 +919,7 @@ async function checkPermissionsAndCallTool(
     normalizedInput as Record<string, unknown>,
     tool.inputSchema,
   )
-  // coerceToolInput reads the expected types off the tool's Zod schema, and
-  // every MCP tool shares MCPTool's placeholder `z.object({}).passthrough()`,
-  // which declares none — so for MCP it does nothing at all. Run the same
-  // recovery against the server's JSON Schema, which is where an MCP tool's
-  // real types live. Without it, a model emitting `{"batch": "[{...}]"` was
-  // repaired only on the Cline lane, which grew a private copy of this logic.
-  const coercedInput = (tool.isMcp ?? false)
-    ? (coerceMcpInput(zodCoercedInput, tool.inputJSONSchema) as Record<
-        string,
-        unknown
-      >)
-    : zodCoercedInput
-  // MCP tools stand in for their servers' real schemas with a passthrough
-  // Zod object, so Zod checks nothing about their arguments. Every MCP call
-  // is therefore validated against the server's own JSON Schema here — not
-  // only the blind ones, which is all that used to be checked.
-  //
-  // A blind call — produced by a request that never carried this tool's
-  // schema — additionally has unnamed properties rejected, since there they
-  // are more likely inventions than deliberate extras. TAU_MCP_ARG_VALIDATION=0
-  // falls back to checking blind calls only.
-  const validateEveryMcpCall =
-    (tool.isMcp ?? false) && !isEnvDefinedFalsy(process.env.TAU_MCP_ARG_VALIDATION)
+  const coercedInput = zodCoercedInput
   const isBlindCall = lazyCallDecision.action === 'execute_unverified'
   // Models fill optional parameters they do not use with placeholders (null,
   // "", 0, false, [], {}), and strict-mode lanes make them send null for every
@@ -1217,17 +927,10 @@ async function checkPermissionsAndCallTool(
   // for rather than failing the whole call, and a malformed advisory field is
   // dropped the same way; the model is told what was ignored (see
   // addToolResult). Every other problem still fails the call exactly as before.
-  const mcpContract =
-    (tool.isMcp ?? false) &&
-    (validateEveryMcpCall || isBlindCall) &&
-    isPlainObject(tool.inputJSONSchema)
-      ? tool.inputJSONSchema
-      : undefined
   const argumentRepair = repairOptionalToolArguments(
     tool,
     strippedSchema,
     coercedInput,
-    mcpContract,
   )
   const validatedInput = argumentRepair.input
   let argumentNote = describeDroppedArguments(argumentRepair.dropped)
@@ -1238,12 +941,9 @@ async function checkPermissionsAndCallTool(
   }
   // A call whose arguments never arrived complete is refused earlier, in
   // runToolUseInner, which is where that status is in scope.
-  const blindCheck: BlindCallCheck =
-    validateEveryMcpCall || isBlindCall
-      ? (tool.isMcp ?? false)
-        ? checkMcpArguments(tool, validatedInput, { blind: isBlindCall })
-        : checkBlindDeferredCallInput(tool, validatedInput)
-      : { ok: true as const }
+  const blindCheck: BlindCallCheck = isBlindCall
+    ? checkBlindDeferredCallInput(tool, validatedInput)
+    : { ok: true as const }
 
   let parsedInput = strippedSchema.safeParse(validatedInput)
   if (!parsedInput.success || !blindCheck.ok) {
@@ -1279,7 +979,6 @@ async function checkPermissionsAndCallTool(
     if (schemaHint) {
       logEvent('tengu_deferred_tool_schema_not_sent', {
         toolName: sanitizeToolNameForAnalytics(tool.name),
-        isMcp: tool.isMcp ?? false,
       })
       errorContent += schemaHint
     }
@@ -1297,24 +996,14 @@ async function checkPermissionsAndCallTool(
       messageID:
         messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       toolName: sanitizeToolNameForAnalytics(tool.name),
-      isMcp: tool.isMcp ?? false,
 
       queryChainId: toolUseContext.queryTracking
         ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       queryDepth: toolUseContext.queryTracking?.depth,
-      ...(mcpServerType && {
-        mcpServerType:
-          mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-      ...(mcpServerBaseUrl && {
-        mcpServerBaseUrl:
-          mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
       ...(requestId && {
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
     })
     const hookMessages: MessageUpdateLazy<
       AttachmentMessage | ProgressMessage<HookProgress>
@@ -1328,8 +1017,6 @@ async function checkPermissionsAndCallTool(
       `${TOOL_INPUT_VALIDATION_ERROR_PREFIX}${errorContent}`,
       false,
       requestId,
-      mcpServerType,
-      mcpServerBaseUrl,
     )) {
       hookMessages.push(hookResult)
     }
@@ -1383,24 +1070,14 @@ async function checkPermissionsAndCallTool(
       error:
         isValidCall.message as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       errorCode: isValidCall.errorCode,
-      isMcp: tool.isMcp ?? false,
 
       queryChainId: toolUseContext.queryTracking
         ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       queryDepth: toolUseContext.queryTracking?.depth,
-      ...(mcpServerType && {
-        mcpServerType:
-          mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-      ...(mcpServerBaseUrl && {
-        mcpServerBaseUrl:
-          mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
       ...(requestId && {
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
     })
     return [
       {
@@ -1494,8 +1171,6 @@ async function checkPermissionsAndCallTool(
     toolUseID,
     assistantMessage.message.id,
     requestId,
-    mcpServerType,
-    mcpServerBaseUrl,
   )) {
     switch (result.type) {
       case 'message':
@@ -1696,19 +1371,10 @@ async function checkPermissionsAndCallTool(
       queryChainId: toolUseContext.queryTracking
         ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       queryDepth: toolUseContext.queryTracking?.depth,
-      ...(mcpServerType && {
-        mcpServerType:
-          mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-      ...(mcpServerBaseUrl && {
-        mcpServerBaseUrl:
-          mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
       ...(requestId && {
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
     })
     let errorMessage = permissionDecision.message
     // Only use generic "Execution stopped" message if we don't have a detailed hook message
@@ -1800,19 +1466,10 @@ async function checkPermissionsAndCallTool(
     queryChainId: toolUseContext.queryTracking
       ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     queryDepth: toolUseContext.queryTracking?.depth,
-    ...(mcpServerType && {
-      mcpServerType:
-        mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    ...(mcpServerBaseUrl && {
-      mcpServerBaseUrl:
-        mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
     ...(requestId && {
       requestId:
         requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     }),
-    ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
   })
 
   // Use the updated input from permissions if provided
@@ -1823,7 +1480,7 @@ async function checkPermissionsAndCallTool(
 
   // Prepare tool parameters for logging in tool_result event.
   // Gated by OTEL_LOG_TOOL_DETAILS — tool parameters can contain sensitive
-  // content (bash commands, MCP server names, etc.) so they're opt-in only.
+  // content such as bash commands, so they're opt-in only.
   const telemetryToolInput = extractToolInputForTelemetry(processedInput)
   let toolParameters: Record<string, unknown> = {}
   if (isToolDetailsLoggingEnabled()) {
@@ -1847,11 +1504,6 @@ async function checkPermissionsAndCallTool(
       }
     }
 
-    const mcpDetails = extractMcpToolDetails(tool.name)
-    if (mcpDetails) {
-      toolParameters.mcp_server_name = mcpDetails.serverName
-      toolParameters.mcp_tool_name = mcpDetails.mcpToolName
-    }
     const skillName = extractSkillName(tool.name, processedInput)
     if (skillName) {
       toolParameters.skill_name = skillName
@@ -1892,106 +1544,6 @@ async function checkPermissionsAndCallTool(
     } as typeof processedInput
   } else if (processedInput !== backfilledClone) {
     callInput = processedInput
-  }
-
-  // Loop guard, before the send.
-  //
-  // A strict server rejects a call, the model patches only the key the
-  // diagnostic named, sends again, is rejected for the next key, and repeats.
-  // Each payload differs, so nothing downstream sees a duplicate, while the
-  // call goes nowhere: observed as seven near-identical attempts, the last
-  // five with an identical top-level key set, ended only by the user
-  // interrupting. The prompt already asks the model to stop after two
-  // same-cause failures; this is the part that does not depend on it obeying.
-  //
-  // Refuses the attempt rather than the operation: the model is told to
-  // re-read the contract, and a genuinely different call still goes through.
-  if (tool.isMcp ?? false) {
-    const priorAttempts = collectPriorAttempts(
-      toolUseContext.messages,
-      tool.name,
-    )
-    if (isRepeatedFailingCall(priorAttempts, callInput)) {
-      const message =
-        `${tool.name} has failed ${priorAttempts.length} times in a row and this call repeats the same argument shape, so it was not sent. ` +
-        `Re-read the tool's schema and the last error together before trying again — the failures are about the shape of the call, not the values in it. ` +
-        `If the contract does not say what is expected, ask the user rather than trying another variation.`
-      logForDebugging(`Repeated failing call refused ${tool.name}: ${toolUseID}`)
-      logEvent('tengu_tool_use_error', {
-        error:
-          'RepeatedFailingCall' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        toolName: sanitizeToolNameForAnalytics(tool.name),
-        toolUseID:
-          toolUseID as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        isMcp: true,
-      })
-      return [
-        {
-          message: createUserMessage({
-            content: [
-              {
-                type: 'tool_result',
-                content: `<tool_use_error>${message}</tool_use_error>`,
-                is_error: true,
-                tool_use_id: toolUseID,
-              },
-            ],
-            toolUseResult: message,
-            sourceToolAssistantUUID: assistantMessage.uuid,
-          }),
-        },
-      ]
-    }
-  }
-
-  // Final contract guard, immediately before the send.
-  //
-  // MCP arguments were checked against the server's JSON Schema far earlier,
-  // on the input as it arrived. Hooks and permission handlers may replace it
-  // wholesale (`updatedInput`), and that replacement reached `tool.call`
-  // unverified — a handler could substitute arguments the server never
-  // agreed to, missing required fields and carrying forbidden ones.
-  //
-  // Re-check the ACTUAL object being sent. Reuses `checkMcpArguments`, the
-  // existing owner, rather than adding a second validator that could drift
-  // from it. Only runs when the input actually changed since that check, so
-  // an untouched call pays nothing and behaviour is unchanged for it.
-  if ((tool.isMcp ?? false) && callInput !== coercedInput) {
-    const finalCheck = checkMcpArguments(tool, callInput, {
-      blind: isBlindCall,
-    })
-    if (!finalCheck.ok) {
-      const message =
-        `${finalCheck.message} (the arguments were changed after they were ` +
-        `validated, so the call was not sent)`
-      logForDebugging(`Final MCP guard refused ${tool.name}: ${toolUseID}`)
-      logEvent('tengu_tool_use_error', {
-        error:
-          'McpFinalGuardRefused' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        errorDetails:
-          finalCheck.reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        toolName: sanitizeToolNameForAnalytics(tool.name),
-        toolUseID:
-          toolUseID as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        isMcp: true,
-      })
-      return [
-        {
-          message: createUserMessage({
-            content: [
-              {
-                type: 'tool_result',
-                content: `<tool_use_error>${message}</tool_use_error>`,
-                is_error: true,
-                tool_use_id: toolUseID,
-              },
-            ],
-            toolUseResult: message,
-            sourceToolAssistantUUID: assistantMessage.uuid,
-          }),
-        },
-      ]
-    }
   }
 
   try {
@@ -2123,7 +1675,6 @@ async function checkPermissionsAndCallTool(
       messageID:
         messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       toolName: sanitizeToolNameForAnalytics(tool.name),
-      isMcp: tool.isMcp ?? false,
       durationMs,
       preToolHookDurationMs,
       toolResultSizeBytes,
@@ -2132,19 +1683,10 @@ async function checkPermissionsAndCallTool(
       queryChainId: toolUseContext.queryTracking
         ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       queryDepth: toolUseContext.queryTracking?.depth,
-      ...(mcpServerType && {
-        mcpServerType:
-          mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-      ...(mcpServerBaseUrl && {
-        mcpServerBaseUrl:
-          mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
       ...(requestId && {
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
     })
 
     // Enrich tool parameters with git commit ID from successful git commit output
@@ -2165,9 +1707,6 @@ async function checkPermissionsAndCallTool(
     }
 
     // Log tool result event for OTLP with tool parameters and decision context
-    const mcpServerScope = isMcpTool(tool)
-      ? getMcpServerScopeFromToolName(tool.name)
-      : null
 
     void logOTelEvent('tool_result', {
       tool_name: sanitizeToolNameForAnalytics(tool.name),
@@ -2182,21 +1721,17 @@ async function checkPermissionsAndCallTool(
         decision_source: decisionInfo.source,
         decision_type: decisionInfo.decision,
       }),
-      ...(mcpServerScope && { mcp_server_scope: mcpServerScope }),
     })
 
     // Run PostToolUse hooks
-    let toolOutput = result.data
-    const hookResults = []
+    const toolOutput = result.data
     const toolContextModifier = result.contextModifier
-    const mcpMeta = result.mcpMeta
 
     async function addToolResult(
       toolUseResult: unknown,
       preMappedBlock?: ToolResultBlockParam,
     ) {
-      // Use the pre-mapped block when available (non-MCP tools where hooks
-      // don't modify the output), otherwise map from scratch.
+      // Use the pre-mapped block when available, otherwise map from scratch.
       const mappedResultBlock = preMappedBlock
         ? await processPreMappedToolResultBlock(
             preMappedBlock,
@@ -2255,7 +1790,6 @@ async function checkPermissionsAndCallTool(
             toolUseContext.agentId && !toolUseContext.preserveToolUseResults
               ? undefined
               : toolUseResult,
-          mcpMeta: toolUseContext.agentId ? undefined : mcpMeta,
           sourceToolAssistantUUID: assistantMessage.uuid,
         }),
         contextModifier: toolContextModifier
@@ -2267,10 +1801,7 @@ async function checkPermissionsAndCallTool(
       })
     }
 
-    // TOOD(hackyon): refactor so we don't have different experiences for MCP tools
-    if (!isMcpTool(tool)) {
-      await addToolResult(toolOutput, mappedToolResultBlock)
-    }
+    await addToolResult(toolOutput, mappedToolResultBlock)
 
     const postToolHookInfos: StopHookInfo[] = []
     const postToolHookStart = Date.now()
@@ -2282,44 +1813,20 @@ async function checkPermissionsAndCallTool(
       processedInput,
       toolOutput,
       requestId,
-      mcpServerType,
-      mcpServerBaseUrl,
     )) {
-      if ('updatedMCPToolOutput' in hookResult) {
-        if (isMcpTool(tool)) {
-          toolOutput = hookResult.updatedMCPToolOutput
-        }
-      } else if (isMcpTool(tool)) {
-        hookResults.push(hookResult)
-        if (hookResult.message.type === 'attachment') {
-          const att = hookResult.message.attachment
-          if (
-            'command' in att &&
-            att.command !== undefined &&
-            'durationMs' in att &&
-            att.durationMs !== undefined
-          ) {
-            postToolHookInfos.push({
-              command: att.command,
-              durationMs: att.durationMs,
-            })
-          }
-        }
-      } else {
-        resultingMessages.push(hookResult)
-        if (hookResult.message.type === 'attachment') {
-          const att = hookResult.message.attachment
-          if (
-            'command' in att &&
-            att.command !== undefined &&
-            'durationMs' in att &&
-            att.durationMs !== undefined
-          ) {
-            postToolHookInfos.push({
-              command: att.command,
-              durationMs: att.durationMs,
-            })
-          }
+      resultingMessages.push(hookResult)
+      if (hookResult.message.type === 'attachment') {
+        const att = hookResult.message.attachment
+        if (
+          'command' in att &&
+          att.command !== undefined &&
+          'durationMs' in att &&
+          att.durationMs !== undefined
+        ) {
+          postToolHookInfos.push({
+            command: att.command,
+            durationMs: att.durationMs,
+          })
         }
       }
     }
@@ -2329,10 +1836,6 @@ async function checkPermissionsAndCallTool(
         `Slow PostToolUse hooks: ${postToolHookDurationMs}ms for ${tool.name} (${postToolHookInfos.length} hooks)`,
         { level: 'info' },
       )
-    }
-
-    if (isMcpTool(tool)) {
-      await addToolResult(toolOutput)
     }
 
     // Show PostToolUse hook timing inline below tool result when > 500ms.
@@ -2375,10 +1878,6 @@ async function checkPermissionsAndCallTool(
       })
     }
 
-    // Yield the remaining hook results after the other messages are sent
-    for (const hookResult of hookResults) {
-      resultingMessages.push(hookResult)
-    }
     return resultingMessages
   } catch (error) {
     const durationMs = Date.now() - startTime
@@ -2389,38 +1888,6 @@ async function checkPermissionsAndCallTool(
       error: errorMessage(error),
     })
     endToolSpan()
-
-    // Handle MCP auth errors by updating the client status to 'needs-auth'
-    // This updates the /mcp display to show the server needs re-authorization
-    if (error instanceof McpAuthError) {
-      toolUseContext.setAppState(prevState => {
-        const serverName = error.serverName
-        const existingClientIndex = prevState.mcp.clients.findIndex(
-          c => c.name === serverName,
-        )
-        if (existingClientIndex === -1) {
-          return prevState
-        }
-        const existingClient = prevState.mcp.clients[existingClientIndex]
-        // Only update if client was connected (don't overwrite other states)
-        if (!existingClient || existingClient.type !== 'connected') {
-          return prevState
-        }
-        const updatedClients = [...prevState.mcp.clients]
-        updatedClients[existingClientIndex] = {
-          name: serverName,
-          type: 'needs-auth' as const,
-          config: existingClient.config,
-        }
-        return {
-          ...prevState,
-          mcp: {
-            ...prevState.mcp,
-            clients: updatedClients,
-          },
-        }
-      })
-    }
 
     if (!(error instanceof AbortError)) {
       const errorMsg = errorMessage(error)
@@ -2437,33 +1904,16 @@ async function checkPermissionsAndCallTool(
         error: classifyToolError(
           error,
         ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        isMcp: tool.isMcp ?? false,
 
         queryChainId: toolUseContext.queryTracking
           ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         queryDepth: toolUseContext.queryTracking?.depth,
-        ...(mcpServerType && {
-          mcpServerType:
-            mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
-        ...(mcpServerBaseUrl && {
-          mcpServerBaseUrl:
-            mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
         ...(requestId && {
           requestId:
             requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }),
-        ...mcpToolDetailsForAnalytics(
-          tool.name,
-          mcpServerType,
-          mcpServerBaseUrl,
-        ),
       })
       // Log tool result error event for OTLP with tool parameters and decision context
-      const mcpServerScope = isMcpTool(tool)
-        ? getMcpServerScopeFromToolName(tool.name)
-        : null
 
       void logOTelEvent('tool_result', {
         tool_name: sanitizeToolNameForAnalytics(tool.name),
@@ -2479,67 +1929,9 @@ async function checkPermissionsAndCallTool(
           decision_source: decisionInfo.source,
           decision_type: decisionInfo.decision,
         }),
-        ...(mcpServerScope && { mcp_server_scope: mcpServerScope }),
       })
     }
-    const content = error instanceof McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      ? error.modelContent ?? String(error)
-      : formatError(error)
-    // A failure that may already have been carried out (a timeout, a dropped
-    // connection) must not read as a plain failure: the model would retry a
-    // mutation that already landed. The transport attaches that fact to the
-    // error; nothing else can tell the two apart from here.
-    const carriedOutcome = finalizeOutcome(
-      error,
-      failedOutcome('transport', 'tool_call_failed'),
-    )
-    // An error tool_result must be text-only: the API rejects anything else
-    // ("all content must be type text if is_error is true"), and
-    // `sanitizeErrorToolResultContent` drops non-text blocks on the way out,
-    // which would lose the evidence silently.
-    //
-    // `modelContent` is a general MCP result, so it can hold blocks that rule
-    // forbids. `callMCPTool` already converts binary evidence to a saved-file
-    // reference for the normal path; do the equivalent here so this defensive
-    // conversion keeps the same evidence instead of discarding it.
-    const errorContent: string | TextBlockParam[] =
-      typeof content === 'string'
-        ? content
-        : await Promise.all(
-            content.map(async (block): Promise<TextBlockParam> => {
-              if (block.type === 'text') return block
-              if (block.type === 'image' && block.source.type === 'base64') {
-                return {
-                  type: 'text',
-                  text: await persistErrorImageBlock(block.source, tool.name),
-                }
-              }
-              return { type: 'text', text: jsonStringify(block) }
-            }),
-          )
-    // Hooks and the transcript record take one flat string. Join the block
-    // text rather than JSON-encoding the envelope, which would have shown the
-    // model `[{"type":"text",...}]` instead of the server's diagnostic.
-    const errorDiagnostic =
-      typeof errorContent === 'string'
-        ? errorContent
-        : errorContent.map(block => block.text).join('\n\n')
-    // Appended rather than substituted: the server's diagnostic is still the
-    // useful part, and the uncertainty qualifies it instead of replacing it.
-    // Kept in the same shape it arrived in — a string stays a string, blocks
-    // stay blocks — so downstream readers see no change but the added note.
-    const uncertaintyNote =
-      carriedOutcome.outcome === 'unknown'
-        ? describeOutcome(carriedOutcome)
-        : undefined
-    const errorText = uncertaintyNote
-      ? `${errorDiagnostic}\n\n${uncertaintyNote}`
-      : errorDiagnostic
-    const finalErrorContent: string | TextBlockParam[] = !uncertaintyNote
-      ? errorContent
-      : typeof errorContent === 'string'
-        ? errorText
-        : [...errorContent, { type: 'text', text: uncertaintyNote }]
+    const errorText = formatError(error)
 
     // Determine if this was a user interrupt
     const isInterrupt = error instanceof AbortError
@@ -2557,8 +1949,6 @@ async function checkPermissionsAndCallTool(
       errorText,
       isInterrupt,
       requestId,
-      mcpServerType,
-      mcpServerBaseUrl,
     )) {
       hookMessages.push(hookResult)
     }
@@ -2569,20 +1959,12 @@ async function checkPermissionsAndCallTool(
           content: [
             {
               type: 'tool_result',
-              // Text-only by construction, with any uncertainty note appended
-              // as its own block so the original shape is preserved.
-              content: finalErrorContent,
+              content: errorText,
               is_error: true,
               tool_use_id: toolUseID,
             },
           ],
           toolUseResult: `Error: ${errorText}`,
-          mcpMeta: toolUseContext.agentId
-            ? undefined
-            : error instanceof
-                McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-              ? error.mcpMeta
-              : undefined,
           sourceToolAssistantUUID: assistantMessage.uuid,
         }),
       },

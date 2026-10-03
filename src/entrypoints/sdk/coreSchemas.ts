@@ -104,138 +104,6 @@ export const ThinkingConfigSchema = lazySchema(() =>
 )
 
 // ============================================================================
-// MCP Server Config Types (serializable only)
-// ============================================================================
-
-export const McpStdioServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('stdio').optional(), // Optional for backwards compatibility
-    command: z.string(),
-    args: z.array(z.string()).optional(),
-    env: z.record(z.string(), z.string()).optional(),
-  }),
-)
-
-export const McpSSEServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('sse'),
-    url: z.string(),
-    headers: z.record(z.string(), z.string()).optional(),
-  }),
-)
-
-export const McpHttpServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('http'),
-    url: z.string(),
-    headers: z.record(z.string(), z.string()).optional(),
-  }),
-)
-
-export const McpSdkServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('sdk'),
-    name: z.string(),
-  }),
-)
-
-export const McpServerConfigForProcessTransportSchema = lazySchema(() =>
-  z.union([
-    McpStdioServerConfigSchema(),
-    McpSSEServerConfigSchema(),
-    McpHttpServerConfigSchema(),
-    McpSdkServerConfigSchema(),
-  ]),
-)
-
-export const McpClaudeAIProxyServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('claudeai-proxy'),
-    url: z.string(),
-    id: z.string(),
-  }),
-)
-
-// Broader config type for status responses (includes claudeai-proxy which is output-only)
-export const McpServerStatusConfigSchema = lazySchema(() =>
-  z.union([
-    McpServerConfigForProcessTransportSchema(),
-    McpClaudeAIProxyServerConfigSchema(),
-  ]),
-)
-
-export const McpServerStatusSchema = lazySchema(() =>
-  z
-    .object({
-      name: z.string().describe('Server name as configured'),
-      status: z
-        .enum(['connected', 'failed', 'needs-auth', 'pending', 'disabled'])
-        .describe('Current connection status'),
-      serverInfo: z
-        .object({
-          name: z.string(),
-          version: z.string(),
-        })
-        .optional()
-        .describe('Server information (available when connected)'),
-      error: z
-        .string()
-        .optional()
-        .describe("Error message (available when status is 'failed')"),
-      config: McpServerStatusConfigSchema()
-        .optional()
-        .describe('Server configuration (includes URL for HTTP/SSE servers)'),
-      scope: z
-        .string()
-        .optional()
-        .describe(
-          'Configuration scope (e.g., project, user, local, claudeai, managed)',
-        ),
-      tools: z
-        .array(
-          z.object({
-            name: z.string(),
-            description: z.string().optional(),
-            annotations: z
-              .object({
-                readOnly: z.boolean().optional(),
-                destructive: z.boolean().optional(),
-                openWorld: z.boolean().optional(),
-              })
-              .optional(),
-          }),
-        )
-        .optional()
-        .describe('Tools provided by this server (available when connected)'),
-      capabilities: z
-        .object({
-          experimental: z.record(z.string(), z.unknown()).optional(),
-        })
-        .optional()
-        .describe(
-          "@internal Server capabilities (available when connected).",
-        ),
-    })
-    .describe('Status information for an MCP server connection.'),
-)
-
-export const McpSetServersResultSchema = lazySchema(() =>
-  z
-    .object({
-      added: z.array(z.string()).describe('Names of servers that were added'),
-      removed: z
-        .array(z.string())
-        .describe('Names of servers that were removed'),
-      errors: z
-        .record(z.string(), z.string())
-        .describe(
-          'Map of server names to error messages for servers that failed to connect',
-        ),
-    })
-    .describe('Result of a setMcpServers operation.'),
-)
-
-// ============================================================================
 // Permission Types
 // ============================================================================
 
@@ -380,8 +248,6 @@ export const HOOK_EVENTS = [
   'TeammateIdle',
   'TaskCreated',
   'TaskCompleted',
-  'Elicitation',
-  'ElicitationResult',
   'ConfigChange',
   'WorktreeCreate',
   'WorktreeRemove',
@@ -632,41 +498,6 @@ export const TaskCompletedHookInputSchema = lazySchema(() =>
   ),
 )
 
-export const ElicitationHookInputSchema = lazySchema(() =>
-  BaseHookInputSchema()
-    .and(
-      z.object({
-        hook_event_name: z.literal('Elicitation'),
-        mcp_server_name: z.string(),
-        message: z.string(),
-        mode: z.enum(['form', 'url']).optional(),
-        url: z.string().optional(),
-        elicitation_id: z.string().optional(),
-        requested_schema: z.record(z.string(), z.unknown()).optional(),
-      }),
-    )
-    .describe(
-      'Hook input for the Elicitation event. Fired when an MCP server requests user input. Hooks can auto-respond (accept/decline) instead of showing the dialog.',
-    ),
-)
-
-export const ElicitationResultHookInputSchema = lazySchema(() =>
-  BaseHookInputSchema()
-    .and(
-      z.object({
-        hook_event_name: z.literal('ElicitationResult'),
-        mcp_server_name: z.string(),
-        elicitation_id: z.string().optional(),
-        mode: z.enum(['form', 'url']).optional(),
-        action: z.enum(['accept', 'decline', 'cancel']),
-        content: z.record(z.string(), z.unknown()).optional(),
-      }),
-    )
-    .describe(
-      'Hook input for the ElicitationResult event. Fired after the user responds to an MCP elicitation. Hooks can observe or override the response before it is sent to the server.',
-    ),
-)
-
 export const CONFIG_CHANGE_SOURCES = [
   'user_settings',
   'project_settings',
@@ -793,8 +624,6 @@ export const HookInputSchema = lazySchema(() =>
     TeammateIdleHookInputSchema(),
     TaskCreatedHookInputSchema(),
     TaskCompletedHookInputSchema(),
-    ElicitationHookInputSchema(),
-    ElicitationResultHookInputSchema(),
     ConfigChangeHookInputSchema(),
     InstructionsLoadedHookInputSchema(),
     WorktreeCreateHookInputSchema(),
@@ -855,7 +684,6 @@ export const PostToolUseHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('PostToolUse'),
     additionalContext: z.string().optional(),
-    updatedMCPToolOutput: z.unknown().optional(),
   }),
 )
 
@@ -932,38 +760,12 @@ export const SyncHookJSONOutputSchema = lazySchema(() =>
         PermissionDeniedHookSpecificOutputSchema(),
         NotificationHookSpecificOutputSchema(),
         PermissionRequestHookSpecificOutputSchema(),
-        ElicitationHookSpecificOutputSchema(),
-        ElicitationResultHookSpecificOutputSchema(),
         CwdChangedHookSpecificOutputSchema(),
         FileChangedHookSpecificOutputSchema(),
         WorktreeCreateHookSpecificOutputSchema(),
       ])
       .optional(),
   }),
-)
-
-export const ElicitationHookSpecificOutputSchema = lazySchema(() =>
-  z
-    .object({
-      hookEventName: z.literal('Elicitation'),
-      action: z.enum(['accept', 'decline', 'cancel']).optional(),
-      content: z.record(z.string(), z.unknown()).optional(),
-    })
-    .describe(
-      'Hook-specific output for the Elicitation event. Return this to programmatically accept or decline an MCP elicitation request.',
-    ),
-)
-
-export const ElicitationResultHookSpecificOutputSchema = lazySchema(() =>
-  z
-    .object({
-      hookEventName: z.literal('ElicitationResult'),
-      action: z.enum(['accept', 'decline', 'cancel']).optional(),
-      content: z.record(z.string(), z.unknown()).optional(),
-    })
-    .describe(
-      'Hook-specific output for the ElicitationResult event. Return this to override the action or content before the response is sent to the MCP server.',
-    ),
 )
 
 export const WorktreeCreateHookSpecificOutputSchema = lazySchema(() =>
@@ -1108,13 +910,6 @@ export const AccountInfoSchema = lazySchema(() =>
 // Agent Definition Types
 // ============================================================================
 
-export const AgentMcpServerSpecSchema = lazySchema(() =>
-  z.union([
-    z.string(),
-    z.record(z.string(), McpServerConfigForProcessTransportSchema()),
-  ]),
-)
-
 export const AgentDefinitionSchema = lazySchema(() =>
   z
     .object({
@@ -1138,7 +933,6 @@ export const AgentDefinitionSchema = lazySchema(() =>
         .describe(
           "Model alias (e.g. 'sonnet', 'opus', 'haiku') or full model ID (e.g. 'claude-opus-4-5'). If omitted or 'inherit', uses the main model",
         ),
-      mcpServers: z.array(AgentMcpServerSpecSchema()).optional(),
       criticalSystemReminder_EXPERIMENTAL: z
         .string()
         .optional()
@@ -1462,12 +1256,6 @@ export const SDKSystemMessageSchema = lazySchema(() =>
     claude_code_version: z.string(),
     cwd: z.string(),
     tools: z.array(z.string()),
-    mcp_servers: z.array(
-      z.object({
-        name: z.string(),
-        status: z.string(),
-      }),
-    ),
     model: z.string(),
     permissionMode: PermissionModeSchema(),
     slash_commands: z.array(z.string()),
@@ -1769,22 +1557,6 @@ export const SDKToolUseSummaryMessageSchema = lazySchema(() =>
   }),
 )
 
-export const SDKElicitationCompleteMessageSchema = lazySchema(() =>
-  z
-    .object({
-      type: z.literal('system'),
-      subtype: z.literal('elicitation_complete'),
-      mcp_server_name: z.string(),
-      elicitation_id: z.string(),
-      uuid: UUIDPlaceholder(),
-      session_id: z.string(),
-    })
-    .describe(
-      'Emitted when an MCP server confirms that a URL-mode elicitation is complete.',
-    ),
-)
-
-/** @internal */
 export const SDKPromptSuggestionMessageSchema = lazySchema(() =>
   z
     .object({
@@ -1868,7 +1640,6 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKFilesPersistedEventSchema(),
     SDKToolUseSummaryMessageSchema(),
     SDKRateLimitEventSchema(),
-    SDKElicitationCompleteMessageSchema(),
     SDKPromptSuggestionMessageSchema(),
   ]),
 )

@@ -38,7 +38,7 @@ If you find yourself reaching for one of these adapters in new code:
   (internal to the lane, not exported). Add a shared helper to
   `src/lanes/shared/` if two lanes need it.
 - Schema sanitization → `sanitizeSchemaForLane(schema, profile)` from
-  `src/lanes/shared/mcp_bridge.ts`. The `'gemini'` profile carries the
+  `src/lanes/shared/providerToolCompat.ts`. The `'gemini'` profile carries the
   full legacy `sanitizeSchemaForGemini` behavior.
 - Tool schema cache → the native lane's tool registry is the source
   of truth; lane-owned registries already include everything the cache

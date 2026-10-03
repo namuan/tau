@@ -29,12 +29,10 @@ import {
 } from '../../utils/permissions/PermissionResult.js'
 import { checkRuleBasedPermissions } from '../../utils/permissions/permissions.js'
 import { formatError } from '../../utils/toolErrors.js'
-import { isMcpTool } from '../mcp/utils.js'
-import type { McpServerType, MessageUpdateLazy } from './toolExecution.js'
+import type { MessageUpdateLazy } from './toolExecution.js'
 
 export type PostToolUseHooksResult<Output> =
-  | MessageUpdateLazy<AttachmentMessage | ProgressMessage<HookProgress>>
-  | { updatedMCPToolOutput: Output }
+  MessageUpdateLazy<AttachmentMessage | ProgressMessage<HookProgress>>
 
 export async function* runPostToolUseHooks<Input extends AnyObject, Output>(
   toolUseContext: ToolUseContext,
@@ -44,8 +42,6 @@ export async function* runPostToolUseHooks<Input extends AnyObject, Output>(
   toolInput: Record<string, unknown>,
   toolResponse: Output,
   requestId: string | undefined,
-  mcpServerType: McpServerType,
-  mcpServerBaseUrl: string | undefined,
 ): AsyncGenerator<PostToolUseHooksResult<Output>> {
   const postToolStartTime = Date.now()
   try {
@@ -142,31 +138,17 @@ export async function* runPostToolUseHooks<Input extends AnyObject, Output>(
           }
         }
 
-        // If hooks provided updatedMCPToolOutput, yield it if this is an MCP tool
-        if (result.updatedMCPToolOutput && isMcpTool(tool)) {
-          toolOutput = result.updatedMCPToolOutput as Output
-          yield {
-            updatedMCPToolOutput: toolOutput,
-          }
-        }
       } catch (error) {
         const postToolDurationMs = Date.now() - postToolStartTime
         logEvent('tengu_post_tool_hook_error', {
           messageID:
             messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           toolName: sanitizeToolNameForAnalytics(tool.name),
-          isMcp: tool.isMcp ?? false,
           duration: postToolDurationMs,
 
           queryChainId: toolUseContext.queryTracking
             ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           queryDepth: toolUseContext.queryTracking?.depth,
-          ...(mcpServerType
-            ? {
-                mcpServerType:
-                  mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              }
-            : {}),
           ...(requestId
             ? {
                 requestId:
@@ -199,8 +181,6 @@ export async function* runPostToolUseFailureHooks<Input extends AnyObject>(
   error: string,
   isInterrupt: boolean | undefined,
   requestId: string | undefined,
-  mcpServerType: McpServerType,
-  mcpServerBaseUrl: string | undefined,
 ): AsyncGenerator<
   MessageUpdateLazy<AttachmentMessage | ProgressMessage<HookProgress>>
 > {
@@ -284,17 +264,10 @@ export async function* runPostToolUseFailureHooks<Input extends AnyObject>(
           messageID:
             messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           toolName: sanitizeToolNameForAnalytics(tool.name),
-          isMcp: tool.isMcp ?? false,
           duration: postToolDurationMs,
           queryChainId: toolUseContext.queryTracking
             ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           queryDepth: toolUseContext.queryTracking?.depth,
-          ...(mcpServerType
-            ? {
-                mcpServerType:
-                  mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              }
-            : {}),
           ...(requestId
             ? {
                 requestId:
@@ -439,8 +412,6 @@ export async function* runPreToolUseHooks(
   toolUseID: string,
   messageId: string,
   requestId: string | undefined,
-  mcpServerType: McpServerType,
-  mcpServerBaseUrl: string | undefined,
 ): AsyncGenerator<
   | {
       type: 'message'
@@ -608,18 +579,11 @@ export async function* runPreToolUseHooks(
           messageID:
             messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           toolName: sanitizeToolNameForAnalytics(tool.name),
-          isMcp: tool.isMcp ?? false,
           duration: durationMs,
 
           queryChainId: toolUseContext.queryTracking
             ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           queryDepth: toolUseContext.queryTracking?.depth,
-          ...(mcpServerType
-            ? {
-                mcpServerType:
-                  mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              }
-            : {}),
           ...(requestId
             ? {
                 requestId:

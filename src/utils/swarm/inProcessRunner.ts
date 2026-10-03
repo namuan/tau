@@ -927,7 +927,6 @@ export async function runInProcessTeammate(
       toolUseContext.options.tools,
       toolUseContext.options.mainLoopModel,
       undefined,
-      toolUseContext.options.mcpClients,
     )
 
     const systemPromptParts = [

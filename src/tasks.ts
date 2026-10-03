@@ -9,9 +9,6 @@ import { RemoteAgentTask } from './tasks/RemoteAgentTask/RemoteAgentTask.js'
 const LocalWorkflowTask: Task | null = feature('WORKFLOW_SCRIPTS')
   ? require('./tasks/LocalWorkflowTask/LocalWorkflowTask.js').LocalWorkflowTask
   : null
-const MonitorMcpTask: Task | null = feature('MONITOR_TOOL')
-  ? require('./tasks/MonitorMcpTask/MonitorMcpTask.js').MonitorMcpTask
-  : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 /**
@@ -27,7 +24,6 @@ export function getAllTasks(): Task[] {
     DreamTask,
   ]
   if (LocalWorkflowTask) tasks.push(LocalWorkflowTask)
-  if (MonitorMcpTask) tasks.push(MonitorMcpTask)
   return tasks
 }
 

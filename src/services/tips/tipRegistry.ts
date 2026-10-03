@@ -243,7 +243,7 @@ const externalTips: Tip[] = [
   {
     id: 'permissions',
     content: async () =>
-      'Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools',
+      'Use /permissions to pre-approve and pre-deny tools',
     cooldownSessions: 10,
     async isRelevant() {
       const config = getGlobalConfig()

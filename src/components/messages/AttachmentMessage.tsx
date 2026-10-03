@@ -255,11 +255,6 @@ export function AttachmentMessage({
         const skillNames = attachment.skills.map(s_0 => s_0.name).join(', ');
         return <Line>Skills restored ({skillNames})</Line>;
       }
-    case 'mcp_resource':
-      return <Line>
-          Read MCP resource <Text bold>{attachment.name}</Text> from{' '}
-          {attachment.server}
-        </Line>;
     case 'command_permissions':
       // The skill success message is rendered by SkillTool's renderToolResultMessage,
       // so we don't render anything here to avoid duplicate messages.

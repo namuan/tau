@@ -175,18 +175,6 @@ export function UserTextMessage(t0) {
     }
     return t1;
   }
-  if (param.text.includes("<mcp-resource-update") || param.text.includes("<mcp-polling-update")) {
-    let t1;
-    if ($[29] !== addMargin || $[30] !== param) {
-      t1 = <UserResourceUpdateMessage addMargin={addMargin} param={param} />;
-      $[29] = addMargin;
-      $[30] = param;
-      $[31] = t1;
-    } else {
-      t1 = $[31];
-    }
-    return t1;
-  }
   if (feature("FORK_SUBAGENT")) {
     if (param.text.includes("<fork-boilerplate>")) {
       let t1;

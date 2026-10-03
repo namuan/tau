@@ -36,7 +36,7 @@ const _volatileBySession = new Map<string, string>()
  * exactly one prefix break. The block is frozen whole, so a section that shows
  * up later (after env info already filled it) never reaches the model this
  * way; MCP server instructions go through the conversation instead
- * (utils/mcpInstructionsDelta.ts).
+ * in provider-supplied dynamic instructions.
  */
 export function freezeSessionVolatileText(
   cacheKey: string,

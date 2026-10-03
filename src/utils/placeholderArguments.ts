@@ -23,7 +23,7 @@
  *     never dropped; that call fails exactly as it did before.
  *
  * The contract arrives as a judge function, so one rule serves built-in tools
- * (their Zod schema) and MCP tools (the server's JSON Schema) on every lane.
+ * (their Zod schema) and external tools (their JSON Schema) on every lane.
  * Nothing here depends on the platform, the provider or a tool's name.
  */
 
@@ -221,7 +221,7 @@ function truncate(text: string): string {
  * input the whole contract accepts. Otherwise the input comes back untouched
  * with nothing dropped, and validation reports the call as before.
  *
- * `normalize` is re-applied after each drop — MCP uses it to rerun schema
+ * `normalize` is re-applied after each drop so schema
  * coercion, which cannot succeed while a placeholder still fails the object.
  */
 export function dropInvalidPlaceholderArguments(

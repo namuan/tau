@@ -100,10 +100,6 @@ export const syncHookResponseSchema = lazySchema(() =>
         z.object({
           hookEventName: z.literal('PostToolUse'),
           additionalContext: z.string().optional(),
-          updatedMCPToolOutput: z
-            .unknown()
-            .describe('Updates the output for MCP tools')
-            .optional(),
         }),
         z.object({
           hookEventName: z.literal('PostToolUseFailure'),
@@ -131,16 +127,6 @@ export const syncHookResponseSchema = lazySchema(() =>
               interrupt: z.boolean().optional(),
             }),
           ]),
-        }),
-        z.object({
-          hookEventName: z.literal('Elicitation'),
-          action: z.enum(['accept', 'decline', 'cancel']).optional(),
-          content: z.record(z.string(), z.unknown()).optional(),
-        }),
-        z.object({
-          hookEventName: z.literal('ElicitationResult'),
-          action: z.enum(['accept', 'decline', 'cancel']).optional(),
-          content: z.record(z.string(), z.unknown()).optional(),
         }),
         z.object({
           hookEventName: z.literal('CwdChanged'),
@@ -268,7 +254,6 @@ export type HookResult = {
   additionalContext?: string
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
-  updatedMCPToolOutput?: unknown
   permissionRequestResult?: PermissionRequestResult
   retry?: boolean
 }
@@ -283,7 +268,6 @@ export type AggregatedHookResult = {
   additionalContexts?: string[]
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
-  updatedMCPToolOutput?: unknown
   permissionRequestResult?: PermissionRequestResult
   retry?: boolean
 }

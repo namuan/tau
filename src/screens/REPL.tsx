@@ -723,9 +723,6 @@ export function REPL({
 
   const tasksV2 = useTasksV2WithCollapseEffect();
 
-  // Allow Tau in Chrome MCP to send prompts through MCP notifications
-  // and sync permission mode changes to the Chrome extension
-
   // Initialize swarm features: teammate hooks and context
   // Handles both fresh spawns and resumed teammate sessions
   useSwarmInitialization(setAppState, initialMessages, {
@@ -794,7 +791,7 @@ export function REPL({
   const scrollRef = useRef<ScrollBoxHandle>(null);
   // Separate ref for the modal slot's inner ScrollBox — passed through
   // FullscreenLayout → ModalContext so Tabs can attach it to its own
-  // ScrollBox for tall content (e.g. /status's MCP-server list). NOT
+  // ScrollBox for tall modal content. NOT
   // keyboard-driven — ScrollKeybindingHandler stays on the outer ref so
   // PgUp/PgDn/wheel always scroll the transcript behind the modal.
   // Plumbing kept for future modal-scroll wiring.
@@ -4210,7 +4207,7 @@ export function REPL({
   const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
 
   // Handle shift+down for teammate navigation and background task management.
-  // Guard onOpenBackgroundTasks when a local-jsx dialog (e.g. /mcp) is open —
+  // Guard onOpenBackgroundTasks when a local-jsx dialog is open —
   // otherwise Shift+Down stacks BackgroundTasksDialog on top and deadlocks input.
   useBackgroundTaskNavigation({
     onOpenBackgroundTasks: isShowingLocalJSXCommand ? undefined : () => setShowBashesDialog(true)
@@ -4366,7 +4363,7 @@ export function REPL({
   // pane (▔ divider, ModalContext). Pane/Dialog inside detect the context
   // and skip their own top-level frame. Non-fullscreen keeps the inline
   // render paths below. Commands that used to route through bottom
-  // (immediate: /model, /mcp, /btw, ...) and scrollable (non-immediate:
+  // (immediate: /model, /btw, ...) and scrollable (non-immediate:
   // /config, /theme, /diff, ...) both go here now.
   const toolJsxCentered = isFullscreenEnvEnabled() && toolJSX?.isLocalJSXCommand === true;
   const centeredModal: React.ReactNode = toolJsxCentered ? toolJSX!.jsx : null;

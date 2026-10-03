@@ -20,7 +20,7 @@ Actions:
 
 For local artifacts, prefer passing the absolute path returned by the artifact tool, or its canonical fileUrl/htmlUrl if provided. Do not synthesize relative file URLs such as file://.tau/artifacts/x.html; if one is passed anyway, WebBrowser resolves it from the current workspace and reports the canonical file:/// URL.
 
-This tool is dependency-free and does not click, type, run page JavaScript, read console logs, or take screenshots. Use Chrome/Playwright MCP tools when interactive browser automation is required.`
+This tool is dependency-free and does not click, type, run page JavaScript, read console logs, or take screenshots. Interactive browser automation requires a separate browser automation environment.`
 
 const inputSchema = lazySchema(() =>
   z.strictObject({

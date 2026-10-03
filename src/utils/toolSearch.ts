@@ -1,8 +1,8 @@
 /**
  * Tool Search utilities for dynamically discovering deferred tools.
  *
- * When enabled, deferred tools (MCP and shouldDefer tools) are sent with
- * defer_loading: true and discovered via ToolSearchTool rather than being
+ * When enabled, deferred tools are sent with defer_loading: true and
+ * discovered via ToolSearchTool rather than being
  * loaded upfront.
  */
 
@@ -49,7 +49,7 @@ import { zodToJsonSchema } from './zodToJsonSchema.js'
 
 /**
  * Default percentage of context window at which to auto-enable tool search.
- * When MCP tool descriptions exceed this percentage (in tokens), tool search is enabled.
+ * When deferred tool descriptions exceed this percentage (in tokens), tool search is enabled.
  * Can be overridden via ENABLE_TOOL_SEARCH=auto:N where N is 0-100.
  */
 const DEFAULT_AUTO_TOOL_SEARCH_PERCENTAGE = 10 // 10%
@@ -99,7 +99,7 @@ function getAutoToolSearchPercentage(): number {
 }
 
 /**
- * Approximate chars per token for MCP tool definitions (name + description + input schema).
+ * Approximate chars per token for tool definitions (name + description + input schema).
  * Used as fallback when the token counting API is unavailable.
  */
 const CHARS_PER_TOKEN = 2.5
@@ -124,7 +124,7 @@ export function getAutoToolSearchCharThreshold(model: string): number {
 
 /**
  * Get the total token count for all deferred tools using the token counting API.
- * Memoized by deferred tool names — cache is invalidated when MCP servers connect/disconnect.
+ * Memoized by deferred tool names — cache is invalidated when the toolset changes.
  * Returns null if the API is unavailable (caller should fall back to char heuristic).
  */
 const getDeferredToolTokenCount = memoize(
@@ -158,7 +158,7 @@ const getDeferredToolTokenCount = memoize(
 )
 
 /**
- * Tool search mode. Determines how deferrable tools (MCP + shouldDefer) are
+ * Tool search mode. Determines how deferrable tools are
  * surfaced:
  *   - 'tst': Tool Search Tool — deferred tools discovered via ToolSearchTool (always enabled)
  *   - 'tst-auto': auto — tools deferred only when they exceed threshold
@@ -224,14 +224,14 @@ export function isGeminiNativeToolSearchEnabled(model?: string): boolean {
  *   auto / auto:1-99      tst-auto
  *   true / auto:0         tst
  *   false / auto:100      standard
- *   (unset)               tst (default: always defer MCP and shouldDefer tools)
+ *   (unset)               tst (default: always defer eligible tools)
  */
 export function getToolSearchMode(): ToolSearchMode {
   // Third-party providers don't support Anthropic-specific defer_loading /
-  // tool_reference beta features. Force 'standard' so ALL tools (Agent, MCP,
+  // tool_reference beta features. Force 'standard' so ALL tools (Agent,
   // Skills, Plan, Tasks) are sent with full schemas and the model can call them.
   // Without this, deferred tools appear as empty name-only stubs that the
-  // model can see but never invoke — breaking ToolSearch, Agents, and MCP.
+  // model can see but never invoke — breaking ToolSearch and Agents.
   const provider = getAPIProvider()
   if (!providerSupportsAnthropicToolSearch(provider)) {
     return 'standard'
@@ -261,7 +261,7 @@ export function getToolSearchMode(): ToolSearchMode {
 
   if (isEnvTruthy(value)) return 'tst'
   if (isEnvDefinedFalsy(process.env.ENABLE_TOOL_SEARCH)) return 'standard'
-  return 'tst' // default: always defer MCP and shouldDefer tools
+  return 'tst' // default: always defer eligible tools
 }
 
 /**
@@ -370,7 +370,7 @@ export function isToolSearchEnabledOptimistic(): boolean {
   //
   // HOWEVER: some proxies DO support tool_reference (LiteLLM passthrough,
   // Cloudflare AI Gateway, corp gateways that forward beta headers). The
-  // blanket disable breaks defer_loading for those users — all MCP tools
+  // blanket disable breaks defer_loading for those users — all deferred tools
   // loaded into main context instead of on-demand (gh-31936 / CC-457,
   // likely the real cause of CC-330 "v2.1.70 defer_loading regression").
   // This gate only applies when ENABLE_TOOL_SEARCH is unset/empty (default
@@ -447,10 +447,10 @@ async function calculateDeferredToolDescriptionChars(
 }
 
 /**
- * Check if tool search (MCP tool deferral with tool_reference) is enabled for a specific request.
+ * Check if tool search with tool_reference is enabled for a specific request.
  *
  * This is the definitive check that includes:
- * - MCP mode (Tst, TstAuto, McpCli, Standard)
+ * - Tool search mode
  * - Model compatibility (haiku doesn't support tool_reference)
  * - ToolSearchTool availability (must be in tools list)
  * - Threshold check for TstAuto mode
@@ -458,7 +458,7 @@ async function calculateDeferredToolDescriptionChars(
  * Use this when making actual API calls where all context is available.
  *
  * @param model The model to check for tool_reference support
- * @param tools Array of available tools (including MCP tools)
+ * @param tools Array of available tools
  * @param getToolPermissionContext Function to get tool permission context
  * @param agents Array of agent definitions
  * @param source Optional identifier for the caller (for debugging)
@@ -471,8 +471,6 @@ export async function isToolSearchEnabled(
   agents: AgentDefinition[],
   source?: string,
 ): Promise<boolean> {
-  const mcpToolCount = count(tools, t => t.isMcp)
-
   // Helper to log the mode decision event
   function logModeDecision(
     enabled: boolean,
@@ -490,7 +488,6 @@ export async function isToolSearchEnabled(
       // the subagent model (e.g., haiku) differs from the session model (e.g., opus).
       checkedModel:
         model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      mcpToolCount,
       userType: (process.env.USER_TYPE ??
         'external') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       ...extraProps,
@@ -517,7 +514,7 @@ export async function isToolSearchEnabled(
     logForDebugging(
       `Tool search disabled: ToolSearchTool is not available (may have been disallowed via disallowedTools).`,
     )
-    logModeDecision(false, 'standard', 'mcp_search_unavailable')
+    logModeDecision(false, 'standard', 'tool_search_unavailable')
     return false
   }
 
@@ -611,7 +608,7 @@ function isToolResultBlockWithContent(obj: unknown): obj is ToolResultBlock {
 /**
  * Extract tool names from tool_reference and tool_use blocks in message history.
  *
- * When dynamic tool loading is enabled, MCP tools are not predeclared in the
+ * When dynamic tool loading is enabled, deferred tools are not predeclared in the
  * tools array. Instead, they are discovered via ToolSearchTool which returns
  * tool_reference blocks. Models can also sometimes directly call a deferred
  * tool by name before seeing its schema. That call may fail validation, but
@@ -620,8 +617,8 @@ function isToolResultBlockWithContent(obj: unknown): obj is ToolResultBlock {
  * includes the full schema without requiring a ToolSearch round-trip.
  *
  * This approach:
- * - Eliminates the need to predeclare all MCP tools upfront
- * - Removes limits on total quantity of MCP tools
+ * - Eliminates the need to predeclare all deferred tools upfront
+ * - Removes limits on total quantity of deferred tools
  *
  * Compaction replaces tool_reference-bearing messages with a summary, so it
  * snapshots the discovered set onto compactMetadata.preCompactDiscoveredTools

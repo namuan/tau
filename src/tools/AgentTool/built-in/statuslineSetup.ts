@@ -232,7 +232,7 @@ How to use the statusLine command:
 
    The context figures match the built-in bar exactly. Both read the same
    numbers: the provider's own count of the last prompt - system prompt,
-   tools, MCP servers, memory and conversation - or, before the first
+   tools, memory and conversation - or, before the first
    response, the measured initial context.
 
    This script also does not reproduce the bar's width handling. The built-in

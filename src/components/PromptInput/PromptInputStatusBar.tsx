@@ -172,7 +172,7 @@ type Props = {
  * The same call the statusLine command's `context_window` JSON is built from,
  * so this bar and a custom script can never report different numbers for one
  * session: the provider's own count of the last prompt - system prompt, tool
- * schemas, MCP servers, skills, memory and conversation - or, before the
+ * schemas, skills, memory and conversation - or, before the
  * first response, the measured initial context plus what has been typed since.
  */
 function readContextUsage(

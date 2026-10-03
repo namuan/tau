@@ -1,7 +1,6 @@
 import { feature } from 'bun:bundle'
 import type { UUID } from 'crypto'
 import { randomUUID } from 'crypto'
-import uniqBy from 'lodash-es/uniqBy.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import { getCommand, getSkillToolCommands, hasCommand } from '../../commands.js'
@@ -21,15 +20,6 @@ import {
 } from '../../services/api/antigravityAgentGate.js'
 import { getDumpPromptsPath } from '../../services/api/dumpPrompts.js'
 import { cleanupAgentTracking } from '../../services/api/promptCacheBreakDetection.js'
-import {
-  connectToServer,
-  fetchToolsForClient,
-} from '../../services/mcp/client.js'
-import { getMcpConfigByName } from '../../services/mcp/config.js'
-import type {
-  MCPServerConnection,
-  ScopedMcpServerConfig,
-} from '../../services/mcp/types.js'
 import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import type { AgentId } from '../../types/ids.js'
@@ -144,138 +134,6 @@ function resolveSurfSubagentModel(args: {
   }
   recordSurfTurnStart('subagent')
   return target.model
-}
-
-/**
- * Initialize agent-specific MCP servers
- * Agents can define their own MCP servers in their frontmatter that are additive
- * to the parent's MCP clients. These servers are connected when the agent starts
- * and cleaned up when the agent finishes.
- *
- * @param agentDefinition The agent definition with optional mcpServers
- * @param parentClients MCP clients inherited from parent context
- * @returns Merged clients (parent + agent-specific), agent MCP tools, and cleanup function
- */
-async function initializeAgentMcpServers(
-  agentDefinition: AgentDefinition,
-  parentClients: MCPServerConnection[],
-): Promise<{
-  clients: MCPServerConnection[]
-  tools: Tools
-  cleanup: () => Promise<void>
-}> {
-  // If no agent-specific servers defined, return parent clients as-is
-  if (!agentDefinition.mcpServers?.length) {
-    return {
-      clients: parentClients,
-      tools: [],
-      cleanup: async () => {},
-    }
-  }
-
-  // The legacy managed customization policy limits MCP server additions to
-  // trusted sources. User-authored agents cannot bypass that restriction.
-  const agentIsAdminTrusted = isSourceAdminTrusted(agentDefinition.source)
-  if (isRestrictedToPluginOnly('mcp') && !agentIsAdminTrusted) {
-    logForDebugging(
-      `[Agent: ${agentDefinition.agentType}] Skipping MCP servers: strictPluginOnlyCustomization restricts MCP to trusted sources (agent source: ${agentDefinition.source})`,
-    )
-    return {
-      clients: parentClients,
-      tools: [],
-      cleanup: async () => {},
-    }
-  }
-
-  const agentClients: MCPServerConnection[] = []
-  // Track which clients were newly created (inline definitions) vs. shared from parent
-  // Only newly created clients should be cleaned up when the agent finishes
-  const newlyCreatedClients: MCPServerConnection[] = []
-  const agentTools: Tool[] = []
-
-  for (const spec of agentDefinition.mcpServers) {
-    let config: ScopedMcpServerConfig | null = null
-    let name: string
-    let isNewlyCreated = false
-
-    if (typeof spec === 'string') {
-      // Reference by name - look up in existing MCP configs
-      // This uses the memoized connectToServer, so we may get a shared client
-      name = spec
-      config = getMcpConfigByName(spec)
-      if (!config) {
-        logForDebugging(
-          `[Agent: ${agentDefinition.agentType}] MCP server not found: ${spec}`,
-          { level: 'warn' },
-        )
-        continue
-      }
-    } else {
-      // Inline definition as { [name]: config }
-      // These are agent-specific servers that should be cleaned up
-      const entries = Object.entries(spec)
-      if (entries.length !== 1) {
-        logForDebugging(
-          `[Agent: ${agentDefinition.agentType}] Invalid MCP server spec: expected exactly one key`,
-          { level: 'warn' },
-        )
-        continue
-      }
-      const [serverName, serverConfig] = entries[0]!
-      name = serverName
-      config = {
-        ...serverConfig,
-        scope: 'dynamic' as const,
-      } as ScopedMcpServerConfig
-      isNewlyCreated = true
-    }
-
-    // Connect to the server
-    const client = await connectToServer(name, config)
-    agentClients.push(client)
-    if (isNewlyCreated) {
-      newlyCreatedClients.push(client)
-    }
-
-    // Fetch tools if connected
-    if (client.type === 'connected') {
-      const tools = await fetchToolsForClient(client)
-      agentTools.push(...tools)
-      logForDebugging(
-        `[Agent: ${agentDefinition.agentType}] Connected to MCP server '${name}' with ${tools.length} tools`,
-      )
-    } else {
-      logForDebugging(
-        `[Agent: ${agentDefinition.agentType}] Failed to connect to MCP server '${name}': ${client.type}`,
-        { level: 'warn' },
-      )
-    }
-  }
-
-  // Create cleanup function for agent-specific servers
-  // Only clean up newly created clients (inline definitions), not shared/referenced ones
-  // Shared clients (referenced by string name) are memoized and used by the parent context
-  const cleanup = async () => {
-    for (const client of newlyCreatedClients) {
-      if (client.type === 'connected') {
-        try {
-          await client.cleanup()
-        } catch (error) {
-          logForDebugging(
-            `[Agent: ${agentDefinition.agentType}] Error cleaning up MCP server '${client.name}': ${error}`,
-            { level: 'warn' },
-          )
-        }
-      }
-    }
-  }
-
-  // Return merged clients (parent + agent-specific) and agent tools
-  return {
-    clients: [...parentClients, ...agentClients],
-    tools: agentTools,
-    cleanup,
-  }
 }
 
 type QueryMessage =
@@ -748,23 +606,7 @@ async function* runAgentWithoutProviderOverride({
     }
   }
 
-  // Initialize agent-specific MCP servers (additive to parent's servers)
-  const {
-    clients: mergedMcpClients,
-    tools: agentMcpTools,
-    cleanup: mcpCleanup,
-  } = await initializeAgentMcpServers(
-    agentDefinition,
-    toolUseContext.options.mcpClients,
-  )
-
-  // Merge agent MCP tools with resolved agent tools, deduplicating by name.
-  // resolvedTools is already deduplicated (see resolveAgentTools), so skip
-  // the spread + uniqBy overhead when there are no agent-specific MCP tools.
-  const allTools =
-    agentMcpTools.length > 0
-      ? uniqBy([...resolvedTools, ...agentMcpTools], 'name')
-      : resolvedTools
+  const allTools = resolvedTools
 
   // Build agent-specific options
   const agentOptions: ToolUseContext['options'] = {
@@ -787,8 +629,6 @@ async function* runAgentWithoutProviderOverride({
     thinkingConfig: useExactTools
       ? toolUseContext.options.thinkingConfig
       : { type: 'disabled' as const },
-    mcpClients: mergedMcpClients,
-    mcpResources: toolUseContext.options.mcpResources,
     agentDefinitions: toolUseContext.options.agentDefinitions,
     // Fork children (useExactTools path) need querySource on context.options
     // for the recursive-fork guard at AgentTool.tsx call() — it checks
@@ -963,8 +803,6 @@ async function* runAgentWithoutProviderOverride({
     // Free the Antigravity agent gate first so the next queued agent can
     // start while this one's cleanup proceeds.
     releaseAntigravityAgentTurn?.()
-    // Clean up agent-specific MCP servers (runs on normal completion, abort, or error)
-    await mcpCleanup()
     // Clean up agent's session hooks
     if (agentDefinition.hooks) {
       clearSessionHooks(rootSetAppState, agentId)
@@ -1000,17 +838,6 @@ async function* runAgentWithoutProviderOverride({
     // `run_in_background` shell loop (e.g. test fixture fake-logs.sh) outlives
     // the agent as a PPID=1 zombie once the main session eventually exits.
     killShellTasksForAgent(agentId, toolUseContext.getAppState, rootSetAppState)
-    /* eslint-disable @typescript-eslint/no-require-imports */
-    if (feature('MONITOR_TOOL')) {
-      const mcpMod =
-        require('../../tasks/MonitorMcpTask/MonitorMcpTask.js') as typeof import('../../tasks/MonitorMcpTask/MonitorMcpTask.js')
-      mcpMod.killMonitorMcpTasksForAgent(
-        agentId,
-        toolUseContext.getAppState,
-        rootSetAppState,
-      )
-    }
-    /* eslint-enable @typescript-eslint/no-require-imports */
   }
 }
 

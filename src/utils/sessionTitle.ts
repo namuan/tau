@@ -110,8 +110,7 @@ export async function generateSessionTitle(
         // session path via useRemoteSession (interactive).
         isNonInteractiveSession: getIsNonInteractiveSession(),
         hasAppendSystemPrompt: false,
-        mcpTools: [],
-      },
+              },
     })
 
     const text = extractTextContent(result.message.content)

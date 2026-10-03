@@ -6,7 +6,7 @@ import { isEnvTruthy } from './envUtils.js'
  * via shell expansion (e.g., ${ANTHROPIC_API_KEY}) in Bash tool commands.
  *
  * The parent claude process keeps these vars (needed for API calls, lazy
- * credential reads). Only child processes (bash, shell snapshot, MCP stdio, hooks) are scrubbed.
+ * credential reads). Only child processes (bash, shell snapshot, hooks) are scrubbed.
  *
  * GITHUB_TOKEN / GH_TOKEN are intentionally NOT scrubbed — wrapper scripts
  * (gh.sh) need them to call the GitHub API. That token is job-scoped and
@@ -72,7 +72,7 @@ const GHA_SUBPROCESS_SCRUB = [
 
 /**
  * Returns a copy of process.env with sensitive secrets stripped, for use when
- * spawning subprocesses (Bash tool, shell snapshot, MCP stdio servers, shell
+ * spawning subprocesses (Bash tool, shell snapshot, shell
  * hooks).
  *
  * Gated on CLAUDE_CODE_SUBPROCESS_ENV_SCRUB. claude-code-action sets this

@@ -50,7 +50,7 @@ export type DiscoveredToolScan = {
 /**
  * Extract tool names from tool_reference and tool_use blocks in message history.
  *
- * When dynamic tool loading is enabled, MCP tools are not predeclared in the
+ * When dynamic tool loading is enabled, deferred tools are not predeclared in the
  * tools array. Instead, they are discovered via ToolSearchTool which returns
  * tool_reference blocks. Models can also sometimes directly call a deferred
  * tool by name before seeing its schema. That call may fail validation, but

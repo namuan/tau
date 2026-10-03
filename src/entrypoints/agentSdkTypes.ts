@@ -9,11 +9,6 @@
  * sdk/controlTypes.ts directly.
  */
 
-import type {
-  CallToolResult,
-  ToolAnnotations,
-} from '@modelcontextprotocol/sdk/types.js'
-
 // Control protocol types for SDK builders (bridge subpath consumers)
 /** @alpha */
 export type {
@@ -41,21 +36,17 @@ import type {
 } from './sdk/coreTypes.js'
 // Import types needed for function signatures
 import type {
-  AnyZodRawShape,
   ForkSessionOptions,
   ForkSessionResult,
   GetSessionInfoOptions,
   GetSessionMessagesOptions,
-  InferShape,
   InternalOptions,
   InternalQuery,
   ListSessionsOptions,
-  McpSdkServerConfigWithInstance,
   Options,
   Query,
   SDKSession,
   SDKSessionOptions,
-  SdkMcpToolDefinition,
   SessionMessage,
   SessionMutationOptions,
 } from './sdk/runtimeTypes.js'
@@ -67,42 +58,6 @@ export type {
   ForkSessionOptions,
   ForkSessionResult,
   SDKSessionInfo,
-}
-
-export function tool<Schema extends AnyZodRawShape>(
-  _name: string,
-  _description: string,
-  _inputSchema: Schema,
-  _handler: (
-    args: InferShape<Schema>,
-    extra: unknown,
-  ) => Promise<CallToolResult>,
-  _extras?: {
-    annotations?: ToolAnnotations
-    searchHint?: string
-    alwaysLoad?: boolean
-  },
-): SdkMcpToolDefinition<Schema> {
-  throw new Error('not implemented')
-}
-
-type CreateSdkMcpServerOptions = {
-  name: string
-  version?: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tools?: Array<SdkMcpToolDefinition<any>>
-}
-
-/**
- * Creates an MCP server instance that can be used with the SDK transport.
- * This allows SDK users to define custom tools that run in the same process.
- *
- * If your SDK MCP calls will run longer than 60s, override CLAUDE_CODE_STREAM_CLOSE_TIMEOUT
- */
-export function createSdkMcpServer(
-  _options: CreateSdkMcpServerOptions,
-): McpSdkServerConfigWithInstance {
-  throw new Error('not implemented')
 }
 
 export class AbortError extends Error {}

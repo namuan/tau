@@ -52,7 +52,7 @@ import {
   type SessionExternalMetadata,
 } from 'src/utils/sessionState.js'
 import { externalMetadataToAppState } from 'src/state/onChangeAppState.js'
-import { getInMemoryErrors, logError, logMCPDebug } from 'src/utils/log.js'
+import { getInMemoryErrors, logError } from 'src/utils/log.js'
 import {
   writeToStdout,
   registerProcessOutputErrorHandlers,
@@ -63,11 +63,6 @@ import {
   loadConversationForResume,
   type TurnInterruptionState,
 } from 'src/utils/conversationRecovery.js'
-import type {
-  MCPServerConnection,
-  McpSdkServerConfig,
-  ScopedMcpServerConfig,
-} from 'src/services/mcp/types.js'
 import { validateUuid } from 'src/utils/uuid.js'
 import { fromArray } from 'src/utils/generators.js'
 import { ask } from 'src/QueryEngine.js'
@@ -76,7 +71,6 @@ import {
   type ContentReplacementRecord,
   type ContentReplacementStateRef,
 } from 'src/utils/toolResultStorage.js'
-import type { PermissionPromptTool } from 'src/utils/queryHelpers.js'
 import {
   createFileStateCacheWithSizeLimit,
   mergeFileStateCaches,
@@ -101,8 +95,6 @@ import type {
   SDKUserMessage,
   SDKUserMessageReplay,
   PermissionResult,
-  McpServerConfigForProcessTransport,
-  McpServerStatus,
   RewindFilesResult,
 } from 'src/entrypoints/agentSdkTypes.js'
 import type {
@@ -111,25 +103,17 @@ import type {
   SDKControlInitializeResponse,
   SDKControlRequest,
   SDKControlResponse,
-  SDKControlMcpSetServersResponse,
 } from 'src/entrypoints/sdk/controlTypes.js'
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk'
 import type { PermissionMode as InternalPermissionMode } from 'src/types/permissions.js'
 import { cwd } from 'process'
 import { getCwd } from 'src/utils/cwd.js'
-import omit from 'lodash-es/omit.js'
-import reject from 'lodash-es/reject.js'
 import { isPolicyAllowed } from 'src/services/policyLimits/index.js'
 import type { CanUseToolFn } from 'src/hooks/useCanUseTool.js'
 import { resolveAndPrepend } from 'src/cli/transports/inboundAttachments.js'
 import { hasPermissionsToUseTool } from 'src/utils/permissions/permissions.js'
 import { safeParseJSON } from 'src/utils/json.js'
-import {
-  outputSchema as permissionToolOutputSchema,
-  permissionPromptToolResultToPermissionDecision,
-} from 'src/utils/permissions/PermissionPromptToolResultSchema.js'
 import { createAbortController } from 'src/utils/abortController.js'
-import { createCombinedAbortSignal } from 'src/utils/combinedAbortSignal.js'
 import { generateSessionTitle } from 'src/utils/sessionTitle.js'
 import { buildSideQuestionFallbackParams } from 'src/utils/queryContext.js'
 import { runSideQuestion } from 'src/utils/sideQuestion.js'
@@ -198,39 +182,6 @@ import {
   restoreSessionMetadata,
 } from 'src/utils/sessionStorage.js'
 import { incrementPromptCount } from 'src/utils/commitAttribution.js'
-import {
-  setupSdkMcpClients,
-  connectToServer,
-  clearServerCache,
-  fetchToolsForClient,
-  areMcpConfigsEqual,
-  reconnectMcpServerImpl,
-} from 'src/services/mcp/client.js'
-import {
-  filterMcpServersByPolicy,
-  getMcpConfigByName,
-  isMcpServerDisabled,
-  setMcpServerEnabled,
-} from 'src/services/mcp/config.js'
-import {
-  performMCPOAuthFlow,
-  revokeServerTokens,
-} from 'src/services/mcp/auth.js'
-import {
-  runElicitationHooks,
-  runElicitationResultHooks,
-} from 'src/services/mcp/elicitationHandler.js'
-import { executeNotificationHooks } from 'src/utils/hooks.js'
-import {
-  ElicitRequestSchema,
-  ElicitationCompleteNotificationSchema,
-} from '@modelcontextprotocol/sdk/types.js'
-import { getMcpPrefix } from 'src/services/mcp/mcpStringUtils.js'
-import {
-  commandBelongsToServer,
-  filterToolsByServer,
-} from 'src/services/mcp/utils.js'
-import { getAllMcpConfigs } from 'src/services/mcp/config.js'
 import {
   isQualifiedForGrove,
   checkGroveForNonInteractive,
@@ -439,7 +390,6 @@ export async function runHeadless(
   setAppState: (f: (prev: AppState) => AppState) => void,
   commands: Command[],
   tools: Tools,
-  sdkMcpConfigs: Record<string, McpSdkServerConfig>,
   agents: AgentDefinition[],
   options: {
     continue: boolean | undefined
@@ -483,7 +433,7 @@ export async function runHeadless(
     process.exit(0)
   }
 
-  // Fire the user settings download now so it overlaps with MCP/tool setup.
+  // Fire the user settings download early to overlap with later startup work.
   // Managed settings already started in main.tsx preAction; this gives user
   // settings a similar head start. Later settings consumers join this promise.
   if (
@@ -781,12 +731,10 @@ export async function runHeadless(
     return
   }
 
-  // Filter out MCP tools that are in the deny list
-  const allowedMcpTools = filterToolsByDenyRules(
-    appState.mcp.tools,
+  let filteredTools = filterToolsByDenyRules(
+    tools,
     appState.toolPermissionContext,
   )
-  let filteredTools = [...tools, ...allowedMcpTools]
 
   // When using SDK URL, always use stdio permission prompting to delegate to the SDK
   const effectivePermissionPromptToolName = options.sdkUrl
@@ -810,7 +758,6 @@ export async function runHeadless(
   const canUseTool = getCanUseToolFn(
     effectivePermissionPromptToolName,
     structuredIO,
-    () => getAppState().mcp.tools,
     onPermissionPrompt,
   )
   if (options.permissionPromptToolName) {
@@ -852,13 +799,11 @@ export async function runHeadless(
   headlessProfilerCheckpoint('before_runHeadlessStreaming')
   for await (const message of runHeadlessStreaming(
     structuredIO,
-    appState.mcp.clients,
-    [...commands, ...appState.mcp.commands],
+    commands,
     filteredTools,
     initialMessages,
     initialContentReplacements,
     canUseTool,
-    sdkMcpConfigs,
     getAppState,
     setAppState,
     agents,
@@ -965,13 +910,11 @@ export async function runHeadless(
 
 function runHeadlessStreaming(
   structuredIO: StructuredIO,
-  mcpClients: MCPServerConnection[],
   commands: Command[],
   tools: Tools,
   initialMessages: Message[],
   initialContentReplacements: ContentReplacementRecord[] | undefined,
   canUseTool: CanUseToolFn,
-  sdkMcpConfigs: Record<string, McpSdkServerConfig>,
   getAppState: () => AppState,
   setAppState: (f: (prev: AppState) => AppState) => void,
   agents: AgentDefinition[],
@@ -1249,244 +1192,11 @@ function runHeadlessStreaming(
     }
   }
 
-  // Cache SDK MCP clients to avoid reconnecting on each run
-  let sdkClients: MCPServerConnection[] = []
-  let sdkTools: Tools = []
-
-  // Track which MCP clients have had elicitation handlers registered
-  const elicitationRegistered = new Set<string>()
-
-  /**
-   * Register elicitation request/completion handlers on connected MCP clients
-   * that haven't been registered yet. SDK MCP servers are excluded because they
-   * route through SdkControlClientTransport. Hooks run first (matching REPL
-   * behavior); if no hook responds, the request is forwarded to the SDK
-   * consumer via the control protocol.
-   */
-  function registerElicitationHandlers(clients: MCPServerConnection[]): void {
-    for (const connection of clients) {
-      if (
-        connection.type !== 'connected' ||
-        elicitationRegistered.has(connection.name)
-      ) {
-        continue
-      }
-      // Skip SDK MCP servers — elicitation flows through SdkControlClientTransport
-      if (connection.config.type === 'sdk') {
-        continue
-      }
-      const serverName = connection.name
-
-      // Wrapped in try/catch because setRequestHandler throws if the client wasn't
-      // created with elicitation capability declared (e.g., SDK-created clients).
-      try {
-        connection.client.setRequestHandler(
-          ElicitRequestSchema,
-          async (request, extra) => {
-            logMCPDebug(
-              serverName,
-              `Elicitation request received in print mode: ${jsonStringify(request)}`,
-            )
-
-            const mode = request.params.mode === 'url' ? 'url' : 'form'
-
-            logEvent('tengu_mcp_elicitation_shown', {
-              mode: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-            })
-
-            // Run elicitation hooks first — they can provide a response programmatically
-            const hookResponse = await runElicitationHooks(
-              serverName,
-              request.params,
-              extra.signal,
-            )
-            if (hookResponse) {
-              logMCPDebug(
-                serverName,
-                `Elicitation resolved by hook: ${jsonStringify(hookResponse)}`,
-              )
-              logEvent('tengu_mcp_elicitation_response', {
-                mode: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                action:
-                  hookResponse.action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              })
-              return hookResponse
-            }
-
-            // Delegate to SDK consumer via control protocol
-            const url =
-              'url' in request.params
-                ? (request.params.url as string)
-                : undefined
-            const requestedSchema =
-              'requestedSchema' in request.params
-                ? (request.params.requestedSchema as
-                    | Record<string, unknown>
-                    | undefined)
-                : undefined
-
-            const elicitationId =
-              'elicitationId' in request.params
-                ? (request.params.elicitationId as string | undefined)
-                : undefined
-
-            const rawResult = await structuredIO.handleElicitation(
-              serverName,
-              request.params.message,
-              requestedSchema,
-              extra.signal,
-              mode,
-              url,
-              elicitationId,
-            )
-
-            const result = await runElicitationResultHooks(
-              serverName,
-              rawResult,
-              extra.signal,
-              mode,
-              elicitationId,
-            )
-
-            logEvent('tengu_mcp_elicitation_response', {
-              mode: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              action:
-                result.action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-            })
-            return result
-          },
-        )
-
-        // Surface completion notifications to SDK consumers (URL mode)
-        connection.client.setNotificationHandler(
-          ElicitationCompleteNotificationSchema,
-          notification => {
-            const { elicitationId } = notification.params
-            logMCPDebug(
-              serverName,
-              `Elicitation completion notification: ${elicitationId}`,
-            )
-            void executeNotificationHooks({
-              message: `MCP server "${serverName}" confirmed elicitation ${elicitationId} complete`,
-              notificationType: 'elicitation_complete',
-            })
-            output.enqueue({
-              type: 'system',
-              subtype: 'elicitation_complete',
-              mcp_server_name: serverName,
-              elicitation_id: elicitationId,
-              uuid: randomUUID(),
-              session_id: getSessionId(),
-            })
-          },
-        )
-
-        elicitationRegistered.add(serverName)
-      } catch {
-        // setRequestHandler throws if the client wasn't created with
-        // elicitation capability — skip silently
-      }
-    }
-  }
-
-  async function updateSdkMcp() {
-    // Check if SDK MCP servers need to be updated (new servers added or removed)
-    const currentServerNames = new Set(Object.keys(sdkMcpConfigs))
-    const connectedServerNames = new Set(sdkClients.map(c => c.name))
-
-    // Check if there are any differences (additions or removals)
-    const hasNewServers = Array.from(currentServerNames).some(
-      name => !connectedServerNames.has(name),
-    )
-    const hasRemovedServers = Array.from(connectedServerNames).some(
-      name => !currentServerNames.has(name),
-    )
-    // Check if any SDK clients are pending and need to be upgraded
-    const hasPendingSdkClients = sdkClients.some(c => c.type === 'pending')
-    // Check if any SDK clients failed their handshake and need to be retried.
-    // Without this, a client that lands in 'failed' (e.g. handshake timeout on
-    // a WS reconnect race) stays failed forever — its name satisfies the
-    // connectedServerNames diff but it contributes zero tools.
-    const hasFailedSdkClients = sdkClients.some(c => c.type === 'failed')
-
-    const haveServersChanged =
-      hasNewServers ||
-      hasRemovedServers ||
-      hasPendingSdkClients ||
-      hasFailedSdkClients
-
-    if (haveServersChanged) {
-      // Clean up removed servers
-      for (const client of sdkClients) {
-        if (!currentServerNames.has(client.name)) {
-          if (client.type === 'connected') {
-            await client.cleanup()
-          }
-        }
-      }
-
-      // Re-initialize all SDK MCP servers with current config
-      const sdkSetup = await setupSdkMcpClients(
-        sdkMcpConfigs,
-        (serverName, message) =>
-          structuredIO.sendMcpMessage(serverName, message),
-      )
-      sdkClients = sdkSetup.clients
-      sdkTools = sdkSetup.tools
-
-      // Store SDK MCP tools in appState so subagents can access them via
-      // assembleToolPool. Only tools are stored here — SDK clients are already
-      // merged separately in the query loop (allMcpClients) and mcp_status handler.
-      // Use both old (connectedServerNames) and new (currentServerNames) to remove
-      // stale SDK tools when servers are added or removed.
-      const allSdkNames = uniq([...connectedServerNames, ...currentServerNames])
-      setAppState(prev => ({
-        ...prev,
-        mcp: {
-          ...prev.mcp,
-          tools: [
-            ...prev.mcp.tools.filter(
-              t =>
-                !allSdkNames.some(name =>
-                  t.name.startsWith(getMcpPrefix(name)),
-                ),
-            ),
-            ...sdkTools,
-          ],
-        },
-      }))
-
-    }
-  }
-
-  void updateSdkMcp()
-
-  // State for dynamically added MCP servers (via mcp_set_servers control message)
-  // These are separate from SDK MCP servers and support all transport types
-  let dynamicMcpState: DynamicMcpState = {
-    clients: [],
-    tools: [],
-    configs: {},
-  }
-
-  // Shared tool assembly for ask() and the get_context_usage control request.
-  // Closes over the mutable sdkTools/dynamicMcpState bindings so both call
-  // sites see late-connecting servers.
   const buildAllTools = (appState: AppState): Tools => {
-    // Startup tools are snapshots. Managed MCP tools must come from their
-    // current pool, otherwise disabling/reconnecting resurrects old tools.
-    const managedServers = new Set(
-      [...mcpClients, ...appState.mcp.clients].map(c => c.name),
-    )
-    const assembledTools = assembleToolPool(appState.toolPermissionContext)
     let allTools = uniqBy(
       mergeAndFilterTools(
-        [
-          ...tools.filter(t => !t.mcpInfo || !managedServers.has(t.mcpInfo.serverName)),
-          ...sdkTools,
-          ...dynamicMcpState.tools,
-        ],
-        assembledTools,
+        tools,
+        assembleToolPool(appState.toolPermissionContext),
         appState.toolPermissionContext.mode,
         appState.settings,
       ),
@@ -1507,159 +1217,6 @@ function runHeadlessStreaming(
     return allTools
   }
 
-  // Helper to apply MCP server changes from mcp_set_servers control messages.
-  // NOTE: Nested function required - mutates closure state (sdkMcpConfigs, sdkClients, etc.)
-  let mcpChangesPromise: Promise<{
-    response: SDKControlMcpSetServersResponse
-    sdkServersChanged: boolean
-  }> = Promise.resolve({
-    response: {
-      added: [] as string[],
-      removed: [] as string[],
-      errors: {} as Record<string, string>,
-    },
-    sdkServersChanged: false,
-  })
-
-  function applyMcpServerChanges(
-    servers: Record<string, McpServerConfigForProcessTransport>,
-  ): Promise<{
-    response: SDKControlMcpSetServersResponse
-    sdkServersChanged: boolean
-  }> {
-    // Serialize calls to prevent race conditions between concurrent callers.
-    const doWork = async (): Promise<{
-      response: SDKControlMcpSetServersResponse
-      sdkServersChanged: boolean
-    }> => {
-      const oldSdkClientNames = new Set(sdkClients.map(c => c.name))
-
-      const result = await handleMcpSetServers(
-        servers,
-        { configs: sdkMcpConfigs, clients: sdkClients, tools: sdkTools },
-        dynamicMcpState,
-        setAppState,
-      )
-
-      // Update SDK state (need to mutate sdkMcpConfigs since it's shared)
-      for (const key of Object.keys(sdkMcpConfigs)) {
-        delete sdkMcpConfigs[key]
-      }
-      Object.assign(sdkMcpConfigs, result.newSdkState.configs)
-      sdkClients = result.newSdkState.clients
-      sdkTools = result.newSdkState.tools
-      dynamicMcpState = result.newDynamicState
-
-      // Keep appState.mcp.tools in sync so subagents can see SDK MCP tools.
-      // Use both old and new SDK client names to remove stale tools.
-      if (result.sdkServersChanged) {
-        const newSdkClientNames = new Set(sdkClients.map(c => c.name))
-        const allSdkNames = uniq([...oldSdkClientNames, ...newSdkClientNames])
-        setAppState(prev => ({
-          ...prev,
-          mcp: {
-            ...prev.mcp,
-            tools: [
-              ...prev.mcp.tools.filter(
-                t =>
-                  !allSdkNames.some(name =>
-                    t.name.startsWith(getMcpPrefix(name)),
-                  ),
-              ),
-              ...sdkTools,
-            ],
-          },
-        }))
-      }
-
-      return {
-        response: result.response,
-        sdkServersChanged: result.sdkServersChanged,
-      }
-    }
-
-    mcpChangesPromise = mcpChangesPromise.then(doWork, doWork)
-    return mcpChangesPromise
-  }
-
-  // Build McpServerStatus[] for mcp_status control responses.
-  function buildMcpServerStatuses(): McpServerStatus[] {
-    const currentAppState = getAppState()
-    const currentMcpClients = currentAppState.mcp.clients
-    const allMcpTools = uniqBy(
-      [...currentAppState.mcp.tools, ...dynamicMcpState.tools],
-      'name',
-    )
-    const existingNames = new Set([
-      ...currentMcpClients.map(c => c.name),
-      ...sdkClients.map(c => c.name),
-    ])
-    return [
-      ...currentMcpClients,
-      ...sdkClients,
-      ...dynamicMcpState.clients.filter(c => !existingNames.has(c.name)),
-    ].map(connection => {
-      let config
-      if (
-        connection.config.type === 'sse' ||
-        connection.config.type === 'http'
-      ) {
-        config = {
-          type: connection.config.type,
-          url: connection.config.url,
-          headers: connection.config.headers,
-          oauth: connection.config.oauth,
-        }
-      } else if (connection.config.type === 'claudeai-proxy') {
-        config = {
-          type: 'claudeai-proxy' as const,
-          url: connection.config.url,
-          id: connection.config.id,
-        }
-      } else if (
-        connection.config.type === 'stdio' ||
-        connection.config.type === undefined
-      ) {
-        config = {
-          type: 'stdio' as const,
-          command: connection.config.command,
-          args: connection.config.args,
-        }
-      }
-      const serverTools =
-        connection.type === 'connected'
-          ? filterToolsByServer(allMcpTools, connection.name).map(tool => ({
-              name: tool.mcpInfo?.toolName ?? tool.name,
-              annotations: {
-                readOnly: tool.isReadOnly({}) || undefined,
-                destructive: tool.isDestructive?.({}) || undefined,
-                openWorld: tool.isOpenWorld?.({}) || undefined,
-              },
-            }))
-          : undefined
-      let capabilities: { experimental?: Record<string, unknown> } | undefined
-      if (connection.type === 'connected') {
-        const experimental = { ...connection.capabilities.experimental }
-        delete experimental['claude/channel']
-        if (Object.keys(experimental).length > 0) {
-          capabilities = { experimental }
-        }
-      }
-      return {
-        name: connection.name,
-        status: connection.type,
-        serverInfo:
-          connection.type === 'connected' ? connection.serverInfo : undefined,
-        error: connection.type === 'failed' ? connection.error : undefined,
-        config,
-        scope: connection.config.scope,
-        tools: serverTools,
-        capabilities,
-      }
-    })
-  }
-
-  // NOTE: Nested function required - needs closure access to applyMcpServerChanges and updateSdkMcp
   // Idle timeout management
   const idleTimeout = createIdleTimeoutManager(() => !running)
 
@@ -1722,8 +1279,6 @@ function runHeadlessStreaming(
     headlessProfilerCheckpoint('run_entry')
     // TODO(custom-tool-refactor): Should move to the init message, like browser
 
-    await updateSdkMcp()
-    headlessProfilerCheckpoint('after_updateSdkMcp')
 
     // Only main-thread commands (agentId===undefined) — subagent
     // notifications are drained by the subagent's mid-turn gate in query.ts.
@@ -1789,17 +1344,7 @@ function runHeadlessStreaming(
             }
           }
 
-          // Combine all MCP clients. appState.mcp is populated incrementally
-          // per-server by main.tsx (mirrors useManageMCPConnections). Reading
-          // fresh per-command means late-connecting servers are visible on the
-          // next turn. registerElicitationHandlers is idempotent (tracking set).
           const appState = getAppState()
-          const allMcpClients = [
-            ...appState.mcp.clients,
-            ...sdkClients,
-            ...dynamicMcpState.clients,
-          ]
-          registerElicitationHandlers(allMcpClients)
           const allTools = buildAllTools(appState)
 
           for (const uuid of batchUuids) {
@@ -1874,28 +1419,13 @@ function runHeadlessStreaming(
           const cmd = command
           await runWithWorkload(cmd.workload ?? options.workload, async () => {
             for await (const message of ask({
-              commands: uniqBy(
-                [...currentCommands, ...appState.mcp.commands],
-                'name',
-              ),
+              commands: uniqBy(currentCommands, 'name'),
               prompt: input,
               promptUuid: cmd.uuid,
               isMeta: cmd.isMeta,
               cwd: cwd(),
               tools: allTools,
               verbose: options.verbose,
-              mcpClients: allMcpClients,
-              refreshMcpContext: () => {
-                const state = getAppState()
-                return {
-                  tools: buildAllTools(state),
-                  mcpClients: [
-                    ...state.mcp.clients,
-                    ...sdkClients,
-                    ...dynamicMcpState.clients,
-                  ],
-                }
-              },
               thinkingConfig: options.thinkingConfig,
               maxTurns: options.maxTurns,
               maxBudgetUsd: options.maxBudgetUsd,
@@ -1928,16 +1458,6 @@ function runHeadlessStreaming(
               abortController,
               replayUserMessages: options.replayUserMessages,
               includePartialMessages: options.includePartialMessages,
-              handleElicitation: (serverName, params, elicitSignal) =>
-                structuredIO.handleElicitation(
-                  serverName,
-                  params.message,
-                  undefined,
-                  elicitSignal,
-                  params.mode,
-                  params.url,
-                  'elicitationId' in params ? params.elicitationId : undefined,
-                ),
               agents: currentAgents,
               orphanedPermission: cmd.orphanedPermission,
               setSDKStatus: status => {
@@ -2510,23 +2030,6 @@ function runHeadlessStreaming(
     })
   })
 
-  // Track active OAuth flows per server so we can abort a previous flow
-  // when a new mcp_authenticate request arrives for the same server.
-  const activeOAuthFlows = new Map<string, AbortController>()
-  // Track manual callback URL submit functions for active OAuth flows.
-  // Used when localhost is not reachable (e.g., browser-based IDEs).
-  const oauthCallbackSubmitters = new Map<
-    string,
-    (callbackUrl: string) => void
-  >()
-  // Track servers where the manual callback was actually invoked (so the
-  // automatic reconnect path knows to skip — the extension will reconnect).
-  const oauthManualCallbackUsed = new Set<string>()
-  // Track OAuth auth-only promises so mcp_oauth_callback_url can await
-  // token exchange completion. Reconnect is handled separately by the
-  // extension via handleAuthDone → mcp_reconnect.
-  const oauthAuthPromises = new Map<string, Promise<void>>()
-
   // In-flight Anthropic OAuth flow (claude_authenticate). Single-slot: a
   // second authenticate request cleans up the first. The service holds the
   // PKCE verifier + localhost listener; the promise settles after
@@ -2594,22 +2097,6 @@ function runHeadlessStreaming(
           sendControlResponseSuccess(message)
           break // exits for-await → falls through to inputClosed=true drain below
         } else if (message.request.subtype === 'initialize') {
-          // SDK MCP server names from the initialize message
-          // Populated by both browser and ProcessTransport sessions
-          if (
-            message.request.sdkMcpServers &&
-            message.request.sdkMcpServers.length > 0
-          ) {
-            for (const serverName of message.request.sdkMcpServers) {
-              // Create placeholder config for SDK MCP servers
-              // The actual server connection is managed by the SDK Query class
-              sdkMcpConfigs[serverName] = {
-                type: 'sdk',
-                name: serverName,
-              }
-            }
-          }
-
           await handleInitializeRequest(
             message.request,
             message.request_id,
@@ -2687,10 +2174,6 @@ function runHeadlessStreaming(
             }
           }
           sendControlResponseSuccess(message)
-        } else if (message.request.subtype === 'mcp_status') {
-          sendControlResponseSuccess(message, {
-            mcpServers: buildMcpServerStatuses(),
-          })
         } else if (message.request.subtype === 'get_context_usage') {
           try {
             const appState = getAppState()
@@ -2709,22 +2192,6 @@ function runHeadlessStreaming(
           } catch (error) {
             sendControlResponseError(message, errorMessage(error))
           }
-        } else if (message.request.subtype === 'mcp_message') {
-          // Handle MCP notifications from SDK servers
-          const mcpRequest = message.request
-          const sdkClient = sdkClients.find(
-            client => client.name === mcpRequest.server_name,
-          )
-          // Check client exists - dynamically added SDK servers may have
-          // placeholder clients with null client until updateSdkMcp() runs
-          if (
-            sdkClient &&
-            sdkClient.type === 'connected' &&
-            sdkClient.client?.transport?.onmessage
-          ) {
-            sdkClient.client.transport.onmessage(mcpRequest.message)
-          }
-          sendControlResponseSuccess(message)
         } else if (message.request.subtype === 'rewind_files') {
           const appState = getAppState()
           const result = await handleRewindFiles(
@@ -2785,382 +2252,6 @@ function runHeadlessStreaming(
             // ENOENT etc — skip seeding but still succeed
           }
           sendControlResponseSuccess(message)
-        } else if (message.request.subtype === 'mcp_set_servers') {
-          const { response, sdkServersChanged } = await applyMcpServerChanges(
-            message.request.servers,
-          )
-          sendControlResponseSuccess(message, response)
-
-          // Connect SDK servers AFTER response to avoid deadlock
-          if (sdkServersChanged) {
-            void updateSdkMcp()
-          }
-        } else if (message.request.subtype === 'mcp_reconnect') {
-          const currentAppState = getAppState()
-          const { serverName } = message.request
-          elicitationRegistered.delete(serverName)
-          // Config-existence gate must cover the SAME sources as the
-          // operations below. SDK-injected servers (query({mcpServers:{...}}))
-          // and dynamically-added servers were missing here, so
-          // toggleMcpServer/reconnect returned "Server not found" even though
-          // the disconnect/reconnect would have worked (gh-31339 / CC-314).
-          const config =
-            getMcpConfigByName(serverName) ??
-            mcpClients.find(c => c.name === serverName)?.config ??
-            sdkClients.find(c => c.name === serverName)?.config ??
-            dynamicMcpState.clients.find(c => c.name === serverName)?.config ??
-            currentAppState.mcp.clients.find(c => c.name === serverName)
-              ?.config ??
-            null
-          if (!config) {
-            sendControlResponseError(message, `Server not found: ${serverName}`)
-          } else {
-            const result = await reconnectMcpServerImpl(serverName, config)
-            // Update appState.mcp with the new client, tools, commands, and resources
-            const prefix = getMcpPrefix(serverName)
-            setAppState(prev => ({
-              ...prev,
-              mcp: {
-                ...prev.mcp,
-                clients: prev.mcp.clients.map(c =>
-                  c.name === serverName ? result.client : c,
-                ),
-                tools: [
-                  ...reject(prev.mcp.tools, t => t.name?.startsWith(prefix)),
-                  ...result.tools,
-                ],
-                commands: [
-                  ...reject(prev.mcp.commands, c =>
-                    commandBelongsToServer(c, serverName),
-                  ),
-                  ...result.commands,
-                ],
-                resources:
-                  result.resources && result.resources.length > 0
-                    ? { ...prev.mcp.resources, [serverName]: result.resources }
-                    : omit(prev.mcp.resources, serverName),
-              },
-            }))
-            // Also update dynamicMcpState so run() picks up the new tools
-            // on the next turn (run() reads dynamicMcpState, not appState)
-            dynamicMcpState = {
-              ...dynamicMcpState,
-              clients: [
-                ...dynamicMcpState.clients.filter(c => c.name !== serverName),
-                result.client,
-              ],
-              tools: [
-                ...dynamicMcpState.tools.filter(
-                  t => !t.name?.startsWith(prefix),
-                ),
-                ...result.tools,
-              ],
-            }
-            if (result.client.type === 'connected') {
-              registerElicitationHandlers([result.client])
-              sendControlResponseSuccess(message)
-            } else {
-              const errorMessage =
-                result.client.type === 'failed'
-                  ? (result.client.error ?? 'Connection failed')
-                  : `Server status: ${result.client.type}`
-              sendControlResponseError(message, errorMessage)
-            }
-          }
-        } else if (message.request.subtype === 'mcp_toggle') {
-          const currentAppState = getAppState()
-          const { serverName, enabled } = message.request
-          elicitationRegistered.delete(serverName)
-          // Gate must match the client-lookup spread below (which
-          // includes sdkClients and dynamicMcpState.clients). Same fix as
-          // mcp_reconnect above (gh-31339 / CC-314).
-          const config =
-            getMcpConfigByName(serverName) ??
-            mcpClients.find(c => c.name === serverName)?.config ??
-            sdkClients.find(c => c.name === serverName)?.config ??
-            dynamicMcpState.clients.find(c => c.name === serverName)?.config ??
-            currentAppState.mcp.clients.find(c => c.name === serverName)
-              ?.config ??
-            null
-
-          if (!config) {
-            sendControlResponseError(message, `Server not found: ${serverName}`)
-          } else if (!enabled) {
-            // Disabling: persist + disconnect (matches TUI toggleMcpServer behavior)
-            setMcpServerEnabled(serverName, false)
-            const client = [
-              ...mcpClients,
-              ...sdkClients,
-              ...dynamicMcpState.clients,
-              ...currentAppState.mcp.clients,
-            ].find(c => c.name === serverName)
-            if (client && client.type === 'connected') {
-              await clearServerCache(serverName, config)
-            }
-            // Update appState.mcp to reflect disabled status and remove tools/commands/resources
-            const prefix = getMcpPrefix(serverName)
-            setAppState(prev => ({
-              ...prev,
-              mcp: {
-                ...prev.mcp,
-                clients: prev.mcp.clients.map(c =>
-                  c.name === serverName
-                    ? { name: serverName, type: 'disabled' as const, config }
-                    : c,
-                ),
-                tools: reject(prev.mcp.tools, t => t.name?.startsWith(prefix)),
-                commands: reject(prev.mcp.commands, c =>
-                  commandBelongsToServer(c, serverName),
-                ),
-                resources: omit(prev.mcp.resources, serverName),
-              },
-            }))
-            sendControlResponseSuccess(message)
-          } else {
-            // Enabling: persist + reconnect
-            setMcpServerEnabled(serverName, true)
-            const result = await reconnectMcpServerImpl(serverName, config)
-            // Update appState.mcp with the new client, tools, commands, and resources
-            // This ensures the LLM sees updated tools after enabling the server
-            const prefix = getMcpPrefix(serverName)
-            setAppState(prev => ({
-              ...prev,
-              mcp: {
-                ...prev.mcp,
-                clients: prev.mcp.clients.map(c =>
-                  c.name === serverName ? result.client : c,
-                ),
-                tools: [
-                  ...reject(prev.mcp.tools, t => t.name?.startsWith(prefix)),
-                  ...result.tools,
-                ],
-                commands: [
-                  ...reject(prev.mcp.commands, c =>
-                    commandBelongsToServer(c, serverName),
-                  ),
-                  ...result.commands,
-                ],
-                resources:
-                  result.resources && result.resources.length > 0
-                    ? { ...prev.mcp.resources, [serverName]: result.resources }
-                    : omit(prev.mcp.resources, serverName),
-              },
-            }))
-            if (result.client.type === 'connected') {
-              registerElicitationHandlers([result.client])
-              sendControlResponseSuccess(message)
-            } else {
-              const errorMessage =
-                result.client.type === 'failed'
-                  ? (result.client.error ?? 'Connection failed')
-                  : `Server status: ${result.client.type}`
-              sendControlResponseError(message, errorMessage)
-            }
-          }
-        } else if (message.request.subtype === 'mcp_authenticate') {
-          const { serverName } = message.request
-          const currentAppState = getAppState()
-          const config =
-            getMcpConfigByName(serverName) ??
-            mcpClients.find(c => c.name === serverName)?.config ??
-            currentAppState.mcp.clients.find(c => c.name === serverName)
-              ?.config ??
-            null
-          if (!config) {
-            sendControlResponseError(message, `Server not found: ${serverName}`)
-          } else if (config.type !== 'sse' && config.type !== 'http') {
-            sendControlResponseError(
-              message,
-              `Server type "${config.type}" does not support OAuth authentication`,
-            )
-          } else {
-            try {
-              // Abort any previous in-flight OAuth flow for this server
-              activeOAuthFlows.get(serverName)?.abort()
-              const controller = new AbortController()
-              activeOAuthFlows.set(serverName, controller)
-
-              // Capture the auth URL from the callback
-              let resolveAuthUrl: (url: string) => void
-              const authUrlPromise = new Promise<string>(resolve => {
-                resolveAuthUrl = resolve
-              })
-
-              // Start the OAuth flow in the background
-              const oauthPromise = performMCPOAuthFlow(
-                serverName,
-                config,
-                url => resolveAuthUrl!(url),
-                controller.signal,
-                {
-                  skipBrowserOpen: true,
-                  onWaitingForCallback: submit => {
-                    oauthCallbackSubmitters.set(serverName, submit)
-                  },
-                },
-              )
-
-              // Wait for the auth URL (or the flow to complete without needing redirect)
-              const authUrl = await Promise.race([
-                authUrlPromise,
-                oauthPromise.then(() => null as string | null),
-              ])
-
-              if (authUrl) {
-                sendControlResponseSuccess(message, {
-                  authUrl,
-                  requiresUserAction: true,
-                })
-              } else {
-                sendControlResponseSuccess(message, {
-                  requiresUserAction: false,
-                })
-              }
-
-              // Store auth-only promise for mcp_oauth_callback_url handler.
-              // Don't swallow errors — the callback handler needs to detect
-              // auth failures and report them to the caller.
-              oauthAuthPromises.set(serverName, oauthPromise)
-
-              // Handle background completion — reconnect after auth.
-              // When manual callback is used, skip the reconnect here;
-              // the extension's handleAuthDone → mcp_reconnect handles it
-              // (which also updates dynamicMcpState for tool registration).
-              const fullFlowPromise = oauthPromise
-                .then(async () => {
-                  // Don't reconnect if the server was disabled during the OAuth flow
-                  if (isMcpServerDisabled(serverName)) {
-                    return
-                  }
-                  // Skip reconnect if the manual callback path was used —
-                  // handleAuthDone will do it via mcp_reconnect (which
-                  // updates dynamicMcpState for tool registration).
-                  if (oauthManualCallbackUsed.has(serverName)) {
-                    return
-                  }
-                  // Reconnect the server after successful auth
-                  const result = await reconnectMcpServerImpl(
-                    serverName,
-                    config,
-                  )
-                  const prefix = getMcpPrefix(serverName)
-                  setAppState(prev => ({
-                    ...prev,
-                    mcp: {
-                      ...prev.mcp,
-                      clients: prev.mcp.clients.map(c =>
-                        c.name === serverName ? result.client : c,
-                      ),
-                      tools: [
-                        ...reject(prev.mcp.tools, t =>
-                          t.name?.startsWith(prefix),
-                        ),
-                        ...result.tools,
-                      ],
-                      commands: [
-                        ...reject(prev.mcp.commands, c =>
-                          commandBelongsToServer(c, serverName),
-                        ),
-                        ...result.commands,
-                      ],
-                      resources:
-                        result.resources && result.resources.length > 0
-                          ? {
-                              ...prev.mcp.resources,
-                              [serverName]: result.resources,
-                            }
-                          : omit(prev.mcp.resources, serverName),
-                    },
-                  }))
-                  // Also update dynamicMcpState so run() picks up the new tools
-                  // on the next turn (run() reads dynamicMcpState, not appState)
-                  dynamicMcpState = {
-                    ...dynamicMcpState,
-                    clients: [
-                      ...dynamicMcpState.clients.filter(
-                        c => c.name !== serverName,
-                      ),
-                      result.client,
-                    ],
-                    tools: [
-                      ...dynamicMcpState.tools.filter(
-                        t => !t.name?.startsWith(prefix),
-                      ),
-                      ...result.tools,
-                    ],
-                  }
-                })
-                .catch(error => {
-                  logForDebugging(
-                    `MCP OAuth failed for ${serverName}: ${error}`,
-                    { level: 'error' },
-                  )
-                })
-                .finally(() => {
-                  // Clean up only if this is still the active flow
-                  if (activeOAuthFlows.get(serverName) === controller) {
-                    activeOAuthFlows.delete(serverName)
-                    oauthCallbackSubmitters.delete(serverName)
-                    oauthManualCallbackUsed.delete(serverName)
-                    oauthAuthPromises.delete(serverName)
-                  }
-                })
-              void fullFlowPromise
-            } catch (error) {
-              sendControlResponseError(message, errorMessage(error))
-            }
-          }
-        } else if (message.request.subtype === 'mcp_oauth_callback_url') {
-          const { serverName, callbackUrl } = message.request
-          const submit = oauthCallbackSubmitters.get(serverName)
-          if (submit) {
-            // Validate the callback URL before submitting. The submit
-            // callback in auth.ts silently ignores URLs missing a code
-            // param, which would leave the auth promise unresolved and
-            // block the control message loop until timeout.
-            let hasCodeOrError = false
-            try {
-              const parsed = new URL(callbackUrl)
-              hasCodeOrError =
-                parsed.searchParams.has('code') ||
-                parsed.searchParams.has('error')
-            } catch {
-              // Invalid URL
-            }
-            if (!hasCodeOrError) {
-              sendControlResponseError(
-                message,
-                'Invalid callback URL: missing authorization code. Please paste the full redirect URL including the code parameter.',
-              )
-            } else {
-              oauthManualCallbackUsed.add(serverName)
-              submit(callbackUrl)
-              // Wait for auth (token exchange) to complete before responding.
-              // Reconnect is handled by the extension via handleAuthDone →
-              // mcp_reconnect (which updates dynamicMcpState for tools).
-              const authPromise = oauthAuthPromises.get(serverName)
-              if (authPromise) {
-                try {
-                  await authPromise
-                  sendControlResponseSuccess(message)
-                } catch (error) {
-                  sendControlResponseError(
-                    message,
-                    error instanceof Error
-                      ? error.message
-                      : 'OAuth authentication failed',
-                  )
-                }
-              } else {
-                sendControlResponseSuccess(message)
-              }
-            }
-          } else {
-            sendControlResponseError(
-              message,
-              `No active OAuth flow for server: ${serverName}`,
-            )
-          }
         } else if (message.request.subtype === 'claude_authenticate') {
           // Anthropic OAuth over the control channel. The SDK client owns
           // the user's browser (we're headless in -p mode); we hand back
@@ -3297,54 +2388,6 @@ function runHeadlessStreaming(
               (error: unknown) =>
                 sendControlResponseError(message, errorMessage(error)),
             )
-          }
-        } else if (message.request.subtype === 'mcp_clear_auth') {
-          const { serverName } = message.request
-          const currentAppState = getAppState()
-          const config =
-            getMcpConfigByName(serverName) ??
-            mcpClients.find(c => c.name === serverName)?.config ??
-            currentAppState.mcp.clients.find(c => c.name === serverName)
-              ?.config ??
-            null
-          if (!config) {
-            sendControlResponseError(message, `Server not found: ${serverName}`)
-          } else if (config.type !== 'sse' && config.type !== 'http') {
-            sendControlResponseError(
-              message,
-              `Cannot clear auth for server type "${config.type}"`,
-            )
-          } else {
-            await revokeServerTokens(serverName, config)
-            const result = await reconnectMcpServerImpl(serverName, config)
-            const prefix = getMcpPrefix(serverName)
-            setAppState(prev => ({
-              ...prev,
-              mcp: {
-                ...prev.mcp,
-                clients: prev.mcp.clients.map(c =>
-                  c.name === serverName ? result.client : c,
-                ),
-                tools: [
-                  ...reject(prev.mcp.tools, t => t.name?.startsWith(prefix)),
-                  ...result.tools,
-                ],
-                commands: [
-                  ...reject(prev.mcp.commands, c =>
-                    commandBelongsToServer(c, serverName),
-                  ),
-                  ...result.commands,
-                ],
-                resources:
-                  result.resources && result.resources.length > 0
-                    ? {
-                        ...prev.mcp.resources,
-                        [serverName]: result.resources,
-                      }
-                    : omit(prev.mcp.resources, serverName),
-              },
-            }))
-            sendControlResponseSuccess(message, {})
           }
         } else if (message.request.subtype === 'apply_flag_settings') {
           // Snapshot the current model before applying — we need to detect
@@ -3499,11 +2542,6 @@ function runHeadlessStreaming(
                 : await buildSideQuestionFallbackParams({
                     tools: buildAllTools(getAppState()),
                     commands: currentCommands,
-                    mcpClients: [
-                      ...getAppState().mcp.clients,
-                      ...sdkClients,
-                      ...dynamicMcpState.clients,
-                    ],
                     messages: mutableMessages,
                     readFileState,
                     getAppState,
@@ -3667,155 +2705,14 @@ function runHeadlessStreaming(
  * Creates a CanUseToolFn that incorporates a custom permission prompt tool.
  * This function converts the permissionPromptTool into a CanUseToolFn that can be used in ask.tsx
  */
-export function createCanUseToolWithPermissionPrompt(
-  permissionPromptTool: PermissionPromptTool,
-): CanUseToolFn {
-  const canUseTool: CanUseToolFn = async (
-    tool,
-    input,
-    toolUseContext,
-    assistantMessage,
-    toolUseId,
-    forceDecision,
-  ) => {
-    const mainPermissionResult =
-      forceDecision ??
-      (await hasPermissionsToUseTool(
-        tool,
-        input,
-        toolUseContext,
-        assistantMessage,
-        toolUseId,
-      ))
-
-    // If the tool is allowed or denied, return the result
-    if (
-      mainPermissionResult.behavior === 'allow' ||
-      mainPermissionResult.behavior === 'deny'
-    ) {
-      return mainPermissionResult
-    }
-
-    // Race the permission prompt tool against the abort signal.
-    //
-    // Why we need this: The permission prompt tool may block indefinitely waiting
-    // for user input (e.g., via stdin or a UI dialog). If the user triggers an
-    // interrupt (Ctrl+C), we need to detect it even while the tool is blocked.
-    // Without this race, the abort check would only run AFTER the tool completes,
-    // which may never happen if the tool is waiting for input that will never come.
-    //
-    // The second check (combinedSignal.aborted) handles a race condition where
-    // abort fires after Promise.race resolves but before we reach this check.
-    const { signal: combinedSignal, cleanup: cleanupAbortListener } =
-      createCombinedAbortSignal(toolUseContext.abortController.signal)
-
-    // Check if already aborted before starting the race
-    if (combinedSignal.aborted) {
-      cleanupAbortListener()
-      return {
-        behavior: 'deny',
-        message: 'Permission prompt was aborted.',
-        decisionReason: {
-          type: 'permissionPromptTool' as const,
-          permissionPromptToolName: tool.name,
-          toolResult: undefined,
-        },
-      }
-    }
-
-    const abortPromise = new Promise<'aborted'>(resolve => {
-      combinedSignal.addEventListener('abort', () => resolve('aborted'), {
-        once: true,
-      })
-    })
-
-    const toolCallPromise = permissionPromptTool.call(
-      {
-        tool_name: tool.name,
-        input,
-        tool_use_id: toolUseId,
-      },
-      toolUseContext,
-      canUseTool,
-      assistantMessage,
-    )
-
-    const raceResult = await Promise.race([toolCallPromise, abortPromise])
-    cleanupAbortListener()
-
-    if (raceResult === 'aborted' || combinedSignal.aborted) {
-      return {
-        behavior: 'deny',
-        message: 'Permission prompt was aborted.',
-        decisionReason: {
-          type: 'permissionPromptTool' as const,
-          permissionPromptToolName: tool.name,
-          toolResult: undefined,
-        },
-      }
-    }
-
-    // TypeScript narrowing: after the abort check, raceResult must be ToolResult
-    const result = raceResult as Awaited<typeof toolCallPromise>
-
-    const permissionToolResultBlockParam =
-      permissionPromptTool.mapToolResultToToolResultBlockParam(result.data, '1')
-    if (
-      !permissionToolResultBlockParam.content ||
-      !Array.isArray(permissionToolResultBlockParam.content) ||
-      !permissionToolResultBlockParam.content[0] ||
-      permissionToolResultBlockParam.content[0].type !== 'text' ||
-      typeof permissionToolResultBlockParam.content[0].text !== 'string'
-    ) {
-      throw new Error(
-        'Permission prompt tool returned an invalid result. Expected a single text block param with type="text" and a string text value.',
-      )
-    }
-    return permissionPromptToolResultToPermissionDecision(
-      permissionToolOutputSchema().parse(
-        safeParseJSON(permissionToolResultBlockParam.content[0].text),
-      ),
-      permissionPromptTool,
-      input,
-      toolUseContext,
-    )
-  }
-  return canUseTool
-}
-
-// Exported for testing — regression: this used to crash at construction when
-// getMcpTools() was empty (before per-server connects populated appState).
 export function getCanUseToolFn(
   permissionPromptToolName: string | undefined,
   structuredIO: StructuredIO,
-  getMcpTools: () => Tool[],
   onPermissionPrompt?: (details: RequiresActionDetails) => void,
 ): CanUseToolFn {
   if (permissionPromptToolName === 'stdio') {
     return structuredIO.createCanUseTool(onPermissionPrompt)
   }
-  if (!permissionPromptToolName) {
-    return async (
-      tool,
-      input,
-      toolUseContext,
-      assistantMessage,
-      toolUseId,
-      forceDecision,
-    ) =>
-      forceDecision ??
-      (await hasPermissionsToUseTool(
-        tool,
-        input,
-        toolUseContext,
-        assistantMessage,
-        toolUseId,
-      ))
-  }
-  // Lazy lookup: MCP connects are per-server incremental in print mode, so
-  // the tool may not be in appState yet at init time. Resolve on first call
-  // (first permission prompt), by which point connects have had time to finish.
-  let resolved: CanUseToolFn | null = null
   return async (
     tool,
     input,
@@ -3823,35 +2720,15 @@ export function getCanUseToolFn(
     assistantMessage,
     toolUseId,
     forceDecision,
-  ) => {
-    if (!resolved) {
-      const mcpTools = getMcpTools()
-      const permissionPromptTool = mcpTools.find(t =>
-        toolMatchesName(t, permissionPromptToolName),
-      ) as PermissionPromptTool | undefined
-      if (!permissionPromptTool) {
-        const error = `Error: MCP tool ${permissionPromptToolName} (passed via --permission-prompt-tool) not found. Available MCP tools: ${mcpTools.map(t => t.name).join(', ') || 'none'}`
-        process.stderr.write(`${error}\n`)
-        gracefulShutdownSync(1)
-        throw new Error(error)
-      }
-      if (!permissionPromptTool.inputJSONSchema) {
-        const error = `Error: tool ${permissionPromptToolName} (passed via --permission-prompt-tool) must be an MCP tool`
-        process.stderr.write(`${error}\n`)
-        gracefulShutdownSync(1)
-        throw new Error(error)
-      }
-      resolved = createCanUseToolWithPermissionPrompt(permissionPromptTool)
-    }
-    return resolved(
+  ) =>
+    forceDecision ??
+    (await hasPermissionsToUseTool(
       tool,
       input,
       toolUseContext,
       assistantMessage,
       toolUseId,
-      forceDecision,
-    )
-  }
+    ))
 }
 
 async function handleInitializeRequest(
@@ -4633,292 +3510,4 @@ export async function handleOrphanedPermissionResponse({
     return true
   }
   return false
-}
-
-export type DynamicMcpState = {
-  clients: MCPServerConnection[]
-  tools: Tools
-  configs: Record<string, ScopedMcpServerConfig>
-}
-
-/**
- * Converts a process transport config to a scoped config.
- * The types are structurally compatible, so we just add the scope.
- */
-function toScopedConfig(
-  config: McpServerConfigForProcessTransport,
-): ScopedMcpServerConfig {
-  // Adding scope makes the process transport config a valid ScopedMcpServerConfig
-  return { ...config, scope: 'dynamic' } as ScopedMcpServerConfig
-}
-
-/**
- * State for SDK MCP servers that run in the SDK process.
- */
-export type SdkMcpState = {
-  configs: Record<string, McpSdkServerConfig>
-  clients: MCPServerConnection[]
-  tools: Tools
-}
-
-/**
- * Result of handleMcpSetServers - contains new state and response data.
- */
-export type McpSetServersResult = {
-  response: SDKControlMcpSetServersResponse
-  newSdkState: SdkMcpState
-  newDynamicState: DynamicMcpState
-  sdkServersChanged: boolean
-}
-
-/**
- * Handles mcp_set_servers requests by processing both SDK and process-based servers.
- * SDK servers run in the SDK process; process-based servers are spawned by the CLI.
- *
- * Applies enterprise allowedMcpServers/deniedMcpServers policy — same filter as
- * --mcp-config (see filterMcpServersByPolicy call in main.tsx). Without this,
- * SDK V2 Query.setMcpServers() was a second policy bypass vector. Blocked servers
- * are reported in response.errors so the SDK consumer knows why they weren't added.
- */
-export async function handleMcpSetServers(
-  servers: Record<string, McpServerConfigForProcessTransport>,
-  sdkState: SdkMcpState,
-  dynamicState: DynamicMcpState,
-  setAppState: (f: (prev: AppState) => AppState) => void,
-): Promise<McpSetServersResult> {
-  // Enforce enterprise MCP policy on process-based servers (stdio/http/sse).
-  // Mirrors the --mcp-config filter in main.tsx — both user-controlled injection
-  // paths must have the same gate. type:'sdk' servers are exempt (SDK-managed,
-  // CLI never spawns/connects for them — see filterMcpServersByPolicy jsdoc).
-  // Blocked servers go into response.errors so the SDK caller sees why.
-  const { allowed: allowedServers, blocked } = filterMcpServersByPolicy(servers)
-  const policyErrors: Record<string, string> = {}
-  for (const name of blocked) {
-    policyErrors[name] =
-      'Blocked by enterprise policy (allowedMcpServers/deniedMcpServers)'
-  }
-
-  // Separate SDK servers from process-based servers
-  const sdkServers: Record<string, McpSdkServerConfig> = {}
-  const processServers: Record<string, McpServerConfigForProcessTransport> = {}
-
-  for (const [name, config] of Object.entries(allowedServers)) {
-    if (config.type === 'sdk') {
-      sdkServers[name] = config
-    } else {
-      processServers[name] = config
-    }
-  }
-
-  // Handle SDK servers
-  const currentSdkNames = new Set(Object.keys(sdkState.configs))
-  const newSdkNames = new Set(Object.keys(sdkServers))
-  const sdkAdded: string[] = []
-  const sdkRemoved: string[] = []
-
-  const newSdkConfigs = { ...sdkState.configs }
-  let newSdkClients = [...sdkState.clients]
-  let newSdkTools = [...sdkState.tools]
-
-  // Remove SDK servers no longer in desired state
-  for (const name of currentSdkNames) {
-    if (!newSdkNames.has(name)) {
-      const client = newSdkClients.find(c => c.name === name)
-      if (client && client.type === 'connected') {
-        await client.cleanup()
-      }
-      newSdkClients = newSdkClients.filter(c => c.name !== name)
-      const prefix = `mcp__${name}__`
-      newSdkTools = newSdkTools.filter(t => !t.name.startsWith(prefix))
-      delete newSdkConfigs[name]
-      sdkRemoved.push(name)
-    }
-  }
-
-  // Add new SDK servers as pending - they'll be upgraded to connected
-  // when updateSdkMcp() runs on the next query
-  for (const [name, config] of Object.entries(sdkServers)) {
-    if (!currentSdkNames.has(name)) {
-      newSdkConfigs[name] = config
-      const pendingClient: MCPServerConnection = {
-        type: 'pending',
-        name,
-        config: { ...config, scope: 'dynamic' as const },
-      }
-      newSdkClients = [...newSdkClients, pendingClient]
-      sdkAdded.push(name)
-    }
-  }
-
-  // Handle process-based servers
-  const processResult = await reconcileMcpServers(
-    processServers,
-    dynamicState,
-    setAppState,
-  )
-
-  return {
-    response: {
-      added: [...sdkAdded, ...processResult.response.added],
-      removed: [...sdkRemoved, ...processResult.response.removed],
-      errors: { ...policyErrors, ...processResult.response.errors },
-    },
-    newSdkState: {
-      configs: newSdkConfigs,
-      clients: newSdkClients,
-      tools: newSdkTools,
-    },
-    newDynamicState: processResult.newState,
-    sdkServersChanged: sdkAdded.length > 0 || sdkRemoved.length > 0,
-  }
-}
-
-/**
- * Reconciles the current set of dynamic MCP servers with a new desired state.
- * Handles additions, removals, and config changes.
- */
-export async function reconcileMcpServers(
-  desiredConfigs: Record<string, McpServerConfigForProcessTransport>,
-  currentState: DynamicMcpState,
-  setAppState: (f: (prev: AppState) => AppState) => void,
-): Promise<{
-  response: SDKControlMcpSetServersResponse
-  newState: DynamicMcpState
-}> {
-  const currentNames = new Set(Object.keys(currentState.configs))
-  const desiredNames = new Set(Object.keys(desiredConfigs))
-
-  const toRemove = [...currentNames].filter(n => !desiredNames.has(n))
-  const toAdd = [...desiredNames].filter(n => !currentNames.has(n))
-
-  // Check for config changes (same name, different config)
-  const toCheck = [...currentNames].filter(n => desiredNames.has(n))
-  const toReplace = toCheck.filter(name => {
-    const currentConfig = currentState.configs[name]
-    const desiredConfigRaw = desiredConfigs[name]
-    if (!currentConfig || !desiredConfigRaw) return true
-    const desiredConfig = toScopedConfig(desiredConfigRaw)
-    return !areMcpConfigsEqual(currentConfig, desiredConfig)
-  })
-
-  const removed: string[] = []
-  const added: string[] = []
-  const errors: Record<string, string> = {}
-
-  let newClients = [...currentState.clients]
-  let newTools = [...currentState.tools]
-
-  // Remove old servers (including ones being replaced)
-  for (const name of [...toRemove, ...toReplace]) {
-    const client = newClients.find(c => c.name === name)
-    const config = currentState.configs[name]
-    if (client && config) {
-      if (client.type === 'connected') {
-        try {
-          await client.cleanup()
-        } catch (e) {
-          logError(e)
-        }
-      }
-      // Clear the memoization cache
-      await clearServerCache(name, config)
-    }
-
-    // Remove tools from this server
-    const prefix = `mcp__${name}__`
-    newTools = newTools.filter(t => !t.name.startsWith(prefix))
-
-    // Remove from clients list
-    newClients = newClients.filter(c => c.name !== name)
-
-    // Track removal (only for actually removed, not replaced)
-    if (toRemove.includes(name)) {
-      removed.push(name)
-    }
-  }
-
-  // Add new servers (including replacements)
-  for (const name of [...toAdd, ...toReplace]) {
-    const config = desiredConfigs[name]
-    if (!config) continue
-    const scopedConfig = toScopedConfig(config)
-
-    // SDK servers are managed by the SDK process, not the CLI.
-    // Just track them without trying to connect.
-    if (config.type === 'sdk') {
-      added.push(name)
-      continue
-    }
-
-    try {
-      const client = await connectToServer(name, scopedConfig)
-      newClients.push(client)
-
-      if (client.type === 'connected') {
-        const serverTools = await fetchToolsForClient(client)
-        newTools.push(...serverTools)
-      } else if (client.type === 'failed') {
-        errors[name] = client.error || 'Connection failed'
-      }
-
-      added.push(name)
-    } catch (e) {
-      const err = toError(e)
-      errors[name] = err.message
-      logError(err)
-    }
-  }
-
-  // Build new configs
-  const newConfigs: Record<string, ScopedMcpServerConfig> = {}
-  for (const name of desiredNames) {
-    const config = desiredConfigs[name]
-    if (config) {
-      newConfigs[name] = toScopedConfig(config)
-    }
-  }
-
-  const newState: DynamicMcpState = {
-    clients: newClients,
-    tools: newTools,
-    configs: newConfigs,
-  }
-
-  // Update AppState with the new tools
-  setAppState(prev => {
-    // Get all dynamic server names (current + new)
-    const allDynamicServerNames = new Set([
-      ...Object.keys(currentState.configs),
-      ...Object.keys(newConfigs),
-    ])
-
-    // Remove old dynamic tools
-    const nonDynamicTools = prev.mcp.tools.filter(t => {
-      for (const serverName of allDynamicServerNames) {
-        if (t.name.startsWith(`mcp__${serverName}__`)) {
-          return false
-        }
-      }
-      return true
-    })
-
-    // Remove old dynamic clients
-    const nonDynamicClients = prev.mcp.clients.filter(c => {
-      return !allDynamicServerNames.has(c.name)
-    })
-
-    return {
-      ...prev,
-      mcp: {
-        ...prev.mcp,
-        tools: [...nonDynamicTools, ...newTools],
-        clients: [...nonDynamicClients, ...newClients],
-      },
-    }
-  })
-
-  return {
-    response: { added, removed, errors },
-    newState,
-  }
 }

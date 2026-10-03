@@ -9,7 +9,7 @@ import { Box, Text, useTheme } from '../../ink.js';
 import { type AppState, useAppState } from '../../state/AppState.js';
 import { getCwd } from '../../utils/cwd.js';
 import { getCurrentSessionTitle } from '../../utils/sessionStorage.js';
-import { buildAccountProperties, buildAPIProviderProperties, buildInstallationDiagnostics, buildInstallationHealthDiagnostics, buildMcpProperties, buildMemoryDiagnostics, buildSandboxProperties, buildSettingSourcesProperties, type Diagnostic, getModelDisplayLabel, type Property } from '../../utils/status.js';
+import { buildAccountProperties, buildAPIProviderProperties, buildInstallationDiagnostics, buildInstallationHealthDiagnostics, buildMemoryDiagnostics, buildSandboxProperties, buildSettingSourcesProperties, type Diagnostic, getModelDisplayLabel, type Property } from '../../utils/status.js';
 import { getSurfBannerLabel } from '../../utils/surf/label.js';
 import type { ThemeName } from '../../utils/theme.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
@@ -37,11 +37,9 @@ function buildPrimarySection(): Property[] {
 }
 function buildSecondarySection({
   mainLoopModel,
-  mcp,
   theme,
 }: {
   mainLoopModel: AppState['mainLoopModel'];
-  mcp: AppState['mcp'];
   theme: ThemeName;
 }): Property[] {
   // When surf is on, /status shows the router banner in place of the
@@ -51,7 +49,7 @@ function buildSecondarySection({
   return [{
     label: 'Model',
     value: modelLabel
-  }, ...buildMcpProperties(mcp.clients, theme), ...buildSandboxProperties(), ...buildSettingSourcesProperties()];
+  }, ...buildSandboxProperties(), ...buildSettingSourcesProperties()];
 }
 export async function buildDiagnostics(): Promise<Diagnostic[]> {
   return [...(await buildInstallationDiagnostics()), ...(await buildInstallationHealthDiagnostics()), ...(await buildMemoryDiagnostics())];
@@ -108,7 +106,6 @@ export function Status(t0) {
     diagnosticsPromise
   } = t0;
   const mainLoopModel = useAppState(_temp);
-  const mcp = useAppState(_temp2);
   const [theme] = useTheme();
   let t1;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
@@ -118,14 +115,12 @@ export function Status(t0) {
     t1 = $[0];
   }
   let t2;
-  if ($[1] !== mainLoopModel || $[2] !== mcp || $[3] !== theme) {
+  if ($[1] !== mainLoopModel || $[3] !== theme) {
     t2 = buildSecondarySection({
       mainLoopModel,
-      mcp,
       theme
     });
     $[1] = mainLoopModel;
-    $[2] = mcp;
     $[3] = theme;
     $[4] = t2;
   } else {
@@ -194,9 +189,6 @@ function _temp3(t0, j) {
     value
   } = t0;
   return <Box key={j} flexDirection="row" gap={1} flexShrink={0}>{label !== undefined && <Text bold={true}>{label}:</Text>}<PropertyValue value={value} /></Box>;
-}
-function _temp2(s_0) {
-  return s_0.mcp;
 }
 function _temp(s) {
   return s.mainLoopModel;

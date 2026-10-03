@@ -9,7 +9,6 @@
  */
 
 import { z } from 'zod/v4'
-import { coerceMcpInput } from '../services/mcp/coerceMcpInput.js'
 import {
   contractArgumentJudge,
   contractIssues,
@@ -187,7 +186,7 @@ function main(): void {
 
   test('a malformed advisory field is dropped only when it is the only problem', () => {
     const recorded = {
-      command: 'pwd && tau mcp list', timeout: 120000, description: 'Inspect',
+      command: 'pwd && tau status', timeout: 120000, description: 'Inspect',
       run_in_background: false,
       command_parts: {
         executable: 'pwd',
@@ -253,7 +252,6 @@ function main(): void {
     assert(/`pages` = ""/.test(note) && /Invalid pages parameter/.test(note), note)
   })
 
-  // MCP tools are judged by their server's JSON Schema.
   const playwrightTabs = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     type: 'object',
@@ -266,14 +264,14 @@ function main(): void {
     additionalProperties: false,
   }
 
-  test('the recorded strict-lane MCP call runs without its nulls', () => {
+  test('the recorded strict-schema call runs without its nulls', () => {
     const recorded = { action: 'list', index: null, url: null }
     const repair = dropInvalidPlaceholderArguments(recorded, contractArgumentJudge(playwrightTabs))
     assert(same(repair.input, { action: 'list' }), JSON.stringify(repair.input))
     assert(describeDroppedArguments(repair.dropped) === undefined, 'null drops need no note')
   })
 
-  test('a server schema that accepts null keeps it', () => {
+  test('a JSON schema that accepts null keeps it', () => {
     const schema = {
       type: 'object',
       properties: { action: { type: 'string' }, index: { type: ['number', 'null'] } },
@@ -282,20 +280,6 @@ function main(): void {
     const input = { action: 'list', index: null }
     const repair = dropInvalidPlaceholderArguments(input, contractArgumentJudge(schema))
     assert(repair.input === input, 'a valid null was dropped')
-  })
-
-  test('schema coercion runs once the placeholder is out of the way', () => {
-    const schema = {
-      type: 'object',
-      properties: { query: { type: 'string' }, count: { type: 'integer' }, offset: { type: 'integer' } },
-      required: ['query'],
-    }
-    const coerced = coerceMcpInput({ query: 'x', count: '3', offset: null }, schema) as Record<string, unknown>
-    assert(coerced.count === '3', 'coercion alone was expected to be blocked by the null')
-    const repair = dropInvalidPlaceholderArguments(coerced, contractArgumentJudge(schema), {
-      normalize: value => coerceMcpInput(value, schema) as Record<string, unknown>,
-    })
-    assert(same(repair.input, { query: 'x', count: 3 }), JSON.stringify(repair.input))
   })
 
   test('issues about an unexpected property name that property', () => {

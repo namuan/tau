@@ -390,7 +390,6 @@ function BashPermissionRequestInner({
       }
       logEvent('tengu_bypass_permissions_prompt_enabled', {
         toolName: toolNameForAnalytics,
-        isMcp: toolUseConfirm.tool.isMcp ?? false
       });
       toolUseConfirm.onAllow(toolUseConfirm.input, []);
       onDone();
@@ -404,7 +403,6 @@ function BashPermissionRequestInner({
           // Log accept submission with feedback context
           logEvent('tengu_accept_submitted', {
             toolName: toolNameForAnalytics,
-            isMcp: toolUseConfirm.tool.isMcp ?? false,
             has_instructions: !!trimmedFeedback_0,
             instructions_length: trimmedFeedback_0.length,
             entered_feedback_mode: yesFeedbackModeEntered
@@ -429,7 +427,6 @@ function BashPermissionRequestInner({
           // Log reject submission with feedback context
           logEvent('tengu_reject_submitted', {
             toolName: toolNameForAnalytics,
-            isMcp: toolUseConfirm.tool.isMcp ?? false,
             has_instructions: !!trimmedFeedback,
             instructions_length: trimmedFeedback.length,
             entered_feedback_mode: noFeedbackModeEntered

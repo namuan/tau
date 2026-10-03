@@ -14,26 +14,25 @@ export type SuggestionItem = {
   metadata?: unknown;
   color?: keyof Theme;
 };
-export type SuggestionType = 'command' | 'command-argument' | 'file' | 'directory' | 'agent' | 'shell' | 'custom-title' | 'slack-channel' | 'none';
+export type SuggestionType = 'command' | 'command-argument' | 'file' | 'directory' | 'agent' | 'shell' | 'custom-title' | 'none';
 export const OVERLAY_MAX_ITEMS = 5;
 
 /**
  * Get the icon for a suggestion based on its type
- * Icons: + for files, ◇ for MCP resources, * for agents
+ * Icons: + for files, * for agents
  */
 function getIcon(itemId: string): string {
   if (itemId.startsWith('file-')) return '+';
-  if (itemId.startsWith('mcp-resource-')) return '◇';
   if (itemId.startsWith('agent-')) return '*';
   if (itemId.startsWith('dm-')) return '@';
   return '+';
 }
 
 /**
- * Check if an item is a unified suggestion type (file, mcp-resource, or agent)
+ * Check if an item is a unified suggestion type (file or agent)
  */
 function isUnifiedSuggestion(itemId: string): boolean {
-  return itemId.startsWith('file-') || itemId.startsWith('mcp-resource-') || itemId.startsWith('agent-') || itemId.startsWith('dm-');
+  return itemId.startsWith('file-') || itemId.startsWith('agent-') || itemId.startsWith('dm-');
 }
 const SuggestionItemRow = memo(function SuggestionItemRow(t0) {
   const $ = _c(36);
@@ -57,7 +56,6 @@ const SuggestionItemRow = memo(function SuggestionItemRow(t0) {
     const textColor = isSelected ? "primary" : undefined;
     const dimColor = !isSelected;
     const isFile = item.id.startsWith("file-");
-    const isMcpResource = item.id.startsWith("mcp-resource-");
     const separatorWidth = item.description ? 3 : 0;
     let displayText;
     if (isFile) {
@@ -82,19 +80,7 @@ const SuggestionItemRow = memo(function SuggestionItemRow(t0) {
       }
       displayText = t3;
     } else {
-      if (isMcpResource) {
-        let t2;
-        if ($[7] !== item.displayText) {
-          t2 = truncateToWidth(item.displayText, 30);
-          $[7] = item.displayText;
-          $[8] = t2;
-        } else {
-          t2 = $[8];
-        }
-        displayText = t2;
-      } else {
-        displayText = item.displayText;
-      }
+      displayText = item.displayText;
     }
     const availableWidth = columns - 2 - stringWidth(displayText) - separatorWidth - 4;
     let lineContent;

@@ -178,12 +178,6 @@ function computeHash(data: unknown): number {
   return djb2Hash(str)
 }
 
-/** MCP tool names are user-controlled (server config) and may leak filepaths.
- *  Collapse them to 'mcp'; built-in names are a fixed vocabulary. */
-function sanitizeToolName(name: string): string {
-  return name.startsWith('mcp__') ? 'mcp' : name
-}
-
 function computePerToolHashes(
   strippedTools: ReadonlyArray<unknown>,
   names: string[],
@@ -603,23 +597,15 @@ export async function checkResponseForCacheBreak(
       addedToolCount: changes?.addedToolCount ?? 0,
       removedToolCount: changes?.removedToolCount ?? 0,
       systemCharDelta: changes?.systemCharDelta ?? 0,
-      // Tool names are sanitized: built-in names are a fixed vocabulary,
-      // MCP tools collapse to 'mcp' (user-configured, could leak paths).
-      addedTools: (changes?.addedTools ?? [])
-        .map(sanitizeToolName)
-        .join(
-          ',',
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      removedTools: (changes?.removedTools ?? [])
-        .map(sanitizeToolName)
-        .join(
-          ',',
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      changedToolSchemas: (changes?.changedToolSchemas ?? [])
-        .map(sanitizeToolName)
-        .join(
-          ',',
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      addedTools: (changes?.addedTools ?? []).join(
+        ',',
+      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      removedTools: (changes?.removedTools ?? []).join(
+        ',',
+      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      changedToolSchemas: (changes?.changedToolSchemas ?? []).join(
+        ',',
+      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       // Beta header names and cache strategy are fixed enum-like values,
       // not code or filepaths. requestId is an opaque server-generated ID.
       addedBetas: (changes?.addedBetas ?? []).join(

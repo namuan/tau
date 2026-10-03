@@ -20,7 +20,7 @@ type DiagnosticLogEntry = {
  * file paths, project names, repo names, prompts, etc.
  *
  * @param level    Log level. Only used for information, not filtering
- * @param event    A specific event: "started", "mcp_connected", etc.
+ * @param event    A specific event name such as "started".
  * @param data     Optional additional data to log
  */
 // sync IO: called from sync context

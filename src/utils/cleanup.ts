@@ -94,39 +94,10 @@ export async function cleanupOldMessageFiles(): Promise<CleanupResult> {
   const fsImpl = getFsImplementation()
   const cutoffDate = getCutoffDate()
   const errorPath = CACHE_PATHS.errors()
-  const baseCachePath = CACHE_PATHS.baseLogs()
 
   // Clean up message and error logs
   let result = await cleanupOldFilesInDirectory(errorPath, cutoffDate, false)
 
-  // Clean up MCP logs
-  try {
-    let dirents
-    try {
-      dirents = await fsImpl.readdir(baseCachePath)
-    } catch {
-      return result
-    }
-
-    const mcpLogDirs = dirents
-      .filter(
-        dirent => dirent.isDirectory() && dirent.name.startsWith('mcp-logs-'),
-      )
-      .map(dirent => join(baseCachePath, dirent.name))
-
-    for (const mcpLogDir of mcpLogDirs) {
-      // Clean up files in MCP log directory
-      result = addCleanupResults(
-        result,
-        await cleanupOldFilesInDirectory(mcpLogDir, cutoffDate, true),
-      )
-      await tryRmdir(mcpLogDir, fsImpl)
-    }
-  } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
-      logError(error)
-    }
-  }
 
   return result
 }

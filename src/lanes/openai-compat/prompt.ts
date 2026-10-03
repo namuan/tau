@@ -54,9 +54,6 @@ You have tools for reading files, writing files, editing code, searching the cod
   if (parts.toolsAddendum) {
     stableSections.push(parts.toolsAddendum)
   }
-  if (parts.mcpIntro) {
-    stableSections.push(`## MCP Tools\n\n${parts.mcpIntro}`)
-  }
 
   const stable = stableSections.join('\n\n')
 

@@ -3,23 +3,23 @@ import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-// Exercise the shipped bundle, without launching the CLI or copying production functions.
-export async function loadMcpRuntime({ paths: extraPaths = [], exports: extraExports = [] } = {}) {
-  const distPath = resolve(process.env.TAU_MCP_TEST_BUNDLE ?? 'dist/tau.mjs')
-  const auditPath = join(dirname(distPath), `.mcp-boundaries-${process.pid}-${Date.now()}.mjs`)
+export async function loadBuiltRuntime({ paths: extraPaths = [], exports: extraExports = [] } = {}) {
+  const distPath = resolve(process.env.TAU_TEST_BUNDLE ?? 'dist/tau.mjs')
+  const auditPath = join(dirname(distPath), `.built-runtime-${process.pid}-${Date.now()}.mjs`)
   let source = readFileSync(distPath, 'utf8').replace(/\nvoid main\d*\(\);\r?\n/, '\n')
   const paths = [
-    'src/services/tools/toolExecution.ts', 'src/utils/messages.ts',
-    'src/services/mcp/client.ts', 'src/services/mcp/discovery.ts',
-    'src/lanes/codex/loop.ts', 'src/lanes/qwen/loop.ts',
-    'src/lanes/gemini/loop.ts', 'src/lanes/kiro/loop.ts',
-    'src/lanes/openai-compat/loop.ts', 'src/lanes/provider-bridge.ts',
+    'src/services/tools/toolExecution.ts',
+    'src/utils/messages.ts',
+    'src/lanes/codex/loop.ts',
+    'src/lanes/qwen/loop.ts',
+    'src/lanes/gemini/loop.ts',
+    'src/lanes/kiro/loop.ts',
+    'src/lanes/openai-compat/loop.ts',
+    'src/lanes/provider-bridge.ts',
     'src/lanes/cline/tool_arg_validation.ts',
     'src/services/api/adapters/openai_responses.ts',
     'src/services/api/adapters/openai_to_anthropic.ts',
     'src/services/api/adapters/gemini_to_anthropic.ts',
-    'src/tools/EvalTool/toolBridge.ts',
-    'src/services/mcp/outcomes.ts',
     'src/constants/prompts.ts',
     ...extraPaths,
   ]
@@ -36,16 +36,7 @@ export async function loadMcpRuntime({ paths: extraPaths = [], exports: extraExp
       OpenAICompatLane, assembleFinalMessage, normalizeClineToolCallArgumentEvents,
       responsesMessageToAnthropic, openAIMessageToAnthropic, geminiMessageToAnthropic,
       geminiStreamToAnthropicEvents, openAIStreamToAnthropicEvents, responsesStreamToAnthropicEvents,
-      callMCPTool, connectToServer, getServerCacheKey, clearServerCache,
-      McpToolCallError: McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      fetchToolsForClient, getMcpToolsCommandsAndResources, memoizeDiscovery, ensureToolBridge, registerBridgeSession,
-      getToolResultsDir, sanitizeErrorToolResultContent,
-      outcomeOf, isOutcomeRecord, describeOutcome, mayHaveExecuted,
-      getMcpToolTimeoutMs, getSystemPrompt, isRepeatedFailingCall,
-      attachOutcome, OUTCOME_RECORD_VERSION,
-      disposeToolBridge: async () => {
-        if (serverPromise) { const { server } = await serverPromise; await new Promise(resolve => server.close(resolve)); }
-      } };
+      getSystemPrompt };
   }`
   writeFileSync(auditPath, source)
   try {
@@ -58,7 +49,7 @@ export async function loadMcpRuntime({ paths: extraPaths = [], exports: extraExp
 export function fixtureTool(overrides = {}) {
   const calls = []
   return {
-    name: 'FixtureTool', calls, isMcp: false, maxResultSizeChars: 100_000,
+    name: 'FixtureTool', calls, maxResultSizeChars: 100_000,
     inputSchema: { safeParse: value => ({ success: true, data: value }) },
     inputJSONSchema: { type: 'object', properties: {}, additionalProperties: true },
     description: async () => 'fixture', prompt: async () => 'fixture',
@@ -74,9 +65,9 @@ export function fixtureTool(overrides = {}) {
 export function fixtureContext(tools, overrides = {}) {
   return {
     abortController: new AbortController(),
-    options: { tools, mcpClients: [], isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
+    options: { tools, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
     messages: [],
-    getAppState: () => ({ mcp: { clients: [], tools }, sessionHooks: new Map(),
+    getAppState: () => ({ sessionHooks: new Map(),
       toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {} } }),
     setAppState: () => {}, ...overrides,
   }

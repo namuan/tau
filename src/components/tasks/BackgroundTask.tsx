@@ -259,40 +259,6 @@ export function BackgroundTask(t0) {
         }
         return t6;
       }
-    case "monitor_mcp":
-      {
-        let t1;
-        if ($[67] !== activityLimit || $[68] !== task.description) {
-          t1 = truncate(task.description, activityLimit, true);
-          $[67] = activityLimit;
-          $[68] = task.description;
-          $[69] = t1;
-        } else {
-          t1 = $[69];
-        }
-        const t2 = task.status === "completed" ? "done" : undefined;
-        const t3 = task.status === "completed" && !task.notified ? ", unread" : undefined;
-        let t4;
-        if ($[70] !== t2 || $[71] !== t3 || $[72] !== task.status) {
-          t4 = <TaskStatusText status={task.status} label={t2} suffix={t3} />;
-          $[70] = t2;
-          $[71] = t3;
-          $[72] = task.status;
-          $[73] = t4;
-        } else {
-          t4 = $[73];
-        }
-        let t5;
-        if ($[74] !== t1 || $[75] !== t4) {
-          t5 = <Text>{t1}{" "}{t4}</Text>;
-          $[74] = t1;
-          $[75] = t4;
-          $[76] = t5;
-        } else {
-          t5 = $[76];
-        }
-        return t5;
-      }
     case "dream":
       {
         const n = task.filesTouched.length;

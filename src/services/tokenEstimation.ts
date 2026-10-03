@@ -459,7 +459,7 @@ function roughTokenCountEstimationForBlock(
   if (block.type === 'redacted_thinking') {
     return roughTokenCountEstimation(block.data)
   }
-  // server_tool_use, web_search_tool_result, mcp_tool_use, etc. —
+  // server-side tool and search result blocks —
   // text-like payloads (tool inputs, search results, no base64).
   // Stringify-length tracks the serialized form the API sees; the
   // key/bracket overhead is single-digit percent on real blocks.

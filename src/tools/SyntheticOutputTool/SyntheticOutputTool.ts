@@ -26,7 +26,6 @@ export function isSyntheticOutputToolEnabled(opts: {
 }
 
 export const SyntheticOutputTool = buildTool({
-  isMcp: false,
   isEnabled() {
     // This tool is only created when conditions are met (see main.tsx where
     // isSyntheticOutputToolEnabled() gates tool creation). Once created, always enabled.

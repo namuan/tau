@@ -102,8 +102,7 @@ export function createApiQueryHook<TResult>(
           temperatureOverride: 0,
           agents: context.toolUseContext.options.agentDefinitions.activeAgents,
           querySource: config.name,
-          mcpTools: [],
-          agentId: context.toolUseContext.agentId,
+                    agentId: context.toolUseContext.agentId,
         },
       })
 

@@ -15,9 +15,8 @@ import type { LaneRunContext, SystemPromptParts, SharedTool, ToolResult } from '
 import type {
   AnthropicStreamEvent,
   ProviderMessage,
-  ProviderTool,
 } from '../services/api/providers/base_provider.js'
-import { filterProviderToolsForLane, filterSharedToolsForLane } from './tool_filter.js'
+import { filterSharedToolsForLane } from './tool_filter.js'
 
 /**
  * Should this model run through a native lane?
@@ -56,7 +55,6 @@ export async function* runNativeLane(
     messages: params.messages,
     systemParts: params.systemParts,
     availableTools: filterSharedToolsForLane(laneName, params.availableTools),
-    mcpTools: filterProviderToolsForLane(laneName, params.mcpTools),
     executeTool: params.executeTool,
     maxTokens: params.maxTokens,
     signal: params.signal,
@@ -77,7 +75,6 @@ export interface NativeLaneParams {
   messages: ProviderMessage[]
   systemParts: SystemPromptParts
   availableTools: SharedTool[]
-  mcpTools: ProviderTool[]
   executeTool(implId: string, input: Record<string, unknown>): Promise<ToolResult>
   maxTokens: number
   signal: AbortSignal

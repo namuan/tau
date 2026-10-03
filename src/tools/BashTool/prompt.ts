@@ -1,4 +1,3 @@
-import { feature } from 'bun:bundle'
 import { prependBullets } from '../../constants/prompts.js'
 import { getAttributionTexts } from '../../utils/attribution.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
@@ -234,19 +233,8 @@ export function getSimplePrompt(): string {
 
   const sleepSubitems = [
     'Do not sleep, poll, or retry in a loop when work can run immediately; diagnose failures.',
-    ...(feature('MONITOR_TOOL')
-      ? [
-          'Use the Monitor tool to stream events from a background process (each stdout line is a notification). For one-shot "wait until done," use Bash with run_in_background instead.',
-        ]
-      : []),
     'For long-running work use `run_in_background`; Tau reports completion, so do not poll.',
-    ...(feature('MONITOR_TOOL')
-      ? [
-          '`sleep N` as the first command with N ≥ 2 is blocked. If you need a delay (rate limiting, deliberate pacing), keep it under 2 seconds.',
-        ]
-      : [
-          'For an external process, run its status command directly. If a deliberate delay is unavoidable, keep it short.',
-        ]),
+    'For an external process, run its status command directly. If a deliberate delay is unavoidable, keep it short.',
   ]
   const backgroundNote = getBackgroundUsageNote()
   const platform = getPlatform()

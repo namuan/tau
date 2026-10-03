@@ -42,8 +42,6 @@ export const HOOK_EVENTS = [
   'TeammateIdle',
   'TaskCreated',
   'TaskCompleted',
-  'Elicitation',
-  'ElicitationResult',
   'ConfigChange',
   'WorktreeCreate',
   'WorktreeRemove',

@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { fixtureContext, fixtureTool, loadMcpRuntime } from './helpers/mcp-built-runtime.mjs'
+import { fixtureContext, fixtureTool, loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
 // OUT-02: a tool that reports failure by RETURNING an error result, rather than
 // throwing, must stay failed across the Eval bridge. These run against the real
 // bundled bridge over real loopback HTTP, so the assertions cover the shipped
 // protocol rather than a reimplementation of it.
 
-const runtime = await loadMcpRuntime()
+const runtime = await loadBuiltRuntime()
 
 /** Post to the real bridge exactly as the Python kernel does. */
 async function bridgeCall(info, session, name, args) {

@@ -129,8 +129,7 @@ async function generateTitleAndBranch(description: string, signal: AbortSignal):
         agents: [],
         isNonInteractiveSession: false,
         hasAppendSystemPrompt: false,
-        mcpTools: []
-      }
+              }
     });
 
     // Extract text from the response

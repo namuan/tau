@@ -264,13 +264,10 @@ export class KiroLane implements Lane {
 
   async *run(_context: LaneRunContext): AsyncGenerator<AnthropicStreamEvent, LaneRunResult> {
     const context = _context
-    const { model, messages, systemParts, availableTools, mcpTools, signal, maxTokens } = context
+    const { model, messages, systemParts, availableTools, signal, maxTokens } = context
 
     const systemText = assembleSystemFromParts(systemParts)
-    const allTools = [
-      ...availableTools.map(tool => tool.anthropicDef),
-      ...mcpTools,
-    ]
+    const allTools = availableTools.map(tool => tool.anthropicDef)
 
     const totalUsage: NormalizedUsage = {
       input_tokens: 0,
@@ -1247,14 +1244,12 @@ function assembleSystemFromParts(parts: {
   environment?: string
   gitStatus?: string
   toolsAddendum?: string
-  mcpIntro?: string
   skillsContext?: string
   customInstructions?: string
 }): string {
   const sections: string[] = []
   if (parts.customInstructions) sections.push(parts.customInstructions)
   if (parts.toolsAddendum) sections.push(parts.toolsAddendum)
-  if (parts.mcpIntro) sections.push(parts.mcpIntro)
   if (parts.skillsContext) sections.push(`Skills:\n${parts.skillsContext}`)
   if (parts.memory) sections.push(`Context:\n${parts.memory}`)
   if (parts.environment) sections.push(parts.environment)

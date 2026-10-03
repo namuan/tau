@@ -169,12 +169,10 @@ export function SkillPermissionRequest(props) {
   } else {
     t7 = $[20];
   }
-  const t8 = toolUseConfirm.tool.isMcp ?? false;
   let t9;
   if ($[21] !== t7 || $[22] !== t8) {
     t9 = {
       toolName: t7,
-      isMcp: t8
     };
     $[21] = t7;
     $[22] = t8;

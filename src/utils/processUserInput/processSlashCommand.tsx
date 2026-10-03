@@ -38,7 +38,6 @@ import { parseToolListFromCLI } from '../permissions/permissionSetup.js';
 import { hasPermissionsToUseTool } from '../permissions/permissions.js';
 import { isRestrictedToPluginOnly, isSourceAdminTrusted } from '../settings/pluginOnlyPolicy.js';
 import { parseSlashCommand } from '../slashCommandParsing.js';
-import { sleep } from '../sleep.js';
 import { recordSkillUsage } from '../suggestions/skillUsageTracking.js';
 import { logOTelEvent, redactIfDisabled } from '../telemetry/events.js';
 import { getAssistantMessageContentLength } from '../tokens.js';
@@ -48,12 +47,6 @@ import type { ProcessUserInputBaseResult, ProcessUserInputContext } from './proc
 type SlashCommandResult = ProcessUserInputBaseResult & {
   command: Command;
 };
-
-// Poll interval and deadline for MCP settle before launching a background
-// forked subagent. MCP servers typically connect within 1-3s of startup;
-// 10s headroom covers slow SSE handshakes.
-const MCP_SETTLE_POLL_MS = 200;
-const MCP_SETTLE_TIMEOUT_MS = 10_000;
 
 /**
  * Executes a slash command with context: fork in a sub-agent.
@@ -124,18 +117,6 @@ async function executeForkedSlashCommand(command: CommandBase & PromptCommand, a
       workload: spawnTimeWorkload
     });
     void (async () => {
-      // Wait for MCP servers to settle. Scheduled tasks fire at startup and
-      // all N drain within ~1ms (since we return immediately), capturing
-      // context.options.tools before MCP connects. The sync path
-      // accidentally avoided this — tasks serialized, so task N's drain
-      // happened after task N-1's 30s run, by which time MCP was up.
-      // Poll until no 'pending' clients remain, then refresh.
-      const deadline = Date.now() + MCP_SETTLE_TIMEOUT_MS;
-      while (Date.now() < deadline) {
-        const s = context.getAppState();
-        if (!s.mcp.clients.some(c => c.type === 'pending')) break;
-        await sleep(MCP_SETTLE_POLL_MS);
-      }
       const freshTools = context.options.refreshTools?.() ?? context.options.tools;
       const agentMessages: Message[] = [];
       for await (const message of runAgent({
@@ -314,12 +295,8 @@ export async function processSlashCommand(inputString: string, precedingInputBlo
       resultText: errorMessage
     };
   }
-  const {
-    commandName,
-    args: parsedArgs,
-    isMcp
-  } = parsed;
-  const sanitizedCommandName = isMcp ? 'mcp' : !builtInCommandNames().has(commandName) ? 'custom' : commandName;
+  const { commandName, args: parsedArgs } = parsed;
+  const sanitizedCommandName = !builtInCommandNames().has(commandName) ? 'custom' : commandName;
 
   // Check if it's a real command before processing
   if (!hasCommand(commandName, context.options.commands)) {
@@ -835,7 +812,7 @@ async function getMessagesForPromptSlashCommand(command: CommandBase & PromptCom
   // Create content for the main message, including any pasted images
   const mainMessageContent: ContentBlockParam[] = imageContentBlocks.length > 0 || precedingInputBlocks.length > 0 ? [...imageContentBlocks, ...precedingInputBlocks, ...result] : result;
 
-  // Extract attachments from command arguments (@-mentions, MCP resources,
+  // Extract attachments from command arguments (@-mentions,
   // agent mentions in SKILL.md). skipSkillDiscovery prevents the SKILL.md
   // content itself from triggering discovery — it's meta-content, not user
   // intent, and a large SKILL.md (e.g. 110KB) would fire chunked AKI queries

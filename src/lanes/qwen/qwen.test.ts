@@ -99,8 +99,7 @@ function main(): void {
       environment: 'env',
       gitStatus: 'branch:main',
       toolsAddendum: '',
-      mcpIntro: '',
-      skillsContext: '',
+        skillsContext: '',
       customInstructions: 'custom',
     })
     assert(String(p.stable).length > 0, 'stable is empty')
@@ -113,7 +112,7 @@ function main(): void {
 
   test('stable slot byte-identical across turns when only volatile changes', () => {
     const base = {
-      toolsAddendum: '', mcpIntro: '', skillsContext: '', customInstructions: 'c',
+      toolsAddendum: '', skillsContext: '', customInstructions: 'c',
     }
     const t1 = assembleQwenSystemPrompt('qwen-max', {
       ...base, memory: 'a', environment: 'e1', gitStatus: 'g1',

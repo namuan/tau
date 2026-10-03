@@ -94,15 +94,12 @@ import type {
   InstructionsLoadedHookInput,
   UserPromptSubmitHookInput,
   PermissionRequestHookInput,
-  ElicitationHookInput,
-  ElicitationResultHookInput,
   PermissionUpdate,
   ExitReason,
   SyncHookJSONOutput,
   AsyncHookJSONOutput,
 } from 'src/entrypoints/agentSdkTypes.js'
 import type { StatusLineCommandInput } from '../types/statusLine.js'
-import type { ElicitResult } from '@modelcontextprotocol/sdk/types.js'
 import type { FileSuggestionCommandInput } from '../types/fileSuggestion.js'
 import type { HookResultMessage } from 'src/types/message.js'
 import chalk from 'chalk'
@@ -322,9 +319,6 @@ export interface HookBlockingError {
   command: string
 }
 
-/** Re-export ElicitResult from MCP SDK as ElicitationResponse for backward compat. */
-export type ElicitationResponse = ElicitResult
-
 export interface HookResult {
   message?: HookResultMessage
   systemMessage?: string
@@ -337,11 +331,8 @@ export interface HookResult {
   additionalContext?: string
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
-  updatedMCPToolOutput?: unknown
   permissionRequestResult?: PermissionRequestResult
-  elicitationResponse?: ElicitationResponse
   watchPaths?: string[]
-  elicitationResultResponse?: ElicitationResponse
   retry?: boolean
   hook: HookCommand | HookCallback | FunctionHook
 }
@@ -357,11 +348,8 @@ export type AggregatedHookResult = {
   additionalContexts?: string[]
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
-  updatedMCPToolOutput?: unknown
   permissionRequestResult?: PermissionRequestResult
   watchPaths?: string[]
-  elicitationResponse?: ElicitationResponse
-  elicitationResultResponse?: ElicitationResponse
   retry?: boolean
 }
 
@@ -632,11 +620,6 @@ function processHookJSONOutput({
         break
       case 'PostToolUse':
         result.additionalContext = json.hookSpecificOutput.additionalContext
-        // Extract updatedMCPToolOutput if provided
-        if (json.hookSpecificOutput.updatedMCPToolOutput) {
-          result.updatedMCPToolOutput =
-            json.hookSpecificOutput.updatedMCPToolOutput
-        }
         break
       case 'PostToolUseFailure':
         result.additionalContext = json.hookSpecificOutput.additionalContext
@@ -661,39 +644,7 @@ function processHookJSONOutput({
           }
         }
         break
-      case 'Elicitation':
-        if (json.hookSpecificOutput.action) {
-          result.elicitationResponse = {
-            action: json.hookSpecificOutput.action,
-            content: json.hookSpecificOutput.content as
-              | ElicitationResponse['content']
-              | undefined,
-          }
-          if (json.hookSpecificOutput.action === 'decline') {
-            result.blockingError = {
-              blockingError: json.reason || 'Elicitation denied by hook',
-              command,
-            }
-          }
-        }
-        break
-      case 'ElicitationResult':
-        if (json.hookSpecificOutput.action) {
-          result.elicitationResultResponse = {
-            action: json.hookSpecificOutput.action,
-            content: json.hookSpecificOutput.content as
-              | ElicitationResponse['content']
-              | undefined,
-          }
-          if (json.hookSpecificOutput.action === 'decline') {
-            result.blockingError = {
-              blockingError:
-                json.reason || 'Elicitation result blocked by hook',
-              command,
-            }
-          }
-        }
-        break
+
     }
   }
 
@@ -1539,12 +1490,6 @@ export async function getMatchingHooks(
       case 'TeammateIdle':
       case 'TaskCreated':
       case 'TaskCompleted':
-        break
-      case 'Elicitation':
-        matchQuery = hookInput.mcp_server_name
-        break
-      case 'ElicitationResult':
-        matchQuery = hookInput.mcp_server_name
         break
       case 'ConfigChange':
         matchQuery = hookInput.source
@@ -2679,16 +2624,6 @@ async function* executeHooks({
       }
     }
 
-    // Yield updatedMCPToolOutput if provided (from PostToolUse hooks)
-    if (result.updatedMCPToolOutput) {
-      logForDebugging(
-        `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) replaced MCP tool output`,
-      )
-      yield {
-        updatedMCPToolOutput: result.updatedMCPToolOutput,
-      }
-    }
-
     // Check for permission behavior with precedence: deny > ask > allow
     if (result.permissionBehavior) {
       logForDebugging(
@@ -2762,19 +2697,6 @@ async function* executeHooks({
         retry: result.retry,
       }
     }
-    // Yield elicitation response if provided (from Elicitation hooks)
-    if (result.elicitationResponse) {
-      yield {
-        elicitationResponse: result.elicitationResponse,
-      }
-    }
-    // Yield elicitation result response if provided (from ElicitationResult hooks)
-    if (result.elicitationResultResponse) {
-      yield {
-        elicitationResultResponse: result.elicitationResultResponse,
-      }
-    }
-
     // Invoke session hook callback if this is a command/prompt/function hook (not a callback hook)
     if (appState && result.hook.type !== 'callback') {
       const sessionId = getSessionId()
@@ -4230,212 +4152,6 @@ export async function executeInstructionsLoadedHooks(
     timeoutMs,
     matchQuery: loadReason,
   })
-}
-
-/** Result of an elicitation hook execution (non-REPL path). */
-export type ElicitationHookResult = {
-  elicitationResponse?: ElicitationResponse
-  blockingError?: HookBlockingError
-}
-
-/** Result of an elicitation-result hook execution (non-REPL path). */
-export type ElicitationResultHookResult = {
-  elicitationResultResponse?: ElicitationResponse
-  blockingError?: HookBlockingError
-}
-
-/**
- * Parse elicitation-specific fields from a HookOutsideReplResult.
- * Mirrors the relevant branches of processHookJSONOutput for Elicitation
- * and ElicitationResult hook events.
- */
-function parseElicitationHookOutput(
-  result: HookOutsideReplResult,
-  expectedEventName: 'Elicitation' | 'ElicitationResult',
-): {
-  response?: ElicitationResponse
-  blockingError?: HookBlockingError
-} {
-  // Exit code 2 = blocking (same as executeHooks path)
-  if (result.blocked && !result.succeeded) {
-    return {
-      blockingError: {
-        blockingError: result.output || `Elicitation blocked by hook`,
-        command: result.command,
-      },
-    }
-  }
-
-  if (!result.output.trim()) {
-    return {}
-  }
-
-  // Try to parse JSON output for structured elicitation response
-  const trimmed = result.output.trim()
-  if (!trimmed.startsWith('{')) {
-    return {}
-  }
-
-  try {
-    const parsed = hookJSONOutputSchema().parse(JSON.parse(trimmed))
-    if (isAsyncHookJSONOutput(parsed)) {
-      return {}
-    }
-    if (!isSyncHookJSONOutput(parsed)) {
-      return {}
-    }
-
-    // Check for top-level decision: 'block' (exit code 0 + JSON block)
-    if (parsed.decision === 'block' || result.blocked) {
-      return {
-        blockingError: {
-          blockingError: parsed.reason || 'Elicitation blocked by hook',
-          command: result.command,
-        },
-      }
-    }
-
-    const specific = parsed.hookSpecificOutput
-    if (!specific || specific.hookEventName !== expectedEventName) {
-      return {}
-    }
-
-    if (!specific.action) {
-      return {}
-    }
-
-    const response: ElicitationResponse = {
-      action: specific.action,
-      content: specific.content as ElicitationResponse['content'] | undefined,
-    }
-
-    const out: {
-      response?: ElicitationResponse
-      blockingError?: HookBlockingError
-    } = { response }
-
-    if (specific.action === 'decline') {
-      out.blockingError = {
-        blockingError:
-          parsed.reason ||
-          (expectedEventName === 'Elicitation'
-            ? 'Elicitation denied by hook'
-            : 'Elicitation result blocked by hook'),
-        command: result.command,
-      }
-    }
-
-    return out
-  } catch {
-    return {}
-  }
-}
-
-export async function executeElicitationHooks({
-  serverName,
-  message,
-  requestedSchema,
-  permissionMode,
-  signal,
-  timeoutMs = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
-  mode,
-  url,
-  elicitationId,
-}: {
-  serverName: string
-  message: string
-  requestedSchema?: Record<string, unknown>
-  permissionMode?: string
-  signal?: AbortSignal
-  timeoutMs?: number
-  mode?: 'form' | 'url'
-  url?: string
-  elicitationId?: string
-}): Promise<ElicitationHookResult> {
-  const hookInput: ElicitationHookInput = {
-    ...createBaseHookInput(permissionMode),
-    hook_event_name: 'Elicitation',
-    mcp_server_name: serverName,
-    message,
-    mode,
-    url,
-    elicitation_id: elicitationId,
-    requested_schema: requestedSchema,
-  }
-
-  const results = await executeHooksOutsideREPL({
-    hookInput,
-    matchQuery: serverName,
-    signal,
-    timeoutMs,
-  })
-
-  let elicitationResponse: ElicitationResponse | undefined
-  let blockingError: HookBlockingError | undefined
-
-  for (const result of results) {
-    const parsed = parseElicitationHookOutput(result, 'Elicitation')
-    if (parsed.blockingError) {
-      blockingError = parsed.blockingError
-    }
-    if (parsed.response) {
-      elicitationResponse = parsed.response
-    }
-  }
-
-  return { elicitationResponse, blockingError }
-}
-
-export async function executeElicitationResultHooks({
-  serverName,
-  action,
-  content,
-  permissionMode,
-  signal,
-  timeoutMs = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
-  mode,
-  elicitationId,
-}: {
-  serverName: string
-  action: 'accept' | 'decline' | 'cancel'
-  content?: Record<string, unknown>
-  permissionMode?: string
-  signal?: AbortSignal
-  timeoutMs?: number
-  mode?: 'form' | 'url'
-  elicitationId?: string
-}): Promise<ElicitationResultHookResult> {
-  const hookInput: ElicitationResultHookInput = {
-    ...createBaseHookInput(permissionMode),
-    hook_event_name: 'ElicitationResult',
-    mcp_server_name: serverName,
-    elicitation_id: elicitationId,
-    mode,
-    action,
-    content,
-  }
-
-  const results = await executeHooksOutsideREPL({
-    hookInput,
-    matchQuery: serverName,
-    signal,
-    timeoutMs,
-  })
-
-  let elicitationResultResponse: ElicitationResponse | undefined
-  let blockingError: HookBlockingError | undefined
-
-  for (const result of results) {
-    const parsed = parseElicitationHookOutput(result, 'ElicitationResult')
-    if (parsed.blockingError) {
-      blockingError = parsed.blockingError
-    }
-    if (parsed.response) {
-      elicitationResultResponse = parsed.response
-    }
-  }
-
-  return { elicitationResultResponse, blockingError }
 }
 
 /**

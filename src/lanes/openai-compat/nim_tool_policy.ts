@@ -38,9 +38,5 @@ export function isNimFastToolFilterActive(): boolean {
 export function isToolKeptByNimFastFilter(toolName: string): boolean {
   if (!isNimFastToolFilterActive()) return true
   if (NIM_FAST_TOOL_ALLOWLIST.has(toolName)) return true
-  return (
-    toolName.startsWith('mcp__') &&
-    (envFlag('NIM_KEEP_MCP_TOOLS') ||
-      envFlag('CLAUDEX_NIM_KEEP_MCP_TOOLS'))
-  )
+  return false
 }

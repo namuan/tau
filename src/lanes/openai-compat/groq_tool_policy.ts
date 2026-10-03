@@ -25,14 +25,13 @@ const GROQ_SMALL_TIER_TOOL_ALLOWLIST: ReadonlySet<string> = new Set([
   'Eval',
 ])
 
-/** Exact companion to groqTransformer.filterTools. MCP remains eager/allowed. */
+/** Exact companion to groqTransformer.filterTools. */
 export function isToolKeptByGroqSmallTierFilter(
   model: string,
   toolName: string,
 ): boolean {
   if (!isSmallTierGroqModel(model)) return true
   return (
-    GROQ_SMALL_TIER_TOOL_ALLOWLIST.has(toolName) ||
-    toolName.startsWith('mcp__')
+    GROQ_SMALL_TIER_TOOL_ALLOWLIST.has(toolName)
   )
 }

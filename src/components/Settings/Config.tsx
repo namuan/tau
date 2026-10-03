@@ -257,7 +257,6 @@ export function Config({
     });
   }
 
-  // TODO: Add MCP servers
   const settingsItems: Setting[] = [
   // Global settings
   {

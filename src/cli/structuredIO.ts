@@ -1,8 +1,4 @@
 import { feature } from 'bun:bundle'
-import type {
-  ElicitResult,
-  JSONRPCMessage,
-} from '@modelcontextprotocol/sdk/types.js'
 import { randomUUID } from 'crypto'
 import type { AssistantMessage } from 'src//types/message.js'
 import type {
@@ -12,7 +8,6 @@ import type {
   SDKMessage,
   SDKUserMessage,
 } from 'src/entrypoints/agentSdkTypes.js'
-import { SDKControlElicitationResponseSchema } from 'src/entrypoints/sdk/controlSchemas.js'
 import type {
   SDKControlRequest,
   SDKControlResponse,
@@ -617,38 +612,6 @@ export class StructuredIO {
   }
 
   /**
-   * Sends an elicitation request to the SDK consumer and returns the response.
-   */
-  async handleElicitation(
-    serverName: string,
-    message: string,
-    requestedSchema?: Record<string, unknown>,
-    signal?: AbortSignal,
-    mode?: 'form' | 'url',
-    url?: string,
-    elicitationId?: string,
-  ): Promise<ElicitResult> {
-    try {
-      const result = await this.sendRequest<ElicitResult>(
-        {
-          subtype: 'elicitation',
-          mcp_server_name: serverName,
-          message,
-          mode,
-          url,
-          elicitation_id: elicitationId,
-          requested_schema: requestedSchema,
-        },
-        SDKControlElicitationResponseSchema(),
-        signal,
-      )
-      return result
-    } catch {
-      return { action: 'cancel' as const }
-    }
-  }
-
-  /**
    * Creates a SandboxAskCallback that forwards sandbox network permission
    * requests to the SDK host as can_use_tool control_requests.
    *
@@ -680,25 +643,6 @@ export class StructuredIO {
     }
   }
 
-  /**
-   * Sends an MCP message to an SDK server and waits for the response
-   */
-  async sendMcpMessage(
-    serverName: string,
-    message: JSONRPCMessage,
-  ): Promise<JSONRPCMessage> {
-    const response = await this.sendRequest<{ mcp_response: JSONRPCMessage }>(
-      {
-        subtype: 'mcp_message',
-        server_name: serverName,
-        message,
-      },
-      z.object({
-        mcp_response: z.any() as z.Schema<JSONRPCMessage>,
-      }),
-    )
-    return response.mcp_response
-  }
 }
 
 function exitWithMessage(message: string): never {

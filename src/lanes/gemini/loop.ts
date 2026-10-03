@@ -917,20 +917,16 @@ export class GeminiLane implements Lane {
   async *run(context: LaneRunContext): AsyncGenerator<AnthropicStreamEvent, LaneRunResult> {
     // Lane-owns-loop isn't wired into the query pipeline yet. For now this
     // delegates to streamAsProvider so the interface stays usable if called.
-    const { model, messages, systemParts, mcpTools, signal, maxTokens } = context
+    const { model, messages, systemParts, signal, maxTokens } = context
 
     // Synthesize a system string from SystemPromptParts.
     const systemText = assembleSystemFromParts(systemParts)
 
-    // Aggregate lane-native tool defs + MCP tools in provider-tool shape.
-    const allTools = [
-      ...GEMINI_TOOL_REGISTRY.map(r => ({
-        name: r.implId,
-        description: r.nativeDescription,
-        input_schema: r.nativeSchema,
-      })),
-      ...mcpTools,
-    ]
+    const allTools = GEMINI_TOOL_REGISTRY.map(r => ({
+      name: r.implId,
+      description: r.nativeDescription,
+      input_schema: r.nativeSchema,
+    }))
 
     const totalUsage: NormalizedUsage = {
       input_tokens: 0,
@@ -1105,14 +1101,12 @@ function assembleSystemFromParts(parts: {
   environment?: string
   gitStatus?: string
   toolsAddendum?: string
-  mcpIntro?: string
   skillsContext?: string
   customInstructions?: string
 }): string {
   const sections: string[] = []
   if (parts.customInstructions) sections.push(parts.customInstructions)
   if (parts.toolsAddendum) sections.push(parts.toolsAddendum)
-  if (parts.mcpIntro) sections.push(parts.mcpIntro)
   if (parts.skillsContext) sections.push(`Skills:\n${parts.skillsContext}`)
   if (parts.memory) sections.push(`Context:\n${parts.memory}`)
   if (parts.environment) sections.push(parts.environment)

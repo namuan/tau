@@ -12,7 +12,6 @@
 import type { Command } from '../commands.js'
 import { getSystemPrompt } from '../constants/prompts.js'
 import { getSystemContext, getUserContext } from '../context.js'
-import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
@@ -45,13 +44,11 @@ export async function fetchSystemPromptParts({
   tools,
   mainLoopModel,
   additionalWorkingDirectories,
-  mcpClients,
   customSystemPrompt,
 }: {
   tools: Tools
   mainLoopModel: string
   additionalWorkingDirectories: string[]
-  mcpClients: MCPServerConnection[]
   customSystemPrompt: string | undefined
 }): Promise<{
   defaultSystemPrompt: string[]
@@ -65,7 +62,6 @@ export async function fetchSystemPromptParts({
           tools,
           mainLoopModel,
           additionalWorkingDirectories,
-          mcpClients,
         ),
     getUserContext(),
     customSystemPrompt !== undefined ? Promise.resolve({}) : getSystemContext(),
@@ -88,7 +84,6 @@ export async function fetchSystemPromptParts({
 export async function buildSideQuestionFallbackParams({
   tools,
   commands,
-  mcpClients,
   messages,
   readFileState,
   getAppState,
@@ -100,7 +95,6 @@ export async function buildSideQuestionFallbackParams({
 }: {
   tools: Tools
   commands: Command[]
-  mcpClients: MCPServerConnection[]
   messages: Message[]
   readFileState: FileStateCache
   getAppState: () => AppState
@@ -120,7 +114,6 @@ export async function buildSideQuestionFallbackParams({
       additionalWorkingDirectories: Array.from(
         appState.toolPermissionContext.additionalWorkingDirectories.keys(),
       ),
-      mcpClients,
       customSystemPrompt,
     })
 
@@ -151,8 +144,6 @@ export async function buildSideQuestionFallbackParams({
         (shouldEnableThinkingByDefault() !== false
           ? { type: 'adaptive' }
           : { type: 'disabled' }),
-      mcpClients,
-      mcpResources: {},
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: agents, allAgents: [] },
       customSystemPrompt,

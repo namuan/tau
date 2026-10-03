@@ -1,7 +1,6 @@
 import { feature } from 'bun:bundle'
 import { z } from 'zod/v4'
 import { SandboxSettingsSchema } from '../../entrypoints/sandboxTypes.js'
-import { isEnvTruthy } from '../envUtils.js'
 import { lazySchema } from '../lazySchema.js'
 import {
   EXTERNAL_PERMISSION_MODES,
@@ -84,104 +83,6 @@ export const PermissionsSchema = lazySchema(() =>
 )
 
 /**
- * Schema for allowed MCP server entry in enterprise allowlist.
- * Supports matching by serverName, serverCommand, or serverUrl (mutually exclusive).
- */
-export const AllowedMcpServerEntrySchema = lazySchema(() =>
-  z
-    .object({
-      serverName: z
-        .string()
-        .regex(
-          /^[a-zA-Z0-9_-]+$/,
-          'Server name can only contain letters, numbers, hyphens, and underscores',
-        )
-        .optional()
-        .describe('Name of the MCP server that users are allowed to configure'),
-      serverCommand: z
-        .array(z.string())
-        .min(1, 'Server command must have at least one element (the command)')
-        .optional()
-        .describe(
-          'Command array [command, ...args] to match exactly for allowed stdio servers',
-        ),
-      serverUrl: z
-        .string()
-        .optional()
-        .describe(
-          'URL pattern with wildcard support (e.g., "https://*.example.com/*") for allowed remote MCP servers',
-        ),
-      // Future extensibility: allowedTransports, requiredArgs, maxInstances, etc.
-    })
-    .refine(
-      data => {
-        const defined = count(
-          [
-            data.serverName !== undefined,
-            data.serverCommand !== undefined,
-            data.serverUrl !== undefined,
-          ],
-          Boolean,
-        )
-        return defined === 1
-      },
-      {
-        message:
-          'Entry must have exactly one of "serverName", "serverCommand", or "serverUrl"',
-      },
-    ),
-)
-
-/**
- * Schema for denied MCP server entry in enterprise denylist.
- * Supports matching by serverName, serverCommand, or serverUrl (mutually exclusive).
- */
-export const DeniedMcpServerEntrySchema = lazySchema(() =>
-  z
-    .object({
-      serverName: z
-        .string()
-        .regex(
-          /^[a-zA-Z0-9_-]+$/,
-          'Server name can only contain letters, numbers, hyphens, and underscores',
-        )
-        .optional()
-        .describe('Name of the MCP server that is explicitly blocked'),
-      serverCommand: z
-        .array(z.string())
-        .min(1, 'Server command must have at least one element (the command)')
-        .optional()
-        .describe(
-          'Command array [command, ...args] to match exactly for blocked stdio servers',
-        ),
-      serverUrl: z
-        .string()
-        .optional()
-        .describe(
-          'URL pattern with wildcard support (e.g., "https://*.example.com/*") for blocked remote MCP servers',
-        ),
-      // Future extensibility: reason, blockedSince, etc.
-    })
-    .refine(
-      data => {
-        const defined = count(
-          [
-            data.serverName !== undefined,
-            data.serverCommand !== undefined,
-            data.serverUrl !== undefined,
-          ],
-          Boolean,
-        )
-        return defined === 1
-      },
-      {
-        message:
-          'Entry must have exactly one of "serverName", "serverCommand", or "serverUrl"',
-      },
-    ),
-)
-
-/**
  * Unified schema for settings files
  *
  * ⚠️ BACKWARD COMPATIBILITY NOTICE ⚠️
@@ -223,7 +124,6 @@ export const CUSTOMIZATION_SURFACES = [
   'skills',
   'agents',
   'hooks',
-  'mcp',
 ] as const
 
 export const SettingsSchema = lazySchema(() =>
@@ -251,37 +151,6 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'Command to refresh GCP authentication (e.g., gcloud auth application-default login)',
         ),
-      // Gated so the SDK generator (which runs without CLAUDE_CODE_ENABLE_XAA)
-      // doesn't surface this in GlobalClaudeSettings. Read via getXaaIdpSettings().
-      // .passthrough() on the outer object keeps an existing settings.json key
-      // alive across env-var-off sessions — it's just not schema-validated then.
-      ...(isEnvTruthy(process.env.CLAUDE_CODE_ENABLE_XAA)
-        ? {
-            xaaIdp: z
-              .object({
-                issuer: z
-                  .string()
-                  .url()
-                  .describe('IdP issuer URL for OIDC discovery'),
-                clientId: z
-                  .string()
-                  .describe("Tau's client_id registered at the IdP"),
-                callbackPort: z
-                  .number()
-                  .int()
-                  .positive()
-                  .optional()
-                  .describe(
-                    'Fixed loopback callback port for the IdP OIDC login. ' +
-                      'Only needed if the IdP does not honor RFC 8252 port-any matching.',
-                  ),
-              })
-              .optional()
-              .describe(
-                'XAA (SEP-990) IdP connection. Configure once; all XAA-enabled MCP servers reuse this.',
-              ),
-          }
-        : {}),
       fileSuggestion: z
         .object({
           type: z.literal('command'),
@@ -370,42 +239,6 @@ export const SettingsSchema = lazySchema(() =>
             'model ID (e.g. a Bedrock inference profile ARN). Typically set in managed settings by ' +
             'enterprise administrators.',
         ),
-      // Whether to automatically approve all MCP servers in the project
-      enableAllProjectMcpServers: z
-        .boolean()
-        .optional()
-        .describe(
-          'Whether to automatically approve all MCP servers in the project',
-        ),
-      // List of approved MCP servers from .mcp.json
-      enabledMcpjsonServers: z
-        .array(z.string())
-        .optional()
-        .describe('List of approved MCP servers from .mcp.json'),
-      // List of rejected MCP servers from .mcp.json
-      disabledMcpjsonServers: z
-        .array(z.string())
-        .optional()
-        .describe('List of rejected MCP servers from .mcp.json'),
-      // Enterprise allowlist of MCP servers
-      allowedMcpServers: z
-        .array(AllowedMcpServerEntrySchema())
-        .optional()
-        .describe(
-          'Enterprise allowlist of MCP servers that can be used. ' +
-            'Applies to all scopes including enterprise servers from managed-mcp.json. ' +
-            'If undefined, all servers are allowed. If empty array, no servers are allowed. ' +
-            'Denylist takes precedence - if a server is on both lists, it is denied.',
-        ),
-      // Enterprise denylist of MCP servers
-      deniedMcpServers: z
-        .array(DeniedMcpServerEntrySchema())
-        .optional()
-        .describe(
-          'Enterprise denylist of MCP servers that are explicitly blocked. ' +
-            'If a server is on the denylist, it will be blocked across all scopes including enterprise. ' +
-            'Denylist takes precedence over allowlist - if a server is on both lists, it is denied.',
-        ),
       hooks: HooksSchema()
         .optional()
         .describe('Custom commands to run before/after tool executions'),
@@ -450,7 +283,7 @@ export const SettingsSchema = lazySchema(() =>
           'When true (and set in managed settings), only hooks from managed settings run. ' +
             'User, project, and local hooks are ignored.',
         ),
-      // Allowlist of URL patterns HTTP hooks may target (follows allowedMcpServers precedent)
+      // Allowlist of URL patterns HTTP hooks may target
       allowedHttpHookUrls: z
         .array(z.string())
         .optional()
@@ -459,7 +292,7 @@ export const SettingsSchema = lazySchema(() =>
             'Supports * as a wildcard (e.g. "https://hooks.example.com/*"). ' +
             'When set, HTTP hooks with non-matching URLs are blocked. ' +
             'If undefined, all URLs are allowed. If empty array, no HTTP hooks are allowed. ' +
-            'Arrays merge across settings sources (same semantics as allowedMcpServers).',
+            'Arrays merge across settings sources (the same merge behavior across settings sources).',
         ),
       // Allowlist of env var names HTTP hooks may interpolate into headers
       httpHookAllowedEnvVars: z
@@ -469,7 +302,7 @@ export const SettingsSchema = lazySchema(() =>
           'Allowlist of environment variable names HTTP hooks may interpolate into headers. ' +
             "When set, each hook's effective allowedEnvVars is the intersection with this list. " +
             'If undefined, no restriction is applied. ' +
-            'Arrays merge across settings sources (same semantics as allowedMcpServers).',
+            'Arrays merge across settings sources (the same merge behavior across settings sources).',
         ),
       // Only use permission rules defined in managed settings (managed-settings.json)
       allowManagedPermissionRulesOnly: z
@@ -478,15 +311,6 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'When true (and set in managed settings), only permission rules (allow/deny/ask) from managed settings are respected. ' +
             'User, project, local, and CLI argument permission rules are ignored.',
-        ),
-      // Only read MCP allowlist policy from managed settings
-      allowManagedMcpServersOnly: z
-        .boolean()
-        .optional()
-        .describe(
-          'When true (and set in managed settings), allowedMcpServers is only read from managed settings. ' +
-            'deniedMcpServers still merges from all sources, so users can deny servers for themselves. ' +
-            'Users can still add their own MCP servers, but only the admin-defined allowlist applies.',
         ),
       // Preserve the managed customization restriction for existing policies.
       strictPluginOnlyCustomization: z
@@ -951,45 +775,4 @@ export type SkillHookMatcher = {
   skillName: string
 }
 
-export type AllowedMcpServerEntry = z.infer<
-  ReturnType<typeof AllowedMcpServerEntrySchema>
->
-export type DeniedMcpServerEntry = z.infer<
-  ReturnType<typeof DeniedMcpServerEntrySchema>
->
 export type SettingsJson = z.infer<ReturnType<typeof SettingsSchema>>
-
-/**
- * Type guard for MCP server entry with serverName
- */
-export function isMcpServerNameEntry(
-  entry: AllowedMcpServerEntry | DeniedMcpServerEntry,
-): entry is { serverName: string } {
-  return 'serverName' in entry && entry.serverName !== undefined
-}
-
-/**
- * Type guard for MCP server entry with serverCommand
- */
-export function isMcpServerCommandEntry(
-  entry: AllowedMcpServerEntry | DeniedMcpServerEntry,
-): entry is { serverCommand: string[] } {
-  return 'serverCommand' in entry && entry.serverCommand !== undefined
-}
-
-/**
- * Type guard for MCP server entry with serverUrl
- */
-export function isMcpServerUrlEntry(
-  entry: AllowedMcpServerEntry | DeniedMcpServerEntry,
-): entry is { serverUrl: string } {
-  return 'serverUrl' in entry && entry.serverUrl !== undefined
-}
-
-/**
- * User configuration values for MCPB MCP servers
- */
-export type UserConfigValues = Record<
-  string,
-  string | number | boolean | string[]
->

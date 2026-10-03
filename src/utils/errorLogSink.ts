@@ -30,13 +30,6 @@ export function getErrorsPath(): string {
   return join(CACHE_PATHS.errors(), DATE + '.jsonl')
 }
 
-/**
- * Gets the path to MCP logs for a server.
- */
-export function getMCPLogsPath(serverName: string): string {
-  return join(CACHE_PATHS.mcpLogs(serverName), DATE + '.jsonl')
-}
-
 type JsonlWriter = {
   write: (obj: object) => void
   flush: () => void
@@ -174,45 +167,6 @@ function logErrorImpl(error: Error): void {
 }
 
 /**
- * Implementation for logMCPError - writes MCP error to debug log and file.
- */
-function logMCPErrorImpl(serverName: string, error: unknown): void {
-  // Not themed, to avoid having to pipe theme all the way down
-  logForDebugging(`MCP server "${serverName}" ${error}`, { level: 'error' })
-
-  const logFile = getMCPLogsPath(serverName)
-  const errorStr =
-    error instanceof Error ? error.stack || error.message : String(error)
-
-  const errorInfo = {
-    error: errorStr,
-    timestamp: new Date().toISOString(),
-    sessionId: getSessionId(),
-    cwd: getFsImplementation().cwd(),
-  }
-
-  getLogWriter(logFile).write(errorInfo)
-}
-
-/**
- * Implementation for logMCPDebug - writes MCP debug message to log file.
- */
-function logMCPDebugImpl(serverName: string, message: string): void {
-  logForDebugging(`MCP server "${serverName}": ${message}`)
-
-  const logFile = getMCPLogsPath(serverName)
-
-  const debugInfo = {
-    debug: message,
-    timestamp: new Date().toISOString(),
-    sessionId: getSessionId(),
-    cwd: getFsImplementation().cwd(),
-  }
-
-  getLogWriter(logFile).write(debugInfo)
-}
-
-/**
  * Initialize the error log sink.
  *
  * Call this during app startup to attach the error logging backend.
@@ -225,10 +179,7 @@ function logMCPDebugImpl(serverName: string, message: string): void {
 export function initializeErrorLogSink(): void {
   attachErrorLogSink({
     logError: logErrorImpl,
-    logMCPError: logMCPErrorImpl,
-    logMCPDebug: logMCPDebugImpl,
     getErrorsPath,
-    getMCPLogsPath,
   })
 
   logForDebugging('Error log sink initialized')

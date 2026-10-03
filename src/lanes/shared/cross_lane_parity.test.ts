@@ -14,7 +14,7 @@
  *        All four lanes append via appendStrictParamsHint().
  *
  *   3. TOOL_USAGE_RULES system-prompt preamble
- *        Lane-specific constants in mcp_bridge.ts.
+ *        Lane-specific constants in providerToolCompat.ts.
  *
  * This test asserts presence of (2) and (3). (1) is asserted indirectly
  * by the tool-build functions in each lane; see validated_mode.test.ts

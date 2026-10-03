@@ -7,9 +7,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { loadMcpRuntime } from './helpers/mcp-built-runtime.mjs'
+import { loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
-const runtime = await loadMcpRuntime({
+const runtime = await loadBuiltRuntime({
   paths: ['src/tools/SkillTool/SkillTool.ts', 'src/tools/SkillTool/UI.tsx'],
   exports: ['SkillTool', 'summarizeToolNames'],
 })
@@ -19,9 +19,9 @@ test('the pre-approved tools are named, not counted', () => {
 })
 
 test('a long list stays on one line and counts the rest', () => {
-  const names = Array.from({ length: 12 }, (_, i) => `mcp__server_${i}__tool_with_a_long_name`)
+  const names = Array.from({ length: 12 }, (_, i) => `custom_server_${i}_tool_with_a_long_name`)
   const summary = runtime.summarizeToolNames(names)
-  assert.match(summary, /^mcp__server_0__tool_with_a_long_name, .* \+\d+ more$|^mcp__server_0__tool_with_a_long_name \+11 more$/)
+  assert.match(summary, /^custom_server_0_tool_with_a_long_name, .* \+\d+ more$|^custom_server_0_tool_with_a_long_name \+11 more$/)
   assert.ok(summary.length < 110, summary)
 })
 

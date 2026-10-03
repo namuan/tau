@@ -54,7 +54,7 @@ export function selectToolsForToolSearchRequest(
   // they were computed for. In particular, Groq small-tier models remove
   // ToolSearch in their transformer. If an optimistic/server-style boolean
   // leaked through here, filtering first would strand every deferred schema:
-  // WebFetch/MCP would be removed upstream and ToolSearch downstream.
+  // Deferred tools would be removed upstream and ToolSearch downstream.
   const routedTransports = resolveToolSearchRequestTransports(options)
 
   // Client-side/native lanes own physical schema omission. Keep their full

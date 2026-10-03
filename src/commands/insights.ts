@@ -247,7 +247,6 @@ type SessionMeta = {
   tool_errors: number
   tool_error_categories: Record<string, number>
   uses_task_agent: boolean
-  uses_mcp: boolean
   uses_web_search: boolean
   uses_web_fetch: boolean
   // Additional stats
@@ -308,7 +307,6 @@ type AggregatedData = {
   median_response_time: number
   avg_response_time: number
   sessions_using_task_agent: number
-  sessions_using_mcp: number
   sessions_using_web_search: number
   sessions_using_web_fetch: number
   // Additional stats from Python reference
@@ -478,7 +476,6 @@ function extractToolStats(log: LogOption): {
   toolErrors: number
   toolErrorCategories: Record<string, number>
   usesTaskAgent: boolean
-  usesMcp: boolean
   usesWebSearch: boolean
   usesWebFetch: boolean
   // Additional stats
@@ -508,7 +505,6 @@ function extractToolStats(log: LogOption): {
   const filesModified = new Set<string>()
   const messageHours: number[] = []
   const userMessageTimestamps: string[] = [] // For multi-clauding detection
-  let usesMcp = false
   let usesWebSearch = false
   let usesWebFetch = false
   let lastAssistantTimestamp: string | null = null
@@ -546,7 +542,6 @@ function extractToolStats(log: LogOption): {
               toolName === LEGACY_AGENT_TOOL_NAME
             )
               usesTaskAgent = true
-            if (toolName.startsWith('mcp__')) usesMcp = true
             if (toolName === 'WebSearch') usesWebSearch = true
             if (toolName === 'WebFetch') usesWebFetch = true
 
@@ -716,7 +711,6 @@ function extractToolStats(log: LogOption): {
     toolErrors,
     toolErrorCategories,
     usesTaskAgent,
-    usesMcp,
     usesWebSearch,
     usesWebFetch,
     // Additional stats
@@ -789,7 +783,6 @@ function logToSessionMeta(log: LogOption): SessionMeta {
     tool_errors: stats.toolErrors,
     tool_error_categories: stats.toolErrorCategories,
     uses_task_agent: stats.usesTaskAgent,
-    uses_mcp: stats.usesMcp,
     uses_web_search: stats.usesWebSearch,
     uses_web_fetch: stats.usesWebFetch,
     // Additional stats
@@ -891,8 +884,7 @@ async function summarizeTranscriptChunk(chunk: string): Promise<string> {
         agents: [],
         isNonInteractiveSession: true,
         hasAppendSystemPrompt: false,
-        mcpTools: [],
-        maxOutputTokensOverride: 500,
+                maxOutputTokensOverride: 500,
       },
     })
 
@@ -1034,8 +1026,7 @@ RESPOND WITH ONLY A VALID JSON OBJECT matching this schema:
         agents: [],
         isNonInteractiveSession: true,
         hasAppendSystemPrompt: false,
-        mcpTools: [],
-        maxOutputTokensOverride: 4096,
+                maxOutputTokensOverride: 4096,
       },
     })
 
@@ -1176,7 +1167,6 @@ function aggregateData(
     median_response_time: 0,
     avg_response_time: 0,
     sessions_using_task_agent: 0,
-    sessions_using_mcp: 0,
     sessions_using_web_search: 0,
     sessions_using_web_fetch: 0,
     // Additional stats
@@ -1216,7 +1206,6 @@ function aggregateData(
     }
     allResponseTimes.push(...session.user_response_times)
     if (session.uses_task_agent) result.sessions_using_task_agent++
-    if (session.uses_mcp) result.sessions_using_mcp++
     if (session.uses_web_search) result.sessions_using_web_search++
     if (session.uses_web_fetch) result.sessions_using_web_fetch++
 
@@ -1395,8 +1384,6 @@ Include 3 friction categories with 2 examples each.`,
     prompt: `Analyze this Tau usage data and suggest improvements.
 
 ## CC FEATURES REFERENCE (pick from these for features_to_try):
-1. **MCP Servers**: Connect Tau to external tools, databases, and APIs via Model Context Protocol.
-   - How to use: Run \`tau mcp add <server-name> -- <command>\`
    - Good for: database queries, Slack integration, GitHub issue lookup, connecting to internal APIs
 
 2. **Custom Skills**: Reusable prompts you define as markdown files that run with a single /command.
@@ -1585,8 +1572,7 @@ async function generateSectionInsight(
         agents: [],
         isNonInteractiveSession: true,
         hasAppendSystemPrompt: false,
-        mcpTools: [],
-        maxOutputTokensOverride: section.maxTokens,
+                maxOutputTokensOverride: section.maxTokens,
       },
     })
 

@@ -406,23 +406,11 @@ function _buildKiroToolSelectionGuide(
     pick('TeamDelete', 'disband a multi-agent team'),
   ))
 
-  addCategory('MCP', collect(
-    pick('ListMcpResourcesTool', 'list MCP resources'),
-    pick('ReadMcpResourceTool', 'read a specific MCP resource'),
-  ))
-
-  const mcpServerTools = tools
-    .map(tool => tool.name)
-    .filter(name => name.startsWith('mcp__'))
-  if (mcpServerTools.length > 0) {
-    lines.push(`- MCP server tools: ${mcpServerTools.length} tool(s) named mcp__* are available; use the exact tool name shown in the tool list when you need one.`)
-  }
-
   if (lines.length === 0) return ''
 
   return [
     '<tool_selection_guide>',
-    'Prefer specialized tools over shell when a direct tool exists for files, notebooks, planning, worktrees, questions, skills, tasks, or MCP resources.',
+    'Prefer specialized tools over shell when a direct tool exists for files, notebooks, planning, worktrees, questions, skills, or tasks.',
     'For Agent/subagent results, report the tool output as observed; only describe rate limiting when the result explicitly says 429, rate limit, quota, or throttled.',
     ...lines,
     '</tool_selection_guide>',

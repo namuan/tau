@@ -179,13 +179,7 @@ export const WebFetchTool = buildTool({
     }
   },
   async prompt(_options) {
-    // Always include the auth warning regardless of whether ToolSearch is
-    // currently in the tools list. Conditionally toggling this prefix based
-    // on ToolSearch availability caused the tool description to flicker
-    // between SDK query() calls (when ToolSearch enablement varies due to
-    // MCP tool count thresholds), invalidating the Anthropic API prompt
-    // cache on each toggle — two consecutive cache misses per flicker event.
-    return `Authenticated/private URLs fail; use an authenticated MCP tool when available.
+    return `Authenticated/private URLs require an authenticated tool.
 ${DESCRIPTION}`
   },
   async validateInput(input) {

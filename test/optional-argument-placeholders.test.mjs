@@ -13,9 +13,9 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { z } from 'zod/v4'
 
-import { fixtureContext, fixtureTool, loadMcpRuntime } from './helpers/mcp-built-runtime.mjs'
+import { fixtureContext, fixtureTool, loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
-const runtime = await loadMcpRuntime({
+const runtime = await loadBuiltRuntime({
   paths: [
     'src/tools/BrowserTool/BrowserTool.tsx',
     'src/tools/FileReadTool/FileReadTool.ts',
@@ -173,66 +173,6 @@ test('a Bash call missing its command still fails', async () => {
   assert.equal(bash.calls.length, 0)
   assert.equal(results[0].is_error, true)
   assert.match(String(results[0].content), /command/)
-})
-
-const playwrightTabs = {
-  $schema: 'http://json-schema.org/draft-07/schema#',
-  type: 'object',
-  properties: {
-    action: { type: 'string', enum: ['list', 'new', 'close', 'select'] },
-    index: { type: 'number' },
-    url: { type: 'string' },
-  },
-  required: ['action'],
-  additionalProperties: false,
-}
-
-function mcpTool(name, inputJSONSchema) {
-  return fixtureTool({
-    name,
-    isMcp: true,
-    userFacingName: () => name,
-    inputSchema: { safeParse: value => ({ success: true, data: value }) },
-    inputJSONSchema,
-  })
-}
-
-test('the recorded strict-lane MCP call runs without its nulls', async () => {
-  // Recorded from a strict-mode lane: rejected for index/url null.
-  const tool = mcpTool('mcp__playwright__browser_tabs', playwrightTabs)
-  const { results, text } = await run(tool, { action: 'list', index: null, url: null })
-  assert.equal(tool.calls.length, 1, `the call did not run: ${text}`)
-  assert.deepEqual(tool.calls[0], { action: 'list' })
-  assert.notEqual(results.at(-1).is_error, true)
-  assert.doesNotMatch(text, /Ignored optional/)
-})
-
-test('an MCP null the server accepts is sent as null', async () => {
-  const tool = mcpTool('mcp__fx__nullable', {
-    type: 'object',
-    properties: { action: { type: 'string' }, index: { type: ['number', 'null'] } },
-    required: ['action'],
-  })
-  await run(tool, { action: 'list', index: null })
-  assert.deepEqual(tool.calls[0], { action: 'list', index: null })
-})
-
-test('a stringified MCP argument is repaired once a placeholder is out of its way', async () => {
-  const tool = mcpTool('mcp__brave__search', {
-    type: 'object',
-    properties: { query: { type: 'string' }, count: { type: 'integer' }, offset: { type: 'integer' } },
-    required: ['query'],
-  })
-  const { text } = await run(tool, { query: 'x', count: '3', offset: null })
-  assert.equal(tool.calls.length, 1, `the call did not run: ${text}`)
-  assert.deepEqual(tool.calls[0], { query: 'x', count: 3 })
-})
-
-test('an MCP call missing a required argument is still refused', async () => {
-  const tool = mcpTool('mcp__playwright__browser_tabs', playwrightTabs)
-  const { results } = await run(tool, { action: null, index: 0 })
-  assert.equal(tool.calls.length, 0)
-  assert.equal(results[0].is_error, true)
 })
 
 /** A built-in-shaped tool: real Zod schema, its own validateInput. */

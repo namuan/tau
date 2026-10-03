@@ -1,7 +1,5 @@
 import chalk from 'chalk';
 import * as React from 'react';
-import { color } from '../ink.js';
-import type { MCPServerConnection } from '../services/mcp/types.js';
 import { getAccountInformation, isClaudeAISubscriber } from './auth.js';
 import { getLargeMemoryFiles, getMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from './claudemd.js';
 import { getDoctorDiagnostic } from './doctorDiagnostic.js';
@@ -18,7 +16,6 @@ import { SandboxManager } from './sandbox/sandbox-adapter.js';
 import { getSettingsWithAllErrors } from './settings/allErrors.js';
 import { getEnabledSettingSources, getSettingSourceDisplayNameCapitalized } from './settings/constants.js';
 import { getManagedFileSettingsPresence, getPolicySettingsOrigin, getSettingsForSource } from './settings/settings.js';
-import type { ThemeName } from './theme.js';
 export type Property = {
   label?: string;
   value: React.ReactNode | Array<string>;
@@ -32,33 +29,6 @@ export function buildSandboxProperties(): Property[] {
   return [{
     label: 'Bash Sandbox',
     value: isSandboxed ? 'Enabled' : 'Disabled'
-  }];
-}
-export function buildMcpProperties(clients: MCPServerConnection[] = [], theme: ThemeName): Property[] {
-  const servers = clients;
-  if (!servers.length) {
-    return [];
-  }
-
-  // Summary instead of a full server list — 20+ servers wrapped onto many
-  // rows, dominating the Status pane. Show counts by state + /mcp hint.
-  const byState = {
-    connected: 0,
-    pending: 0,
-    needsAuth: 0,
-    failed: 0
-  };
-  for (const s of servers) {
-    if (s.type === 'connected') byState.connected++;else if (s.type === 'pending') byState.pending++;else if (s.type === 'needs-auth') byState.needsAuth++;else byState.failed++;
-  }
-  const parts: string[] = [];
-  if (byState.connected) parts.push(color('success', theme)(`${byState.connected} connected`));
-  if (byState.needsAuth) parts.push(color('warning', theme)(`${byState.needsAuth} need auth`));
-  if (byState.pending) parts.push(color('inactive', theme)(`${byState.pending} pending`));
-  if (byState.failed) parts.push(color('error', theme)(`${byState.failed} failed`));
-  return [{
-    label: 'MCP servers',
-    value: `${parts.join(', ')} ${color('inactive', theme)('· /mcp')}`
   }];
 }
 export async function buildMemoryDiagnostics(): Promise<Diagnostic[]> {

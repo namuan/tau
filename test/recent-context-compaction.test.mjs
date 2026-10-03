@@ -135,7 +135,6 @@ function setup({
       return []
     },
     getAgentListingDeltaAttachment: () => [],
-    getMcpInstructionsDeltaAttachment: () => [],
     runForkedAgent: async options => {
       events.requests.push(options)
       const response = assistant('summary', [
@@ -175,7 +174,6 @@ function setup({
     options: {
       mainLoopModel: 'any-model',
       tools: [],
-      mcpClients: [],
       agentDefinitions: { activeAgents: [] },
     },
     readFileState: new Map(),

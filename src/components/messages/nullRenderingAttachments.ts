@@ -30,7 +30,6 @@ const NULL_RENDERING_TYPES = [
   'todo_reminder',
   'context_efficiency',
   'deferred_tools_delta',
-  'mcp_instructions_delta',
   'mermaid_diagrams',
   'mermaid_not_drawn',
   'companion_intro',

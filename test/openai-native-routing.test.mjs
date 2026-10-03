@@ -3,7 +3,7 @@ import test from 'node:test'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative } from 'node:path'
-import { loadMcpRuntime } from './helpers/mcp-built-runtime.mjs'
+import { loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
 // Keep fixture requests, installation identity and settings away from real
 // credentials. All network traffic is intercepted below.
@@ -15,7 +15,7 @@ const openaiEnv = ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_CHATGPT_ACCESS_T
   'OPENAI_CHATGPT_ACCOUNT_ID', 'OPENAI_CHATGPT_ID_TOKEN', 'CLAUDEX_NATIVE_LANES']
 for (const key of openaiEnv) delete process.env[key]
 
-const r = await loadMcpRuntime({
+const r = await loadBuiltRuntime({
   paths: ['src/services/api/providers/providerShim.ts',
     'src/services/api/providers/nativeLaneReadiness.ts', 'src/utils/powerMode.ts'],
   exports: ['createProviderShim', 'providerUsesNativeLane', 'providerWillUseNativeLane',
@@ -172,7 +172,7 @@ test('environment OAuth credentials use native Codex', async () => {
   assert.equal((await send()).headers.get('authorization'), 'Bearer env-oauth-fixture')
 })
 
-test('cheap mode also uses native OpenAI with no MCP tools', async () => {
+test('cheap mode also uses native OpenAI', async () => {
   r.setSessionPowerMode('cheap')
   const request = await send()
   assert.ok(!request.body.tools?.length)

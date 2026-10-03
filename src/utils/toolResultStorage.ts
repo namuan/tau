@@ -878,7 +878,7 @@ async function maybePersistLargeToolResult(
   // with zero output. The server renderer inserts no \n\nAssistant: marker after
   // tool results, so a bare </function_results>\n\n pattern-matches to a turn
   // boundary. Several tools can legitimately produce empty output (silent-success
-  // shell commands, MCP servers returning content:[], REPL statements, etc.).
+  // shell commands returning content:[], REPL statements, etc.).
   // Inject a short marker so the model always has something to react to.
   if (isToolResultContentEmpty(content)) {
     logEvent('tengu_tool_empty_result', {

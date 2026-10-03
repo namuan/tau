@@ -3,7 +3,7 @@
  *
  * Each provider must normalize its responses into Anthropic-compatible
  * BetaRawMessageStreamEvent / BetaMessage format so the existing agent
- * loop, MCP tools, and streaming renderer work unchanged.
+ * loop and streaming renderer work unchanged.
  */
 
 import type { QuerySource } from '../../../constants/querySource.js'
@@ -38,7 +38,7 @@ export interface AnthropicContentBlock {
   _openrouter_tool_call_id?: string
   // Set by a lane decoder when this call's streamed arguments could not be
   // decoded. On the block, not in `input`, because native adaptation
-  // rebuilds `input`. See services/mcp/decodeStatus.ts.
+  // rebuilds `input`. See utils/toolDecodeStatus.ts.
   _tau_decode_status?: { category: string; fragmentLength?: number }
 }
 
@@ -202,7 +202,7 @@ export interface ProviderContentBlock {
   _gemini_thought_signature?: string
   _openrouter_reasoning?: OpenRouterReasoning
   _openrouter_tool_call_id?: string
-  // See services/mcp/decodeStatus.ts.
+  // See utils/toolDecodeStatus.ts.
   _tau_decode_status?: { category: string; fragmentLength?: number }
 }
 

@@ -44,7 +44,6 @@ function turn1Parts(): SystemPromptParts {
     environment: 'os: darwin 14.2.1\ncwd: /Users/me/work/x\ndate: 2026-04-16T12:00:00Z',
     gitStatus: 'branch: main · clean',
     toolsAddendum: '',
-    mcpIntro: '',
     skillsContext: '',
     customInstructions: 'Prefer small, focused commits.',
   }
@@ -58,7 +57,6 @@ function turn2Parts(): SystemPromptParts {
     environment: 'os: darwin 14.2.1\ncwd: /Users/me/work/x/sub\ndate: 2026-04-16T12:05:33Z',
     gitStatus: 'branch: main · 1 modified',
     toolsAddendum: '',
-    mcpIntro: '',
     skillsContext: '',
     customInstructions: 'Prefer small, focused commits.',
   }

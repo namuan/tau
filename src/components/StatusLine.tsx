@@ -109,7 +109,7 @@ function buildStatusLineCommandInput(permissionMode: PermissionMode, exceeds200k
   // The same reading the built-in session bar shows, so a custom script and
   // the bar can never disagree about one session. It is the provider's count
   // of the last prompt or, before the first response, the measured initial
-  // context (system prompt, tools, MCP servers, memory) plus what has been
+  // context (system prompt, tools, memory) plus what has been
   // typed since. Once the provider has answered, its numbers are ground truth.
   const contextUsage = getSessionContextUsage(messages, runtimeModel);
   const sessionId = getSessionId();

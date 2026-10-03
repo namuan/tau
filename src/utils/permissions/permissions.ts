@@ -1,10 +1,6 @@
 import { feature } from 'bun:bundle'
 import { APIUserAbortError } from '@anthropic-ai/sdk'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import {
-  getToolNameForPermissionCheck,
-  mcpInfoFromString,
-} from '../../services/mcp/mcpStringUtils.js'
 import { isSelfLearningEnabled } from '../../memdir/paths.js'
 import type { Tool, ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
@@ -269,13 +265,8 @@ export function getAskRules(context: ToolPermissionContext): PermissionRule[] {
   )
 }
 
-/**
- * Check if the entire tool matches a rule
- * For example, this matches "Bash" but not "Bash(prefix:*)" for BashTool
- * This also matches MCP tools with a server name, e.g. the rule "mcp__server1"
- */
 function toolMatchesRule(
-  tool: Pick<Tool, 'name' | 'mcpInfo'>,
+  tool: Pick<Tool, 'name'>,
   rule: PermissionRule,
 ): boolean {
   // Rule must not have content to match the entire tool
@@ -283,28 +274,7 @@ function toolMatchesRule(
     return false
   }
 
-  // MCP tools are matched by their fully qualified mcp__server__tool name. In
-  // skip-prefix mode (CLAUDE_AGENT_SDK_MCP_NO_PREFIX), MCP tools have unprefixed
-  // display names (e.g., "Write") that collide with builtin names; rules targeting
-  // builtins should not match their MCP replacements.
-  const nameForRuleMatch = getToolNameForPermissionCheck(tool)
-
-  // Direct tool name match
-  if (rule.ruleValue.toolName === nameForRuleMatch) {
-    return true
-  }
-
-  // MCP server-level permission: rule "mcp__server1" matches tool "mcp__server1__tool1"
-  // Also supports wildcard: rule "mcp__server1__*" matches all tools from server1
-  const ruleInfo = mcpInfoFromString(rule.ruleValue.toolName)
-  const toolInfo = mcpInfoFromString(nameForRuleMatch)
-
-  return (
-    ruleInfo !== null &&
-    toolInfo !== null &&
-    (ruleInfo.toolName === undefined || ruleInfo.toolName === '*') &&
-    ruleInfo.serverName === toolInfo.serverName
-  )
+  return rule.ruleValue.toolName === tool.name
 }
 
 /**
@@ -313,7 +283,7 @@ function toolMatchesRule(
  */
 export function toolAlwaysAllowedRule(
   context: ToolPermissionContext,
-  tool: Pick<Tool, 'name' | 'mcpInfo'>,
+  tool: Pick<Tool, 'name'>,
 ): PermissionRule | null {
   return (
     getAllowRules(context).find(rule => toolMatchesRule(tool, rule)) || null
@@ -325,7 +295,7 @@ export function toolAlwaysAllowedRule(
  */
 export function getDenyRuleForTool(
   context: ToolPermissionContext,
-  tool: Pick<Tool, 'name' | 'mcpInfo'>,
+  tool: Pick<Tool, 'name'>,
 ): PermissionRule | null {
   return getDenyRules(context).find(rule => toolMatchesRule(tool, rule)) || null
 }
@@ -335,7 +305,7 @@ export function getDenyRuleForTool(
  */
 export function getAskRuleForTool(
   context: ToolPermissionContext,
-  tool: Pick<Tool, 'name' | 'mcpInfo'>,
+  tool: Pick<Tool, 'name'>,
 ): PermissionRule | null {
   return getAskRules(context).find(rule => toolMatchesRule(tool, rule)) || null
 }
@@ -392,7 +362,7 @@ export function getRuleByContentsForTool(
 ): Map<string, PermissionRule> {
   return getRuleByContentsForToolName(
     context,
-    getToolNameForPermissionCheck(tool),
+    tool.name,
     behavior,
   )
 }

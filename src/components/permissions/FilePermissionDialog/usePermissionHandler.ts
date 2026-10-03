@@ -76,7 +76,6 @@ function handleAcceptOnce(
     toolName: sanitizeToolNameForAnalytics(
       toolUseConfirm.tool.name,
     ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    isMcp: toolUseConfirm.tool.isMcp ?? false,
     has_instructions: !!options?.feedback,
     instructions_length: options?.feedback?.length ?? 0,
     entered_feedback_mode: options?.enteredFeedbackMode ?? false,
@@ -165,7 +164,6 @@ function handleBypassPermissions(params: PermissionHandlerParams): void {
     toolName: sanitizeToolNameForAnalytics(
       toolUseConfirm.tool.name,
     ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    isMcp: toolUseConfirm.tool.isMcp ?? false,
   })
 
   onDone()
@@ -198,7 +196,6 @@ function handleReject(
     toolName: sanitizeToolNameForAnalytics(
       toolUseConfirm.tool.name,
     ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    isMcp: toolUseConfirm.tool.isMcp ?? false,
     has_instructions: !!options?.feedback,
     instructions_length: options?.feedback?.length ?? 0,
     entered_feedback_mode: options?.enteredFeedbackMode ?? false,

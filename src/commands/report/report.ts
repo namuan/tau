@@ -370,8 +370,7 @@ async function requestReportMarkdown({
       agents: [],
       isNonInteractiveSession: true,
       hasAppendSystemPrompt: false,
-      mcpTools: [],
-      maxOutputTokensOverride: reportMaxOutputTokens(
+            maxOutputTokensOverride: reportMaxOutputTokens(
         context.options.mainLoopModel,
       ),
       enablePromptCaching: false,

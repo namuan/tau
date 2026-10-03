@@ -16,8 +16,6 @@ import {
   FastModeStateSchema,
   HookEventSchema,
   HookInputSchema,
-  McpServerConfigForProcessTransportSchema,
-  McpServerStatusSchema,
   ModelInfoSchema,
   PermissionModeSchema,
   PermissionUpdateSchema,
@@ -32,9 +30,6 @@ import {
 // ============================================================================
 // External Type Placeholders
 // ============================================================================
-
-// JSONRPCMessage from @modelcontextprotocol/sdk - treat as unknown
-export const JSONRPCMessagePlaceholder = lazySchema(() => z.unknown())
 
 // ============================================================================
 // Hook Callback Types
@@ -61,7 +56,6 @@ export const SDKControlInitializeRequestSchema = lazySchema(() =>
       hooks: z
         .record(HookEventSchema(), z.array(SDKHookCallbackMatcherSchema()))
         .optional(),
-      sdkMcpServers: z.array(z.string()).optional(),
       jsonSchema: z.record(z.string(), z.unknown()).optional(),
       systemPrompt: z.string().optional(),
       appendSystemPrompt: z.string().optional(),
@@ -70,7 +64,7 @@ export const SDKControlInitializeRequestSchema = lazySchema(() =>
       agentProgressSummaries: z.boolean().optional(),
     })
     .describe(
-      'Initializes the SDK session with hooks, MCP servers, and agent configuration.',
+      'Initializes the SDK session with hooks and agent configuration.',
     ),
 )
 
@@ -154,24 +148,6 @@ export const SDKControlSetMaxThinkingTokensRequestSchema = lazySchema(() =>
     ),
 )
 
-export const SDKControlMcpStatusRequestSchema = lazySchema(() =>
-  z
-    .object({
-      subtype: z.literal('mcp_status'),
-    })
-    .describe('Requests the current status of all MCP server connections.'),
-)
-
-export const SDKControlMcpStatusResponseSchema = lazySchema(() =>
-  z
-    .object({
-      mcpServers: z.array(McpServerStatusSchema()),
-    })
-    .describe(
-      'Response containing the current status of all MCP server connections.',
-    ),
-)
-
 export const SDKControlGetContextUsageRequestSchema = lazySchema(() =>
   z
     .object({
@@ -217,14 +193,6 @@ export const SDKControlGetContextUsageResponseSchema = lazySchema(() =>
           path: z.string(),
           type: z.string(),
           tokens: z.number(),
-        }),
-      ),
-      mcpTools: z.array(
-        z.object({
-          name: z.string(),
-          serverName: z.string(),
-          tokens: z.number(),
-          isLoaded: z.boolean().optional(),
         }),
       ),
       deferredBuiltinTools: z
@@ -371,57 +339,6 @@ export const SDKHookCallbackRequestSchema = lazySchema(() =>
     .describe('Delivers a hook callback with its input data.'),
 )
 
-export const SDKControlMcpMessageRequestSchema = lazySchema(() =>
-  z
-    .object({
-      subtype: z.literal('mcp_message'),
-      server_name: z.string(),
-      message: JSONRPCMessagePlaceholder(),
-    })
-    .describe('Sends a JSON-RPC message to a specific MCP server.'),
-)
-
-export const SDKControlMcpSetServersRequestSchema = lazySchema(() =>
-  z
-    .object({
-      subtype: z.literal('mcp_set_servers'),
-      servers: z.record(z.string(), McpServerConfigForProcessTransportSchema()),
-    })
-    .describe('Replaces the set of dynamically managed MCP servers.'),
-)
-
-export const SDKControlMcpSetServersResponseSchema = lazySchema(() =>
-  z
-    .object({
-      added: z.array(z.string()),
-      removed: z.array(z.string()),
-      errors: z.record(z.string(), z.string()),
-    })
-    .describe(
-      'Result of replacing the set of dynamically managed MCP servers.',
-    ),
-)
-
-export const SDKControlMcpReconnectRequestSchema = lazySchema(() =>
-  z
-    .object({
-      subtype: z.literal('mcp_reconnect'),
-      serverName: z.string(),
-    })
-    .describe('Reconnects a disconnected or failed MCP server.'),
-)
-
-export const SDKControlMcpToggleRequestSchema = lazySchema(() =>
-  z
-    .object({
-      subtype: z.literal('mcp_toggle'),
-      serverName: z.string(),
-      enabled: z.boolean(),
-    })
-    .describe('Enables or disables an MCP server.'),
-)
-
-
 export const SDKControlStopTaskRequestSchema = lazySchema(() =>
   z
     .object({
@@ -489,32 +406,6 @@ export const SDKControlGetSettingsResponseSchema = lazySchema(() =>
     ),
 )
 
-export const SDKControlElicitationRequestSchema = lazySchema(() =>
-  z
-    .object({
-      subtype: z.literal('elicitation'),
-      mcp_server_name: z.string(),
-      message: z.string(),
-      mode: z.enum(['form', 'url']).optional(),
-      url: z.string().optional(),
-      elicitation_id: z.string().optional(),
-      requested_schema: z.record(z.string(), z.unknown()).optional(),
-    })
-    .describe(
-      'Requests the SDK consumer to handle an MCP elicitation (user input request).',
-    ),
-)
-
-export const SDKControlElicitationResponseSchema = lazySchema(() =>
-  z
-    .object({
-      action: z.enum(['accept', 'decline', 'cancel']),
-      content: z.record(z.string(), z.unknown()).optional(),
-    })
-    .describe('Response from the SDK consumer for an elicitation request.'),
-)
-
-
 // ============================================================================
 // Control Request/Response Wrappers
 // ============================================================================
@@ -527,20 +418,14 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlSetPermissionModeRequestSchema(),
     SDKControlSetModelRequestSchema(),
     SDKControlSetMaxThinkingTokensRequestSchema(),
-    SDKControlMcpStatusRequestSchema(),
     SDKControlGetContextUsageRequestSchema(),
     SDKHookCallbackRequestSchema(),
-    SDKControlMcpMessageRequestSchema(),
     SDKControlRewindFilesRequestSchema(),
     SDKControlCancelAsyncMessageRequestSchema(),
     SDKControlSeedReadStateRequestSchema(),
-    SDKControlMcpSetServersRequestSchema(),
-    SDKControlMcpReconnectRequestSchema(),
-    SDKControlMcpToggleRequestSchema(),
     SDKControlStopTaskRequestSchema(),
     SDKControlApplyFlagSettingsRequestSchema(),
     SDKControlGetSettingsRequestSchema(),
-    SDKControlElicitationRequestSchema(),
   ]),
 )
 

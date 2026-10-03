@@ -106,7 +106,7 @@ test('compact auxiliary prompts retain recovery-critical behavior', async () => 
   const expectations = [
     ['AskUserQuestionTool', ['Other', '(Recommended)', 'ExitPlanMode']],
     ['WebSearchTool', ['Sources', 'plain hostnames', 'Current month']],
-    ['WebFetchTool', ['Authenticated/private URLs fail', 'GitHub', 'redirect']],
+    ['WebFetchTool', ['Authenticated/private URLs require an authenticated tool', 'GitHub', 'redirect']],
     ['TaskOutputTool', ['Prefer Read', 'block=false', 'timeout']],
     ['TaskStopTool', ['already-finished task', 'no-op']],
   ]
@@ -167,32 +167,6 @@ test('FileWrite exact no-op detects CRLF beyond the 4 KB sample', () => {
     unlinkSync(mixedPath)
     rmdirSync(tempDir)
   }
-})
-
-test('Groq small-tier request never strands allowed deferred tools', () => {
-  const source = [
-    { name: 'ToolSearch' },
-    { name: 'WebFetch' },
-    { name: 'mcp__github__list_issues' },
-    { name: 'NotebookEdit' },
-  ]
-  const upstream = audit.selectToolsForToolSearchRequest(source, {
-    useToolSearch: true,
-    useNativeLaneToolSearch: false,
-    deferredToolNames: new Set([
-      'WebFetch',
-      'mcp__github__list_issues',
-      'NotebookEdit',
-    ]),
-    discoveredToolNames: new Set(),
-    provider: 'groq',
-    model: 'llama-3.1-8b-instant',
-  })
-  const final = audit
-    .getTransformer('groq')
-    .filterTools('llama-3.1-8b-instant', upstream)
-    .map(tool => tool.name)
-  assert.deepEqual(final, ['WebFetch', 'mcp__github__list_issues'])
 })
 
 test.after(() => {

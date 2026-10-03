@@ -11,7 +11,7 @@ const DESCRIPTION =
 
 const PROMPT = `Inspect a local or public web page without a full browser engine. This is read-only.
 
-Use for quick app verification after starting a dev server: page reachable, expected text present, forms detectable, and referenced same-origin scripts/styles/images returning successful HTTP status. For console errors, screenshots, clicks, or authenticated browser state, use browser MCP/WebBrowser/Chrome tools if available.`
+Use for quick app verification after starting a dev server: page reachable, expected text present, forms detectable, and referenced same-origin scripts/styles/images returning successful HTTP status. Console errors, screenshots, clicks, and authenticated browser state require a separate browser automation environment.`
 
 const inputSchema = lazySchema(() =>
   z.strictObject({

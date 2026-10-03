@@ -838,7 +838,6 @@ const SAFE_SKILL_PROPERTIES = new Set([
   'isEnabled',
   'isHidden',
   'aliases',
-  'isMcp',
   'argumentHint',
   'whenToUse',
   'paths',

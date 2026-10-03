@@ -1,4 +1,3 @@
-import { Ajv, type ValidateFunction } from 'ajv'
 import type { Tool } from '../Tool.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 
@@ -14,28 +13,9 @@ import { zodToJsonSchema } from './zodToJsonSchema.js'
  * Required fields and value types are already enforced by the tool's Zod
  * schema; what Zod deliberately does NOT do is reject unknown properties
  * (`.strip()` silently drops them, which is how a guessed parameter would
- * become a silent behavior change). MCP tools carry a JSON Schema instead of a
- * usable Zod schema, so they are validated with Ajv here or not at all.
+ * become a silent behavior change).
  */
 export type BlindCallCheck = { ok: true } | { ok: false; message: string }
-
-let ajvInstance: Ajv | null = null
-const validatorCache = new Map<string, ValidateFunction | null>()
-
-function getAjv(): Ajv {
-  if (!ajvInstance) {
-    // Tool schemas come from third-party MCP servers and from Zod v4's
-    // 2020-12 output. Neither is worth failing a call over, so keep Ajv
-    // permissive about dialect/format metadata and let the structural
-    // keywords (type/required/properties/enum) do the work.
-    ajvInstance = new Ajv({
-      allErrors: true,
-      strict: false,
-      validateFormats: false,
-    })
-  }
-  return ajvInstance
-}
 
 function getDeclaredSchema(tool: Tool): Record<string, unknown> | null {
   if (tool.inputJSONSchema) {
@@ -48,27 +28,7 @@ function getDeclaredSchema(tool: Tool): Record<string, unknown> | null {
   }
 }
 
-function getValidator(tool: Tool, schema: Record<string, unknown>) {
-  const cached = validatorCache.get(tool.name)
-  if (cached !== undefined) return cached
-  let compiled: ValidateFunction | null = null
-  try {
-    // `$schema` names a dialect Ajv 8 does not ship by default; the structural
-    // keywords are dialect-independent, so drop it rather than refuse.
-    const { $schema: _dialect, ...rest } = schema
-    compiled = getAjv().compile(rest)
-  } catch {
-    compiled = null
-  }
-  validatorCache.set(tool.name, compiled)
-  return compiled
-}
-
-/** Exported for tests: schema compilation is cached per tool name. */
-export function resetBlindCallValidatorCache(): void {
-  validatorCache.clear()
-  ajvInstance = null
-}
+export function resetBlindCallValidatorCache(): void {}
 
 function summarizeJsonSchema(schema: Record<string, unknown>): string | null {
   const properties = schema.properties
@@ -109,16 +69,7 @@ export function checkBlindDeferredCallInput(
 ): BlindCallCheck {
   const schema = getDeclaredSchema(tool)
   if (!schema) {
-    // No local schema to check against. Non-MCP tools still go through Zod
-    // next, so let them proceed; an MCP call cannot be verified at all.
-    return tool.isMcp
-      ? {
-          ok: false,
-          message:
-            `${tool.name}'s schema was not declared on the request that produced this call and could not be verified locally, ` +
-            `so it was not run.`,
-        }
-      : { ok: true }
+    return { ok: true }
   }
 
   const record =
@@ -141,29 +92,6 @@ export function checkBlindDeferredCallInput(
           `This call was produced before ${tool.name}'s schema was declared, so unrecognized parameters are rejected instead of ignored. ` +
           `Re-send the call using only the fields below.`,
       )
-    }
-  } else if (tool.isMcp && Object.keys(record).length > 0) {
-    return withSchema(
-      schema,
-      `${tool.name} declares no input properties, so the arguments sent with this call could not be verified and it was not run.`,
-    )
-  }
-
-  // Zod already enforces required/type for built-in tools on the next step.
-  // MCP tools have only a placeholder Zod schema, so validate them here.
-  if (tool.isMcp) {
-    const validate = getValidator(tool, schema)
-    if (!validate) {
-      return withSchema(
-        schema,
-        `${tool.name}'s schema could not be compiled for local verification, so this call was not run.`,
-      )
-    }
-    if (!validate(record)) {
-      const details = getAjv().errorsText(validate.errors, {
-        dataVar: tool.name,
-      })
-      return withSchema(schema, `${tool.name} arguments are invalid: ${details}.`)
     }
   }
 

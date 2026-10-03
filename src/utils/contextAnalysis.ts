@@ -178,8 +178,6 @@ function processBlock(
     case 'thinking':
     case 'redacted_thinking':
     case 'code_execution_tool_result':
-    case 'mcp_tool_use':
-    case 'mcp_tool_result':
     case 'container_upload':
     case 'web_fetch_tool_result':
     case 'bash_code_execution_tool_result':

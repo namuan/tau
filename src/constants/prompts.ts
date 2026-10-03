@@ -31,10 +31,6 @@ import {
 import { getSkillToolCommands } from 'src/commands.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import { getOutputStyleConfig } from './outputStyles.js'
-import type {
-  MCPServerConnection,
-  ConnectedMCPServer,
-} from '../services/mcp/types.js'
 import { GLOB_TOOL_NAME } from 'src/tools/GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from 'src/tools/GrepTool/prompt.js'
 import { hasEmbeddedSearchTools } from 'src/utils/embeddedTools.js'
@@ -75,8 +71,6 @@ import { TICK_TAG } from './xml.js'
 import { logForDebugging } from '../utils/debug.js'
 import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { isUndercover } from '../utils/undercover.js'
-import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
-import { MCP_INSTRUCTION_UPDATES_GUIDANCE } from './mcpInstructions.js'
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -175,17 +169,6 @@ function getOutputStyleSection(
 ${outputStyleConfig.prompt}`
 }
 
-function getMcpInstructionsSection(
-  mcpClients: MCPServerConnection[] | undefined,
-): string | null {
-  if (!mcpClients || mcpClients.length === 0) return null
-  // Cheap power mode hides MCP from the model entirely. Connections from an
-  // earlier mode may still be open (kept warm for switch-back), but their
-  // instructions must not reach the prompt.
-  if (getPowerModeFromSettings(getInitialSettings()) === 'cheap') return null
-  return getMcpInstructions(mcpClients)
-}
-
 export function prependBullets(items: Array<string | string[]>): string[] {
   return items.flatMap(item =>
     Array.isArray(item)
@@ -264,7 +247,7 @@ function getSimpleDoingTasksSection(): string {
     `Report outcomes faithfully: if tests fail, say so with the relevant output; if you did not run a verification step, say that rather than implying it succeeded. Never claim "all tests pass" when output shows failures, never suppress or simplify failing checks (tests, lints, type errors) to manufacture a green result, and never characterize incomplete or broken work as done. Equally, when a check did pass or a task is complete, state it plainly — do not hedge confirmed results with unnecessary disclaimers, downgrade finished work to "partial," or re-verify things you already checked. Tool call counts, token statistics, and a tool that ran without an error are not evidence that the work is correct; the evidence is the test, the run output, or the rendered result. The goal is an accurate report, not a defensive one.`,
     ...(process.env.USER_TYPE === 'ant'
       ? [
-          `If the user reports a bug, slowness, or unexpected behavior with Tau itself (as opposed to asking you to fix their own code), recommend the appropriate slash command: /issue for model-related problems (odd outputs, wrong tool choices, hallucinations, refusals), or /share to upload the full session transcript for product bugs, crashes, slowness, or general issues. Only recommend these when the user is describing a problem with Tau. After /share produces a ccshare link, if you have a Slack MCP tool available, offer to post the link to #claude-code-feedback (channel ID C07VBSHV7EV) for the user.`,
+          `If the user reports a bug, slowness, or unexpected behavior with Tau itself (as opposed to asking you to fix their own code), recommend the appropriate slash command: /issue for model-related problems (odd outputs, wrong tool choices, hallucinations, refusals), or /share to upload the full session transcript for product bugs, crashes, slowness, or general issues. Only recommend these when the user is describing a problem with Tau. After /share produces a ccshare link, offer to post the link to #claude-code-feedback (channel ID C07VBSHV7EV) only when an appropriate tool is available.`,
         ]
       : []),
     `If the user asks for help or wants to give feedback inform them of the following:`,
@@ -382,7 +365,7 @@ function getUsingYourToolsSection(enabledTools: Set<string>): string {
       : []),
     ...(hasInspectSiteTool
       ? [
-          `For local web-app verification, after starting a dev server, ${useWorkflowTool(INSPECT_SITE_TOOL_NAME)} to verify HTTP reachability, expected text, forms, and same-origin assets. Use real browser/Chrome/Playwright MCP tools when screenshots, console errors, clicks, tabs, or authenticated state matter.`,
+          `For local web-app verification, after starting a dev server, ${useWorkflowTool(INSPECT_SITE_TOOL_NAME)} to verify HTTP reachability, expected text, forms, and same-origin assets. Use available browser tools when screenshots, console errors, clicks, tabs, or authenticated state matter.`,
         ]
       : []),
     ...(hasWebBrowserTool
@@ -422,7 +405,7 @@ function getUsingYourToolsSection(enabledTools: Set<string>): string {
 
 /**
  * Cheap power mode strips the optional prebuilt tools, subagents, skills,
- * and MCP — but KEEPS a fixed core (CHEAP_MODE_CORE_TOOL_NAME_SET),
+ * and agent delegation — but KEEPS a fixed core (CHEAP_MODE_CORE_TOOL_NAME_SET),
  * including the specialized-but-core tools models most often second-guess:
  * notebook editing, plan mode, and snapshots. Those reach the model in its
  * tool list exactly like any other tool, but on the native lanes (codex/Gemini)
@@ -441,7 +424,7 @@ function getCheapModeToolsSection(force = false): string | null {
   return [
     `# Power mode: cheap`,
     ...prependBullets([
-      `Only the tools listed in this request exist. Subagents/delegation, skills, and MCP are off; do not attempt them or ask the user to enable them.`,
+      `Only the tools listed in this request exist. Subagents/delegation and skills are off; do not attempt them or ask the user to enable them.`,
       `When their matching tools are listed, core capabilities may include file read/write/edit, notebooks, shell, file/content search, tasks, plan mode, snapshots, web fetch, web search, and running Python in a persistent kernel that can call the other listed tools from inside the code. Provider names may differ; trust the actual list, never invent a missing capability, and never claim a listed one is unavailable.`,
       `Delegation is off, so the kernel is the only way left to keep bulk output out of this conversation. Any question that would otherwise mean reading many files, re-running a command, or parsing a large log belongs in a cell that prints only the answer.`,
     ]),
@@ -484,61 +467,6 @@ function getDiscoverSkillsGuidance(): string | null {
  * outputStyleConfig intentionally NOT moved here — identity framing lives
  * in the static intro pending eval.
  */
-/**
- * How MCP servers are actually installed here.
- *
- * Without this, the model reconstructs a procedure from general knowledge and
- * gets it wrong in ways that fail the moment a user acts on them: hand-editing
- * `mcpServers` into settings.json (the wrong file — MCP config lives in
- * .mcp.json and .claude.json, so the edit silently does nothing), and
- * inventing slash commands and package names that do not exist.
- *
- * Every command named here is real and was checked against the CLI.
- * Keep these rules independent of the current OS, provider, server catalog,
- * credentials and connection results: this section is cached for the session,
- * including sessions that install their first server after the first request.
- */
-function getMcpSetupGuidance(): string {
-  // Derived from PRODUCT_COMMAND, never spelled out, so renaming the binary
-  // cannot leave the model describing a command that no longer exists.
-  const cli = PRODUCT_COMMAND
-  return [
-    `To install or manage an MCP server, use the \`${cli} mcp\` CLI (\`${cli} mcp add\`, \`add-json\`, \`list\`, \`get\`, \`remove\`). Read the chosen subcommand's \`--help\` when unsure of a flag rather than guessing. Inspect existing configuration in the intended project before changing it; preserve unrelated servers and settings.`,
-    `MCP servers live in .mcp.json / .claude.json — NOT in settings.json, which holds permissions, hooks and env vars. Writing an \`mcpServers\` block into settings.json does nothing.`,
-    `Choose scope from the user's intent: \`local\` (the default) is private to this project, \`project\` is shared through its .mcp.json, and \`user\` is available in all projects. Use \`-s <scope>\` explicitly; do not default to user/global scope. Run project/local operations from the intended project directory. For duplicate names, local overrides project, which overrides user; inspect the effective scope before replacing or removing an entry. Managed policy, project approval and disabled-server settings still apply; never bypass them to make a test pass.`,
-    `For a stdio server, the CLI's own flags go BEFORE \`--\` and the server's own flags after it: \`${cli} mcp add <name> -s <scope> -- <command> <args>\`. A flag like \`-y\` placed before \`--\` is rejected as an unknown option. Store one executable and a separate argument array, using the server's documented runtime and transport. Check runtime availability, paths, working directory and required environment in the launch context; aliases, shell functions, virtual-environment activation and interactive profiles are not executable configuration.`,
-    `Use the stdio transport's cross-platform launcher for executable and script-shim resolution. Do not add a shell wrapper merely because of an OS or package-manager name. If the documented command really requires a shell, preserve its exact argument boundaries and use quoting for the shell actually executing the setup command. Shells can expand variables, quotes and metacharacters or convert path-like arguments before the CLI receives them (including MSYS argument conversion); prevent that for the setup invocation. \`add-json\` accepts structured configuration as one JSON argument, but that argument also needs protection from shell expansion and path conversion. Inspect the stored command and argv after writing; do not guess repairs to a path that resembles a switch.`,
-    `For a remote server: \`${cli} mcp add --transport http <name> <url> -s <scope>\`, with \`--header\` for documented headers/auth. Use the server's documented transport; pass the URL once. Keep credentials out of shared project files and reports; use supported environment references or the documented auth flow, and redact secrets in displayed command output.`,
-    `A successful add only saves configuration. Verify the effective entry from the intended project with \`${cli} mcp get <name>\`, or \`${cli} mcp list\` to check all enabled servers. "Connected" means an MCP initialize handshake succeeded; it does not prove every tool works or that this running session has refreshed its tools. Reconnect through /mcp after edits, inspect discovered tools, and when authorized exercise a harmless read-only tool before claiming end-to-end success. Report separately what was saved, connected, discovered and tested.`,
-    `On failure, diagnose the actual error: executable/PATH, argv/quoting, missing environment, working directory, dependency download/startup, network/TLS, authentication or MCP protocol. A cold install may exceed MCP_TIMEOUT; adjust a timeout only with evidence, not by changing a working command. "Needs authentication" requires the documented OAuth flow via /mcp. Do not infer a broken runtime from a static warning, repeatedly reinstall, rewrite other scopes, disable TLS checks or broaden permissions as a workaround.`,
-    `Never guess a package name, repo, marketplace or slash command. Resolve the identifier and setup contract from the supplied configuration or official documentation; ask the user only if ambiguity remains. Run the real command and report its result with secrets redacted.`,
-  ].join(' ')
-}
-
-/**
- * How to call an MCP tool whose arguments are more than a flat bag of strings.
- *
- * Servers publish their real JSON Schema and it reaches the model, but a model
- * that has an approximate idea of an API tends to send the shape it expects
- * and correct by trial. That goes badly exactly where it costs most: nested
- * operation objects, embedded document grammars, and mutually exclusive
- * addressing fields. Observed failures were all the same mistake — a shape
- * invented rather than read — and each retry invented a new one.
- *
- * Deliberately server-agnostic. No server name, tool name or field name
- * appears here: the rules are about reading the contract you were given and
- * believing the diagnostic you got back, which holds for any server.
- */
-function getMcpCallShapeGuidance(): string {
-  return [
-    `When calling an MCP tool, build arguments from that tool's own JSON Schema, which you were given. Do not pattern-match from a similar API or from prose in a guide: a description tells you what a tool does, the schema tells you what it accepts, and only the schema is authoritative.`,
-    `Send exactly the fields the schema declares. Adding a field it does not list is rejected by strict servers rather than ignored, and supplying two ways of addressing the same thing when the contract wants one is a conflict, not a helpful extra.`,
-    `A string argument that carries its own nested format (JSON in a string, a markup or template grammar, a query language) is still governed by the server's rules for that format. If those rules are not stated, ask or read them first; do not infer them from how the text renders.`,
-    `An MCP error is evidence, not noise. Servers commonly name the offending path, the accepted keys, or a complete working payload; read that and correct from it. Two failures with the same cause means the assumption is wrong — re-read the schema or ask the user instead of trying a third variation.`,
-    `Never invent a field, identifier, enum member or nested shape to get past a rejection, and never present a guessed call as verified. If the contract does not say what a value should be, that is a question for the user.`,
-  ].join(' ')
-}
-
 function getSessionSpecificGuidanceSection(
   enabledTools: Set<string>,
   skillToolCommands: Command[],
@@ -554,9 +482,6 @@ function getSessionSpecificGuidanceSection(
 
   if (getPowerModeFromSettings(getInitialSettings()) === 'cheap') {
     const compactItems = [
-      // Setup can be requested even when cheap mode has no connected MCP tools.
-      getMcpSetupGuidance(),
-      'Cheap mode does not connect MCP servers. Configuration can be saved here; switch to normal mode to verify connection and tool availability.',
       hasWebSearchTool
         ? `Use ${WEB_SEARCH_TOOL_NAME} automatically for current/changing public information; never claim live access is unavailable when it is listed, and answer from results with source URLs.`
         : null,
@@ -596,13 +521,6 @@ function getSessionSpecificGuidanceSection(
     hasSkills
       ? `/<skill-name> (e.g., /commit) is shorthand for users to invoke a user-invocable skill. When executed, the skill gets expanded to a full prompt. Use the ${SKILL_TOOL_NAME} tool to execute them. IMPORTANT: Only use ${SKILL_TOOL_NAME} for skills listed in its user-invocable skills section - do not guess or use built-in CLI commands.`
       : null,
-    getMcpSetupGuidance(),
-    // Unconditional on purpose. This section is cached per session by name and
-    // only rebuilt on /mode or post-compact, so gating it on "are MCP tools
-    // present right now" would freeze the answer from the first build: a
-    // server connected later in the session would never get the guidance,
-    // which is exactly when a model is most likely to guess at its schema.
-    getMcpCallShapeGuidance(),
     DISCOVER_SKILLS_TOOL_NAME !== null &&
     hasSkills &&
     enabledTools.has(DISCOVER_SKILLS_TOOL_NAME)
@@ -775,7 +693,6 @@ export async function getSystemPrompt(
   tools: Tools,
   model: string,
   additionalWorkingDirectories?: string[],
-  mcpClients?: MCPServerConnection[],
 ): Promise<string[]> {
   const enabledTools = new Set(tools.map(_ => _.name))
   if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
@@ -808,11 +725,6 @@ ${CYBER_RISK_INSTRUCTION}`,
       await loadMemoryPrompt({ compact: isCheapMode }),
       envInfo,
       getLanguageSection(settings.language),
-      // When delta enabled, instructions are announced via persisted
-      // mcp_instructions_delta attachments (attachments.ts) instead.
-      isMcpInstructionsDeltaEnabled()
-        ? null // Cheap mode has no MCP tools.
-        : getMcpInstructionsSection(mcpClients),
       getScratchpadInstructions(),
       getFunctionResultClearingSection(model),
       SUMMARIZE_TOOL_RESULTS_SECTION,
@@ -843,19 +755,6 @@ ${CYBER_RISK_INSTRUCTION}`,
     ),
     systemPromptSection('output_style', () =>
       getOutputStyleSection(outputStyleConfig),
-    ),
-    // When delta enabled, instructions are announced via persisted
-    // mcp_instructions_delta attachments (attachments.ts) instead of this
-    // per-turn recompute, which busts the prompt cache on late MCP connect.
-    // Gate check inside compute (not selecting between section variants)
-    // so a mid-session gate flip doesn't read a stale cached value.
-    DANGEROUS_uncachedSystemPromptSection(
-      'mcp_instructions',
-      () =>
-        isMcpInstructionsDeltaEnabled()
-          ? MCP_INSTRUCTION_UPDATES_GUIDANCE
-          : getMcpInstructionsSection(mcpClients),
-      'MCP servers connect/disconnect between turns',
     ),
     systemPromptSection('scratchpad', () => getScratchpadInstructions()),
     // Team mode orchestrator instructions — returns null (no-op) when
@@ -928,33 +827,6 @@ ${CYBER_RISK_INSTRUCTION}`,
     // --- Dynamic content (registry-managed) ---
     ...resolvedDynamicSections,
   ].filter(s => s !== null)
-}
-
-function getMcpInstructions(mcpClients: MCPServerConnection[]): string | null {
-  const connectedClients = mcpClients.filter(
-    (client): client is ConnectedMCPServer => client.type === 'connected',
-  )
-
-  const clientsWithInstructions = connectedClients.filter(
-    client => client.instructions,
-  )
-
-  if (clientsWithInstructions.length === 0) {
-    return null
-  }
-
-  const instructionBlocks = clientsWithInstructions
-    .map(client => {
-      return `## ${client.name}
-${client.instructions}`
-    })
-    .join('\n\n')
-
-  return `# MCP Server Instructions
-
-The following MCP servers have provided instructions for how to use their tools and resources:
-
-${instructionBlocks}`
 }
 
 export async function computeEnvInfo(

@@ -12,7 +12,6 @@ import { setClipboard } from '../ink/termio/osc.js';
 import { Box, Text } from '../ink.js';
 import { useKeybinding } from '../keybindings/useKeybinding.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../services/analytics/index.js';
-import type { MCPServerConnection, ScopedMcpServerConfig } from '../services/mcp/types.js';
 import { useAppState, useSetAppState } from '../state/AppState.js';
 import type { Tool } from '../Tool.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
@@ -48,11 +47,8 @@ type Props = {
   commands: Command[];
   worktreePaths: string[];
   initialTools: Tool[];
-  mcpClients?: MCPServerConnection[];
-  dynamicMcpConfig?: Record<string, ScopedMcpServerConfig>;
   debug: boolean;
   mainThreadAgentDefinition?: AgentDefinition;
-  strictMcpConfig?: boolean;
   systemPrompt?: string;
   appendSystemPrompt?: string;
   initialSearchQuery?: string;
@@ -67,11 +63,8 @@ export function ResumeConversation({
   commands,
   worktreePaths,
   initialTools,
-  mcpClients,
-  dynamicMcpConfig,
   debug,
   mainThreadAgentDefinition,
-  strictMcpConfig = false,
   systemPrompt,
   appendSystemPrompt,
   initialSearchQuery,
@@ -292,7 +285,7 @@ export function ResumeConversation({
     return <CrossProjectMessage command={crossProjectCommand} />;
   }
   if (resumeData) {
-    return <REPL debug={debug} commands={commands} initialTools={initialTools} initialMessages={resumeData.messages} initialFileHistorySnapshots={resumeData.fileHistorySnapshots} initialContentReplacements={resumeData.contentReplacements} initialAgentName={resumeData.agentName} initialAgentColor={resumeData.agentColor} mcpClients={mcpClients} dynamicMcpConfig={dynamicMcpConfig} strictMcpConfig={strictMcpConfig} systemPrompt={systemPrompt} appendSystemPrompt={appendSystemPrompt} mainThreadAgentDefinition={resumeData.mainThreadAgentDefinition} disableSlashCommands={disableSlashCommands} taskListId={taskListId} thinkingConfig={thinkingConfig} onTurnComplete={onTurnComplete} />;
+    return <REPL debug={debug} commands={commands} initialTools={initialTools} initialMessages={resumeData.messages} initialFileHistorySnapshots={resumeData.fileHistorySnapshots} initialContentReplacements={resumeData.contentReplacements} initialAgentName={resumeData.agentName} initialAgentColor={resumeData.agentColor} systemPrompt={systemPrompt} appendSystemPrompt={appendSystemPrompt} mainThreadAgentDefinition={resumeData.mainThreadAgentDefinition} disableSlashCommands={disableSlashCommands} taskListId={taskListId} thinkingConfig={thinkingConfig} onTurnComplete={onTurnComplete} />;
   }
   if (loading) {
     return <Box>
