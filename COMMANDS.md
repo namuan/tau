@@ -105,7 +105,7 @@ Opens an interactive picker for optional Tau prebuilt tools. Basic agent tools s
 **`/mode` - Switch Tau mode (cheap / normal)**
 One switch for how Tau operates, with a matching identity and accent color that cross-fades on change.
 
-- `cheap` - a compact core-tool contract. Optional tools, skills, and agents are all off AND hidden from the model (system prompt and listings included); folder configs (`.claude/skills`, `.claude/agents`) are ignored. Repetitive guidance is enforced by runtime guards, large results are parked with bounded previews and paginated retrieval, and every provider receives the whole compact schema block up front - cheap never hides a tool behind a lookup, so the model always has real parameter schemas and the request prefix stays byte-stable. Soft bronze accents.
+- `cheap` - a compact core-tool contract. Optional tools, skills, and agents are all off AND hidden from the model (system prompt and listings included); folder configs are ignored. Repetitive guidance is enforced by runtime guards, large results are parked with bounded previews and paginated retrieval, and every provider receives the whole compact schema block up front - cheap never hides a tool behind a lookup, so the model always has real parameter schemas and the request prefix stays byte-stable. Soft bronze accents.
 - `normal` - default behavior. Your `/tools` toggles apply; skills and agents load as configured. Standard theme.
 - `full` - everything on. Every optional tool is enabled regardless of saved `/tools` toggles. Soft gold accents.
 
@@ -168,7 +168,7 @@ always:date+time         27 Aug 2026 10:00 AM
 always:date+time+model   27 Aug 2026 10:00 AM   claude-opus-5
 ```
 
-Leave `/config` with **Enter** to save - Escape reverts every change you made in the panel (that applies to every row in `/config`, not just this one). The setting is stored in the global config (`~/.claude.json`) as `messageHeaderMode`, so you can also set it by hand. It applies to the next reply: lines already printed in the scrollback keep the look they were drawn with, while the Ctrl+O transcript redraws in full and always reflects the current setting.
+Leave `/config` with **Enter** to save - Escape reverts every change you made in the panel (that applies to every row in `/config`, not just this one). The setting is stored in Tau's global config (`~/.config/tau/config.json`) as `messageHeaderMode`, so you can also set it by hand. It applies to the next reply: lines already printed in the scrollback keep the look they were drawn with, while the Ctrl+O transcript redraws in full and always reflects the current setting.
 
 **`/statusline` - Configure the status row under the prompt**
 Tau draws one status row beneath the prompt. By default it is the built-in session bar: current directory, provider/model, and a context-usage meter. `/statusline` hands the job to the `statusline-setup` agent, which writes a `statusLine` command into `~/.config/tau/settings.json` for you.
@@ -178,7 +178,7 @@ Tau draws one status row beneath the prompt. By default it is the built-in sessi
 /statusline show git branch and model    describe the row you want instead
 ```
 
-With no argument it reads `~/.zshrc`, `~/.bashrc`, `~/.bash_profile`, and `~/.profile` to convert an existing PS1. On Windows none of those exist, so pass a description instead.
+With no argument it reads `~/.zshrc`, `~/.bashrc`, `~/.bash_profile`, and `~/.profile` to convert an existing PS1. Otherwise, pass a description of the row you want.
 
 The row is controlled by two settings keys:
 

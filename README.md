@@ -20,7 +20,7 @@ npm link
 
 `npm link` creates a machine-local symlink to this checkout, exposing the `tau` command from any directory. It does not publish or install Tau from a registry. To remove the link, run `npm unlink -g tau-local`.
 
-**Requirements:** Node.js 20.19+ or 22.12+ (require(esm) support), Git, Bash, ripgrep (`rg`) on `PATH`, `gh` for GitHub automation, and Go 1.25.8+ to build the optional native Tau helpers from source.
+**Requirements:** macOS, Node.js 20.19+ or 22.12+ (require(esm) support), Git, Bash, ripgrep (`rg`) on `PATH`, `gh` for GitHub automation, and Go 1.25.8+ to build the optional native Tau helpers from source.
 
 ---
 

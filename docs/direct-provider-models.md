@@ -21,7 +21,7 @@ only a first run, with nothing saved yet, waits for the download.
 
 The picker displays exact token counts and uses left/right arrows to cycle only
 the model's supported settings. Choices persist per provider and model in
-`~/.claude/direct-provider-thinking.json`; DeepSeek retains its existing store.
+`~/.config/tau/direct-provider-thinking.json`; DeepSeek retains its own Tau config store.
 Text searches (`/models <provider>`) display context and supported thinking choices.
 
 | Native model | Context tokens | Thinking choices |

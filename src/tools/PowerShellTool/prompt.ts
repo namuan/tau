@@ -1,10 +1,6 @@
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { getMaxOutputLength } from '../../utils/shell/outputLimits.js'
 import {
-  getPowerShellEdition,
-  type PowerShellEdition,
-} from '../../utils/shell/powershellDetection.js'
-import {
   getDefaultBashTimeoutMs,
   getMaxBashTimeoutMs,
 } from '../../utils/timeouts.js'
@@ -43,45 +39,23 @@ function getSleepGuidance(): string | null {
     - If you must sleep, keep the duration short (1-5 seconds) to avoid blocking the user.`
 }
 
-/**
- * Version-specific syntax guidance. The model's training data covers both
- * editions but it can't tell which one it's targeting, so it either emits
- * pwsh-7 syntax on 5.1 (parser error → exit 1) or needlessly avoids && on 7.
- */
-function getEditionSection(edition: PowerShellEdition | null): string {
-  if (edition === 'desktop') {
-    return `PowerShell edition: Windows PowerShell 5.1 (powershell.exe)
-   - Pipeline chain operators \`&&\` and \`||\` are NOT available — they cause a parser error. To run B only if A succeeds: \`A; if ($?) { B }\`. To chain unconditionally: \`A; B\`.
-   - Ternary (\`?:\`), null-coalescing (\`??\`), and null-conditional (\`?.\`) operators are NOT available. Use \`if/else\` and explicit \`$null -eq\` checks instead.
-   - Avoid \`2>&1\` on native executables. In 5.1, redirecting a native command's stderr inside PowerShell wraps each line in an ErrorRecord (NativeCommandError) and sets \`$?\` to \`$false\` even when the exe returned exit code 0. stderr is already captured for you — don't redirect it.
-   - Default file encoding is UTF-16 LE (with BOM). When writing files other tools will read, pass \`-Encoding utf8\` to \`Out-File\`/\`Set-Content\`.
-   - \`ConvertFrom-Json\` returns a PSCustomObject, not a hashtable. \`-AsHashtable\` is not available.`
-  }
-  if (edition === 'core') {
-    return `PowerShell edition: PowerShell 7+ (pwsh)
+function getEditionSection(): string {
+  return `PowerShell edition: PowerShell 7+ (pwsh)
    - Pipeline chain operators \`&&\` and \`||\` ARE available and work like bash. Prefer \`cmd1 && cmd2\` over \`cmd1; cmd2\` when cmd2 should only run if cmd1 succeeds.
    - Ternary (\`$cond ? $a : $b\`), null-coalescing (\`??\`), and null-conditional (\`?.\`) operators are available.
    - Default file encoding is UTF-8 without BOM.`
-  }
-  // Detection not yet resolved (first prompt build before any tool call) or
-  // PS not installed. Give the conservative 5.1-safe guidance.
-  return `PowerShell edition: unknown — assume Windows PowerShell 5.1 for compatibility
-   - Do NOT use \`&&\`, \`||\`, ternary \`?:\`, null-coalescing \`??\`, or null-conditional \`?.\`. These are PowerShell 7+ only and parser-error on 5.1.
-   - To chain commands conditionally: \`A; if ($?) { B }\`. Unconditionally: \`A; B\`.`
 }
 
 export async function getPrompt(): Promise<string> {
   const backgroundNote = getBackgroundUsageNote()
   const sleepGuidance = getSleepGuidance()
-  const edition = await getPowerShellEdition()
-
   return `Executes a given PowerShell command with optional timeout. Working directory persists between commands; shell state (variables, functions) does not.
 
 Directory awareness: whenever a command runs anywhere other than the session cwd — or the session cwd moves or drifts from the project root — the result includes a bracketed note stating the directory it actually ran in. ALWAYS trust these notes over your memory of earlier directory changes, especially in long sessions. To target another directory, encode that absolute path in the command itself or use the command's native location flag.
 
 IMPORTANT: This tool is for terminal operations via PowerShell: git, npm, docker, and PS cmdlets. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.
 
-${getEditionSection(edition)}
+${getEditionSection()}
 
 Before executing the command, please follow these steps:
 

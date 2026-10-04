@@ -31,6 +31,7 @@ import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js';
 import { semanticBoolean } from '../../utils/semanticBoolean.js';
 import { semanticNumber } from '../../utils/semanticNumber.js';
 import { getCachedPowerShellPath } from '../../utils/shell/powershellDetection.js';
+import { whichSync } from '../../utils/which.js';
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js';
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js';
 import { TaskOutput } from '../../utils/task/TaskOutput.js';
@@ -227,6 +228,8 @@ function isWindowsSandboxPolicyViolation(): boolean {
   return getPlatform() === 'windows' && SandboxManager.isSandboxEnabledInSettings() && !SandboxManager.areUnsandboxedCommandsAllowed();
 }
 
+let cachedPowerShellAvailability: boolean | undefined
+
 // Check if background tasks are disabled at module load time
 const isBackgroundTasksDisabled =
 // eslint-disable-next-line custom-rules/no-process-env-top-level -- Intentional: schema must be defined at module load
@@ -287,7 +290,7 @@ function getCommandTypeForLogging(command: string): AnalyticsMetadata_I_VERIFIED
 }
 export const PowerShellTool = buildTool({
   name: POWERSHELL_TOOL_NAME,
-  searchHint: 'execute Windows PowerShell commands',
+  searchHint: 'execute PowerShell commands',
   maxResultSizeChars: 30_000,
   strict: true,
   // Display text only; the command string is what runs.
@@ -365,7 +368,10 @@ export const PowerShellTool = buildTool({
     return `Running ${desc}`;
   },
   isEnabled(): boolean {
-    return true;
+    if (cachedPowerShellAvailability === undefined) {
+      cachedPowerShellAvailability = whichSync('pwsh') !== null
+    }
+    return cachedPowerShellAvailability
   },
   async validateInput(input: PowerShellToolInput): Promise<ValidationResult> {
     // Defense-in-depth: also guarded in call() for direct callers.

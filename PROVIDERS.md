@@ -65,7 +65,7 @@ only the three distinct stops are offered.
 The chip starts on `None`, which is exactly what Tau sent before it existed.
 DeepSeek's own default is thinking-on at high effort — one press of `→` twice
 gets you there. The pick is per model and persists in
-`~/.claude/deepseek-thinking.json`.
+`~/.config/tau/deepseek-thinking.json`.
 
 A custom id pointed at by `DEEPSEEK_BASE_URL` shows no chip and keeps the old
 behavior: the caller's thinking budget drives it, and no `reasoning_effort`
@@ -85,7 +85,7 @@ llama-4-scout - LLaMA 4 Scout                            [tools]
 ```
 
 `Default` sends no `reasoning_effort` at all and lets LXD pick. The choice is
-per model and persists in `~/.claude/lxd-thinking.json`. Rows that publish no
+per model and persists in `~/.config/tau/lxd-thinking.json`. Rows that publish no
 ladder (llama-4-scout, minimax-m3) show no chip, and Tau never sends a level a
 model hasn't declared.
 
@@ -119,7 +119,7 @@ drives the row, through whichever fields it published. Model Studio turns
 thinking ON by default on the hybrid rows, so a chip that sent nothing would
 quietly bill a thinking request to someone who had turned thinking off. An
 explicit pick always outranks the session budget, and the pick is per model,
-persisted in `~/.claude/alibaba-thinking.json`.
+persisted in `~/.config/tau/alibaba-thinking.json`.
 
 `thinking_budget` is never sent: Model Studio documents it as mutually
 exclusive with `reasoning_effort`, and the ladder speaks in efforts.
@@ -167,7 +167,7 @@ export MIMO_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1   # or token-plan-
 Both MiMo rows reason on a low / medium / high ladder (MiMo's own default is
 medium); cycle it with `←` / `→` in `/models`. An explicit pick outranks the
 session's thinking budget, and the choice persists in
-`~/.claude/mimo-thinking.json`.
+`~/.config/tau/mimo-thinking.json`.
 
 ## Switching providers mid-session
 
