@@ -109,9 +109,8 @@ export const CLAUDE_CODE_DOCS_MAP_URL =
   'https://code.claude.com/docs/en/claude_code_docs_map.md'
 
 /**
- * Boundary marker separating static (cross-org cacheable) content from dynamic content.
- * Everything BEFORE this marker in the system prompt array can use scope: 'global'.
- * Everything AFTER contains user/session-specific content and should not be cached.
+ * Boundary marker separating stable system prompt content from per-turn context.
+ * Native provider lanes consume it when building stable cache prefixes.
  *
  * WARNING: Do not remove or reorder this marker without updating cache logic in:
  * - src/utils/api.ts (splitSysPromptPrefix)

@@ -139,7 +139,6 @@ import {
   EFFORT_BETA_HEADER,
   FAST_MODE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
-  STRUCTURED_OUTPUTS_BETA_HEADER,
   TASK_BUDGETS_BETA_HEADER,
 } from 'src/constants/betas.js'
 import type { QuerySource } from 'src/constants/querySource.js'
@@ -158,7 +157,6 @@ import { getAgentContext } from 'src/utils/agentContext.js'
 import { isClaudeAISubscriber } from 'src/utils/auth.js'
 import {
   getToolSearchBetaHeader,
-  modelSupportsStructuredOutputs,
   shouldIncludeFirstPartyOnlyBetas,
 } from 'src/utils/betas.js'
 import { getMaxThinkingTokensForModel } from 'src/utils/context.js'
@@ -627,7 +625,7 @@ export async function verifyApiKey(
   }
 
   try {
-    // WARNING: if you change this to use a non-Haiku model, this request will fail in 1P unless it uses getCLISyspromptPrefix.
+    // WARNING: if you change this to use a non-Haiku model, this request must use getCLISyspromptPrefix.
     const model = getSmallFastModel()
     const betas = getModelBetas(model)
     return await returnValue(
@@ -1624,7 +1622,6 @@ async function* queryModel(
         tools,
         agents: options.agents,
         allowedAgentTypes: options.allowedAgentTypes,
-        model: options.model,
         deferLoading: willDefer(tool),
       }),
     ),
@@ -1916,16 +1913,8 @@ async function* queryModel(
     )
 
     // Merge outputFormat into extraBodyParams.output_config alongside effort
-    // Requires structured-outputs beta header per SDK (see parse() in messages.mjs)
     if (options.outputFormat && !('format' in outputConfig)) {
       outputConfig.format = options.outputFormat as BetaJSONOutputFormat
-      // Add beta header if not already present and provider supports it
-      if (
-        modelSupportsStructuredOutputs(options.model) &&
-        !betasParams.includes(STRUCTURED_OUTPUTS_BETA_HEADER)
-      ) {
-        betasParams.push(STRUCTURED_OUTPUTS_BETA_HEADER)
-      }
     }
 
     // Retry context gets preference because it tries to course correct if we exceed the context window limit
@@ -2263,9 +2252,8 @@ async function* queryModel(
     const isAgentRouterRequest = streamProvider === 'agentrouter'
     // Enable the idle watchdog by default for third-party gateway/compat
     // providers (opencode, opencodego, openrouter, …), where a silent
-    // mid-stream connection drop otherwise hangs the turn forever. Anthropic-
-    // native routes (firstParty/bedrock/vertex/foundry) stay opt-in so the
-    // default path is unchanged. Kill-switches preserved: the global
+    // mid-stream connection drop otherwise hangs the turn forever. Kill-switches
+    // preserved: the global
     // CLAUDE_DISABLE_STREAM_WATCHDOG and the agentrouter-specific
     // AGENTROUTER_DISABLE_STREAM_WATCHDOG.
     const isThirdPartyStreamProvider = isThirdPartyProvider(streamProvider)

@@ -8,10 +8,6 @@ import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from 'src/constants/prompts.js'
 import { getSystemContext, getUserContext } from 'src/context.js'
 import { isAnalyticsDisabled } from 'src/services/analytics/config.js'
 import {
-  checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
-  getFeatureValue_CACHED_MAY_BE_STALE,
-} from 'src/services/analytics/growthbook.js'
-import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from 'src/services/analytics/index.js'
@@ -35,15 +31,11 @@ import { TASK_OUTPUT_TOOL_NAME } from '../tools/TaskOutputTool/constants.js'
 import { isDeferredTool } from '../tools/ToolSearchTool/prompt.js'
 import type { Message } from '../types/message.js'
 import { isAgentSwarmsEnabled } from './agentSwarmsEnabled.js'
-import { modelSupportsStructuredOutputs } from './betas.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { isEnvTruthy } from './envUtils.js'
 import { createUserMessage } from './messages.js'
-import {
-  getAPIProvider,
-  isFirstPartyAnthropicBaseUrl,
-} from './model/providers.js'
+import { getAPIProvider } from './model/providers.js'
 import { stripObservableBackfill } from './observableInput.js'
 import {
   getFileReadIgnorePatterns,
@@ -64,14 +56,12 @@ import { zodToJsonSchema } from './zodToJsonSchema.js'
 
 // Extended BetaTool type with strict mode and defer_loading support
 type BetaToolWithExtras = BetaTool & {
-  strict?: boolean
   defer_loading?: boolean
   cache_control?: {
     type: 'ephemeral'
     scope?: 'global' | 'org'
     ttl?: '5m' | '1h'
   }
-  eager_input_streaming?: boolean
   __tau_should_defer?: boolean
   __tau_advisory_fields?: readonly string[]
 }
@@ -145,7 +135,6 @@ export async function toolToAPISchema(
     tools: Tools
     agents: AgentDefinition[]
     allowedAgentTypes?: string[]
-    model?: string
     /** When true, mark this tool with defer_loading for tool search */
     deferLoading?: boolean
     cacheControl?: {
@@ -155,10 +144,9 @@ export async function toolToAPISchema(
     }
   },
 ): Promise<BetaToolUnion> {
-  // Session-stable base schema: name, description, input_schema, strict,
-  // eager_input_streaming. These are computed once per session and cached to
-  // prevent mid-session GrowthBook flips (tengu_tool_pear, tengu_fgts) or
-  // tool.prompt() drift from churning the serialized tool array bytes.
+  // Session-stable base schema: name, description, and input_schema. These
+  // are computed once per session and cached to prevent tool.prompt() drift
+  // from churning the serialized tool array bytes.
   // See toolSchemaCache.ts for rationale.
   //
   // Cache key includes inputJSONSchema when present. StructuredOutput instances
@@ -173,8 +161,6 @@ export async function toolToAPISchema(
   const cache = getToolSchemaCache()
   let base = cache.get(cacheKey)
   if (!base) {
-    const strictToolsEnabled =
-      checkStatsigFeatureGate_CACHED_MAY_BE_STALE('tengu_tool_pear')
     // Use tool's JSON schema directly if provided, otherwise convert Zod schema
     let input_schema = (
       'inputJSONSchema' in tool && tool.inputJSONSchema
@@ -199,34 +185,6 @@ export async function toolToAPISchema(
       input_schema,
     }
 
-    // Only add strict if:
-    // 1. Feature flag is enabled
-    // 2. Tool has strict: true
-    // 3. Model is provided and supports it (not all models support it right now)
-    //    (if model is not provided, assume we can't use strict tools)
-    if (
-      strictToolsEnabled &&
-      tool.strict === true &&
-      options.model &&
-      modelSupportsStructuredOutputs(options.model)
-    ) {
-      base.strict = true
-    }
-
-    // Enable fine-grained tool streaming via per-tool API field.
-    // Without FGTS, the API buffers entire tool input parameters before sending
-    // input_json_delta events, causing multi-minute hangs on large tool inputs.
-    // Gated to direct api.anthropic.com: proxies (LiteLLM etc.) and Bedrock/Vertex
-    // with Claude 4.5 reject this field with 400. See GH#32742, PR #21729.
-    if (
-      getAPIProvider() === 'firstParty' &&
-      isFirstPartyAnthropicBaseUrl() &&
-      (getFeatureValue_CACHED_MAY_BE_STALE('tengu_fgts', false) ||
-        isEnvTruthy(process.env.CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING))
-    ) {
-      base.eager_input_streaming = true
-    }
-
     cache.set(cacheKey, base)
   }
 
@@ -238,8 +196,6 @@ export async function toolToAPISchema(
     name: base.name,
     description: base.description,
     input_schema: base.input_schema,
-    ...(base.strict && { strict: true }),
-    ...(base.eager_input_streaming && { eager_input_streaming: true }),
   }
 
   // Add defer_loading if requested (for tool search feature)
@@ -258,7 +214,7 @@ export async function toolToAPISchema(
   // everything not in the base-tool allowlist at the one choke point all tool
   // schemas pass through — including fields added in the future.
   // cache_control is allowlisted: the base {type: 'ephemeral'} shape is
-  // standard prompt caching (Bedrock/Vertex supported); the beta sub-fields
+  // standard prompt caching; the beta sub-fields
   // (scope, ttl) are already gated upstream by shouldIncludeFirstPartyOnlyBetas
   // which independently respects this kill switch.
   // github.com/anthropics/claude-code/issues/20031

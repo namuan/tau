@@ -268,7 +268,7 @@ export async function countToolDefinitionTokens(
   tools: Tools,
   getToolPermissionContext: () => Promise<ToolPermissionContext>,
   agentInfo: AgentDefinitionsResult | null,
-  model?: string,
+  _model?: string,
 ): Promise<number> {
   const toolSchemas = await Promise.all(
     tools.map(tool =>
@@ -276,7 +276,6 @@ export async function countToolDefinitionTokens(
         getToolPermissionContext,
         tools,
         agents: agentInfo?.activeAgents ?? [],
-        model,
       }),
     ),
   )
@@ -893,7 +892,6 @@ export async function measureContextBaseline(
           getToolPermissionContext,
           tools,
           agents: agentDefinitions?.activeAgents ?? [],
-          model: runtimeModel,
         }),
       ),
     )

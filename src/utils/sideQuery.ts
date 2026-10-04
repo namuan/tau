@@ -5,7 +5,6 @@ import {
   getLastApiCompletionTimestamp,
   setLastApiCompletionTimestamp,
 } from '../bootstrap/state.js'
-import { STRUCTURED_OUTPUTS_BETA_HEADER } from '../constants/betas.js'
 import type { QuerySource } from '../constants/querySource.js'
 import {
   getAttributionHeader,
@@ -16,7 +15,7 @@ import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 
 import { getAPIMetadata } from '../services/api/claude.js'
 import { resolveProviderRequestSessionId } from '../services/api/cacheAffinity.js'
 import { getAnthropicClient } from '../services/api/client.js'
-import { getModelBetas, modelSupportsStructuredOutputs } from './betas.js'
+import { getModelBetas } from './betas.js'
 import { computeFingerprint } from './fingerprint.js'
 import { normalizeModelStringForAPI } from './model/model.js'
 import { getAPIProvider } from './model/providers.js'
@@ -130,15 +129,6 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
     source: opts.querySource,
   })
   const betas = [...getModelBetas(model)]
-  // Add structured-outputs beta if using output_format and provider supports it
-  if (
-    output_format &&
-    modelSupportsStructuredOutputs(model) &&
-    !betas.includes(STRUCTURED_OUTPUTS_BETA_HEADER)
-  ) {
-    betas.push(STRUCTURED_OUTPUTS_BETA_HEADER)
-  }
-
   // Extract first user message text for fingerprint
   const messageText = extractFirstUserMessageText(messages)
 

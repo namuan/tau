@@ -444,12 +444,6 @@ export type Tool<
    */
   maxResultSizeChars: number
   /**
-   * When true, enables strict mode for this tool, which causes the API to
-   * more strictly adhere to tool instructions and parameter schemas.
-   * Only applied when the tengu_tool_pear is enabled.
-   */
-  readonly strict?: boolean
-  /**
    * Optional top-level input fields that only add advice and never change
    * what the tool does. When every schema problem in a call is inside these
    * fields, tool execution drops them, runs the call, and tells the model what
