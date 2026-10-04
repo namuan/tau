@@ -1,24 +1,20 @@
 import { feature } from 'bun:bundle'
 import memoize from 'lodash-es/memoize.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
-import { getIsNonInteractiveSession, getSdkBetas } from '../bootstrap/state.js'
+import { getSdkBetas } from '../bootstrap/state.js'
 import {
   CLAUDE_CODE_20250219_BETA_HEADER,
   CLI_INTERNAL_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
-  CONTEXT_MANAGEMENT_BETA_HEADER,
   INTERLEAVED_THINKING_BETA_HEADER,
-  REDACT_THINKING_BETA_HEADER,
-  SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER,
 } from '../constants/betas.js'
 import { has1mContext } from './context.js'
-import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
+import { isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import { getAPIProvider } from './model/providers.js'
 import { providerSplitsSystemBoundary } from './systemBoundaryProviders.js'
-import { getInitialSettings } from './settings/settings.js'
 
 /**
  * SDK-provided betas that are allowed for API key users.
@@ -78,16 +74,6 @@ export function modelSupportsISP(model: string): boolean {
   const canonical = getCanonicalName(model)
   return (
     canonical.includes('claude-opus-4') || canonical.includes('claude-sonnet-4')
-  )
-}
-
-// Context management is supported on Claude 4+ models
-export function modelSupportsContextManagement(model: string): boolean {
-  const canonical = getCanonicalName(model)
-  return (
-    canonical.includes('claude-opus-4') ||
-    canonical.includes('claude-sonnet-4') ||
-    canonical.includes('claude-haiku-4')
   )
 }
 
@@ -166,7 +152,6 @@ export function shouldEmitSystemPromptBoundary(): boolean {
 export const getAllModelBetas = memoize((model: string): string[] => {
   const betaHeaders = []
   const isHaiku = getCanonicalName(model).includes('haiku')
-  const includeFirstPartyOnlyBetas = shouldIncludeFirstPartyOnlyBetas()
 
   if (!isHaiku) {
     betaHeaders.push(CLAUDE_CODE_20250219_BETA_HEADER)
@@ -188,57 +173,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   ) {
     betaHeaders.push(INTERLEAVED_THINKING_BETA_HEADER)
   }
-
-  // Skip the API-side Haiku thinking summarizer — the summary is only used
-  // for ctrl+o display, which interactive users rarely open. The API returns
-  // redacted_thinking blocks instead; AssistantRedactedThinkingMessage already
-  // renders those as a stub. SDK / print-mode keep summaries because callers
-  // may iterate over thinking content. Users can opt back in via settings.json
-  // showThinkingSummaries.
-  if (
-    includeFirstPartyOnlyBetas &&
-    modelSupportsISP(model) &&
-    !getIsNonInteractiveSession() &&
-    getInitialSettings().showThinkingSummaries !== true
-  ) {
-    betaHeaders.push(REDACT_THINKING_BETA_HEADER)
-  }
-
-  // POC: server-side connector-text summarization (anti-distillation). The
-  // API buffers assistant text between tool calls, summarizes it, and returns
-  // the summary with a signature so the original can be restored on subsequent
-  // turns — same mechanism as thinking blocks. Ant-only while we measure
-  // TTFT/TTLT/capacity; betas already flow to tengu_api_success for splitting.
-  // Backend independently requires Capability.ANTHROPIC_INTERNAL_RESEARCH.
-  //
-  // USE_CONNECTOR_TEXT_SUMMARIZATION is tri-state: =1 forces on (opt-in even
-  // if GB is off), =0 forces off (opt-out of a GB rollout you were bucketed
-  // into), unset defers to GB.
-  if (
-    SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER &&
-    process.env.USER_TYPE === 'ant' &&
-    includeFirstPartyOnlyBetas &&
-    !isEnvDefinedFalsy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION) &&
-    (isEnvTruthy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION) ||
-      getFeatureValue_CACHED_MAY_BE_STALE('tengu_slate_prism', false))
-  ) {
-    betaHeaders.push(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
-  }
-
-  // Add context management beta for tool clearing (ant opt-in) or thinking preservation
-  const antOptedIntoToolClearing =
-    isEnvTruthy(process.env.USE_API_CONTEXT_MANAGEMENT) &&
-    process.env.USER_TYPE === 'ant'
-
-  const thinkingPreservationEnabled = modelSupportsContextManagement(model)
-
-  if (
-    shouldIncludeFirstPartyOnlyBetas() &&
-    (antOptedIntoToolClearing || thinkingPreservationEnabled)
-  ) {
-    betaHeaders.push(CONTEXT_MANAGEMENT_BETA_HEADER)
-  }
-  // Add strict tool use beta if experiment is enabled.
 
   // If ANTHROPIC_BETAS is set, split it by commas and add to betaHeaders.
   // This is an explicit user opt-in, so honor it regardless of model.

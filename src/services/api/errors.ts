@@ -7,7 +7,6 @@ import type {
   BetaMessage,
   BetaStopReason,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import { AFK_MODE_BETA_HEADER } from 'src/constants/betas.js'
 import type { SDKAssistantMessageError } from 'src/entrypoints/agentSdkTypes.js'
 import type {
   AssistantMessage,
@@ -662,22 +661,6 @@ export function getAssistantMessageFromError(
         : 'An image in the conversation exceeds the dimension limit for many-image requests (2000px). Run /compact to remove old images from context, or start a new session.',
       error: 'invalid_request',
       errorDetails: error.message,
-    })
-  }
-
-  // Server rejected the afk-mode beta header (plan does not include auto
-  // mode). AFK_MODE_BETA_HEADER is '' in non-TRANSCRIPT_CLASSIFIER builds,
-  // so the truthy guard keeps this inert there.
-  if (
-    AFK_MODE_BETA_HEADER &&
-    error instanceof APIError &&
-    error.status === 400 &&
-    error.message.includes(AFK_MODE_BETA_HEADER) &&
-    error.message.includes('anthropic-beta')
-  ) {
-    return createAssistantAPIErrorMessage({
-      content: 'Auto mode is unavailable for your plan',
-      error: 'invalid_request',
     })
   }
 

@@ -155,7 +155,6 @@ export type QueryEngineConfig = {
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
   maxBudgetUsd?: number
-  taskBudget?: { total: number }
   jsonSchema?: Record<string, unknown>
   verbose?: boolean
   replayUserMessages?: boolean
@@ -236,7 +235,6 @@ export class QueryEngine {
       thinkingConfig,
       maxTurns,
       maxBudgetUsd,
-      taskBudget,
       canUseTool,
       customSystemPrompt,
       appendSystemPrompt,
@@ -684,7 +682,6 @@ export class QueryEngine {
       fallbackModel,
       querySource: 'sdk',
       maxTurns,
-      taskBudget,
     })) {
       // Record assistant, user, and compact boundary messages
       if (
@@ -1196,7 +1193,6 @@ export async function* ask({
   thinkingConfig,
   maxTurns,
   maxBudgetUsd,
-  taskBudget,
   canUseTool,
   mutableMessages = [],
   getReadFileCache,
@@ -1227,7 +1223,6 @@ export async function* ask({
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
   maxBudgetUsd?: number
-  taskBudget?: { total: number }
   canUseTool: CanUseToolFn
   mutableMessages?: Message[]
   customSystemPrompt?: string
@@ -1269,7 +1264,6 @@ export async function* ask({
     thinkingConfig,
     maxTurns,
     maxBudgetUsd,
-    taskBudget,
     jsonSchema,
     verbose,
     replayUserMessages,

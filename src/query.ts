@@ -114,7 +114,6 @@ import {
 } from './utils/fallback/detect.js'
 import {
   doesMostRecentAssistantMessageExceed200k,
-  finalContextTokensFromLastResponse,
   tokenCountWithEstimation,
 } from './utils/tokens.js'
 import { ESCALATED_MAX_TOKENS } from './utils/context.js'
@@ -236,11 +235,6 @@ export type QueryParams = {
   maxOutputTokensOverride?: number
   maxTurns?: number
   skipCacheWrite?: boolean
-  // API task_budget (output_config.task_budget, beta task-budgets-2026-03-13).
-  // Distinct from the tokenBudget +500k auto-continue feature. `total` is the
-  // budget for the whole agentic turn; `remaining` is computed per iteration
-  // from cumulative API usage. See configureTaskBudgetParams in claude.ts.
-  taskBudget?: { total: number }
   deps?: QueryDeps
 }
 
@@ -331,17 +325,6 @@ async function* queryLoop(
     transition: undefined,
   }
   const budgetTracker = feature('TOKEN_BUDGET') ? createBudgetTracker() : null
-
-  // task_budget.remaining tracking across compaction boundaries. Undefined
-  // until first compact fires — while context is uncompacted the server can
-  // see the full history and handles the countdown from {total} itself (see
-  // api/api/sampling/prompt/renderer.py:292). After a compact, the server sees
-  // only the summary and would under-count spend; remaining tells it the
-  // pre-compact final window that got summarized away. Cumulative across
-  // multiple compacts: each subtracts the final context at that compact's
-  // trigger point. Loop-local (not on State) to avoid touching the 7 continue
-  // sites.
-  let taskBudgetRemaining: number | undefined = undefined
 
   // Snapshot immutable env/statsig/session state once at entry. See QueryConfig
   // for what's included and why feature() gates are intentionally excluded.
@@ -557,19 +540,6 @@ async function* queryLoop(
         queryChainId: queryChainIdForAnalytics,
         queryDepth: queryTracking.depth,
       })
-
-      // task_budget: capture pre-compact final context window before
-      // messagesForQuery is replaced with postCompactMessages below.
-      // iterations[-1] is the authoritative final window (post server tool
-      // loops); see #304930.
-      if (params.taskBudget) {
-        const preCompactContext =
-          finalContextTokensFromLastResponse(messagesForQuery)
-        taskBudgetRemaining = Math.max(
-          0,
-          (taskBudgetRemaining ?? params.taskBudget.total) - preCompactContext,
-        )
-      }
 
       // Reset on every compact so turnCounter/turnId reflect the MOST RECENT
       // compact. recompactionInfo (autoCompact.ts:190) already captured the
@@ -869,14 +839,6 @@ async function* queryLoop(
               skipCacheWrite,
               agentId: toolUseContext.agentId,
               addNotification: toolUseContext.addNotification,
-              ...(params.taskBudget && {
-                taskBudget: {
-                  total: params.taskBudget.total,
-                  ...(taskBudgetRemaining !== undefined && {
-                    remaining: taskBudgetRemaining,
-                  }),
-                },
-              }),
             },
           })) {
             // We won't use the tool_calls from the first attempt
@@ -1306,19 +1268,6 @@ async function* queryLoop(
         })
 
         if (compacted) {
-          // task_budget: same carryover as the proactive path above.
-          // messagesForQuery still holds the pre-compact array here (the
-          // 413-failed attempt's input).
-          if (params.taskBudget) {
-            const preCompactContext =
-              finalContextTokensFromLastResponse(messagesForQuery)
-            taskBudgetRemaining = Math.max(
-              0,
-              (taskBudgetRemaining ?? params.taskBudget.total) -
-                preCompactContext,
-            )
-          }
-
           const postCompactMessages = buildPostCompactMessages(compacted)
           for (const msg of postCompactMessages) {
             yield msg

@@ -403,7 +403,6 @@ export async function runHeadless(
     thinkingConfig: ThinkingConfig | undefined
     maxTurns: number | undefined
     maxBudgetUsd: number | undefined
-    taskBudget: { total: number } | undefined
     systemPrompt: string | undefined
     appendSystemPrompt: string | undefined
     userSpecifiedModel: string | undefined
@@ -925,7 +924,6 @@ function runHeadlessStreaming(
     thinkingConfig: ThinkingConfig | undefined
     maxTurns: number | undefined
     maxBudgetUsd: number | undefined
-    taskBudget: { total: number } | undefined
     systemPrompt: string | undefined
     appendSystemPrompt: string | undefined
     userSpecifiedModel: string | undefined
@@ -1428,7 +1426,6 @@ function runHeadlessStreaming(
               thinkingConfig: options.thinkingConfig,
               maxTurns: options.maxTurns,
               maxBudgetUsd: options.maxBudgetUsd,
-              taskBudget: options.taskBudget,
               canUseTool,
               userSpecifiedModel: activeUserSpecifiedModel,
               fallbackModel: options.fallbackModel,

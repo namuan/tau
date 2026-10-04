@@ -203,19 +203,10 @@ type State = {
   // evaluation so mid-session overage flips don't change the cache_control
   // TTL, which would bust the server-side prompt cache.
   promptCache1hEligible: boolean | null
-  // Sticky-on latch for AFK_MODE_BETA_HEADER. Once auto mode is first
-  // activated, keep sending the header for the rest of the session so
-  // Shift+Tab toggles don't bust the ~50-70K token prompt cache.
-  afkModeHeaderLatched: boolean | null
   // Sticky-on latch for FAST_MODE_BETA_HEADER. Once fast mode is first
   // enabled, keep sending the header so cooldown enter/exit doesn't
   // double-bust the prompt cache. The `speed` body param stays dynamic.
   fastModeHeaderLatched: boolean | null
-  // Sticky-on latch for clearing thinking from prior tool loops. Triggered
-  // when >1h since last API call (confirmed cache miss — no cache-hit
-  // benefit to keeping thinking). Once latched, stays on so the newly-warmed
-  // thinking-cleared cache isn't busted by flipping back to keep:'all'.
-  thinkingClearLatched: boolean | null
   // Current prompt ID (UUID) correlating a user prompt with subsequent OTel events
   promptId: string | null
   // Last API requestId for the main conversation chain (not subagents).
@@ -376,9 +367,7 @@ function getInitialState(): State {
     // Prompt cache 1h eligibility (null = not yet evaluated)
     promptCache1hEligible: null,
     // Beta header latches (null = not yet triggered)
-    afkModeHeaderLatched: null,
     fastModeHeaderLatched: null,
-    thinkingClearLatched: null,
     // Current prompt ID
     promptId: null,
     lastMainRequestId: undefined,
@@ -1650,14 +1639,6 @@ export function setPromptCache1hEligible(eligible: boolean | null): void {
   STATE.promptCache1hEligible = eligible
 }
 
-export function getAfkModeHeaderLatched(): boolean | null {
-  return STATE.afkModeHeaderLatched
-}
-
-export function setAfkModeHeaderLatched(v: boolean): void {
-  STATE.afkModeHeaderLatched = v
-}
-
 export function getFastModeHeaderLatched(): boolean | null {
   return STATE.fastModeHeaderLatched
 }
@@ -1666,22 +1647,12 @@ export function setFastModeHeaderLatched(v: boolean): void {
   STATE.fastModeHeaderLatched = v
 }
 
-export function getThinkingClearLatched(): boolean | null {
-  return STATE.thinkingClearLatched
-}
-
-export function setThinkingClearLatched(v: boolean): void {
-  STATE.thinkingClearLatched = v
-}
-
 /**
  * Reset beta header latches to null. Called on /clear and /compact so a
  * fresh conversation gets fresh header evaluation.
  */
 export function clearBetaHeaderLatches(): void {
-  STATE.afkModeHeaderLatched = null
   STATE.fastModeHeaderLatched = null
-  STATE.thinkingClearLatched = null
 }
 
 export function getPromptId(): string | null {

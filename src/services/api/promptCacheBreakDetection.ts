@@ -41,9 +41,6 @@ type PreviousState = {
   fastMode: boolean
   /** Sorted beta header list. Diffed to show which headers were added/removed. */
   betas: string[]
-  /** AFK_MODE_BETA_HEADER presence — should NOT break cache anymore
-   *  (sticky-on latched in claude.ts). Tracked to verify the fix. */
-  autoModeActive: boolean
   /** Overage state flip — should NOT break cache anymore (eligibility is
    *  latched session-stable in should1hCacheTTL). Tracked to verify the fix. */
   isUsingOverage: boolean
@@ -68,7 +65,6 @@ type PendingChanges = {
   fastModeChanged: boolean
   cacheControlChanged: boolean
   betasChanged: boolean
-  autoModeChanged: boolean
   overageChanged: boolean
   effortChanged: boolean
   extraBodyChanged: boolean
@@ -215,7 +211,6 @@ export type PromptStateSnapshot = {
   agentId?: AgentId
   fastMode?: boolean
   betas?: readonly string[]
-  autoModeActive?: boolean
   isUsingOverage?: boolean
   effortValue?: string | number
   extraBodyParams?: unknown
@@ -235,7 +230,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
       agentId,
       fastMode,
       betas = [],
-      autoModeActive = false,
       isUsingOverage = false,
       effortValue,
       extraBodyParams,
@@ -290,7 +284,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         model,
         fastMode: isFastMode,
         betas: sortedBetas,
-        autoModeActive,
         isUsingOverage,
         effortValue: effortStr,
         extraBodyHash,
@@ -314,7 +307,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     const betasChanged =
       sortedBetas.length !== prev.betas.length ||
       sortedBetas.some((b, i) => b !== prev.betas[i])
-    const autoModeChanged = autoModeActive !== prev.autoModeActive
     const overageChanged = isUsingOverage !== prev.isUsingOverage
     const effortChanged = effortStr !== prev.effortValue
     const extraBodyChanged = extraBodyHash !== prev.extraBodyHash
@@ -326,7 +318,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
       fastModeChanged ||
       cacheControlChanged ||
       betasChanged ||
-      autoModeChanged ||
       overageChanged ||
       effortChanged ||
       extraBodyChanged
@@ -355,7 +346,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         fastModeChanged,
         cacheControlChanged,
         betasChanged,
-        autoModeChanged,
         overageChanged,
         effortChanged,
         extraBodyChanged,
@@ -385,7 +375,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     prev.model = model
     prev.fastMode = isFastMode
     prev.betas = sortedBetas
-    prev.autoModeActive = autoModeActive
     prev.isUsingOverage = isUsingOverage
     prev.effortValue = effortStr
     prev.extraBodyHash = extraBodyHash
@@ -502,9 +491,6 @@ export async function checkResponseForCacheBreak(
         const diff = [added, removed].filter(Boolean).join(' ')
         parts.push(`betas changed${diff ? ` (${diff})` : ''}`)
       }
-      if (changes.autoModeChanged) {
-        parts.push('auto mode toggled')
-      }
       if (changes.overageChanged) {
         parts.push('overage state changed (TTL latched, no flip)')
       }
@@ -550,7 +536,6 @@ export async function checkResponseForCacheBreak(
       fastModeChanged: changes?.fastModeChanged ?? false,
       cacheControlChanged: changes?.cacheControlChanged ?? false,
       betasChanged: changes?.betasChanged ?? false,
-      autoModeChanged: changes?.autoModeChanged ?? false,
       overageChanged: changes?.overageChanged ?? false,
       effortChanged: changes?.effortChanged ?? false,
       extraBodyChanged: changes?.extraBodyChanged ?? false,

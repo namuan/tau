@@ -214,9 +214,7 @@ export async function toolToAPISchema(
   // everything not in the base-tool allowlist at the one choke point all tool
   // schemas pass through — including fields added in the future.
   // cache_control is allowlisted: the base {type: 'ephemeral'} shape is
-  // standard prompt caching; the beta sub-fields
-  // (scope, ttl) are already gated upstream by shouldIncludeFirstPartyOnlyBetas
-  // which independently respects this kill switch.
+  // standard prompt caching; optional beta fields are added upstream.
   // github.com/anthropics/claude-code/issues/20031
   if (isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)) {
     const allowed = new Set([

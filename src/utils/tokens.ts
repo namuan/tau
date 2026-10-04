@@ -100,53 +100,6 @@ export function tokenCountFromLastAPIResponse(messages: Message[]): number {
 }
 
 /**
- * Final context window size from the last API response's usage.iterations[-1].
- * Used for task_budget.remaining computation across compaction boundaries —
- * the server's budget countdown is context-based, so remaining decrements by
- * the pre-compact final window, not billing spend. See monorepo
- * api/api/sampling/prompt/renderer.py:292 for the server-side computation.
- *
- * Falls back to top-level input_tokens + output_tokens when iterations is
- * absent (no server-side tool loops, so top-level usage IS the final window).
- * Both paths exclude cache tokens to match #304930's formula.
- */
-export function finalContextTokensFromLastResponse(
-  messages: Message[],
-): number {
-  const { usageStart } = getContextAccountingRange(messages)
-  let i = messages.length - 1
-  while (i >= usageStart) {
-    const message = messages[i]
-    const usage = message ? getTokenUsage(message) : undefined
-    if (usage) {
-      // Stainless types don't include iterations yet — cast like advisor.ts:43
-      const iterations = (
-        usage as {
-          iterations?: Array<{
-            input_tokens: number
-            output_tokens: number
-          }> | null
-        }
-      ).iterations
-      if (iterations && iterations.length > 0) {
-        const last = iterations.at(-1)!
-        return last.input_tokens + last.output_tokens
-      }
-      // No iterations → no server tool loop → top-level usage IS the final
-      // window. Match the iterations path's formula (input + output, no cache)
-      // rather than getTokenCountFromUsage — #304930 defines final window as
-      // non-cache input + output. Whether the server's budget countdown
-      // (renderer.py:292 calculate_context_tokens) counts cache the same way
-      // is an open question; aligning with the iterations path keeps the two
-      // branches consistent until that's resolved.
-      return usage.input_tokens + usage.output_tokens
-    }
-    i--
-  }
-  return 0
-}
-
-/**
  * Get only the output_tokens from the last API response.
  * This excludes input context (system prompt, tools, prior messages).
  *

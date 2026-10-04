@@ -103,7 +103,6 @@ import {
   extractQuotaStatusFromError,
   extractQuotaStatusFromHeaders,
 } from '../claudeAiLimits.js'
-import { getAPIContextManagement } from '../compact/apiMicrocompact.js'
 import { resolveProviderRequestSessionId } from './cacheAffinity.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -119,27 +118,18 @@ import {
   APIUserAbortError,
 } from '@anthropic-ai/sdk/error'
 import {
-  getAfkModeHeaderLatched,
   getFastModeHeaderLatched,
-  getLastApiCompletionTimestamp,
   getPromptCache1hAllowlist,
   getPromptCache1hEligible,
   getSessionId,
-  getThinkingClearLatched,
-  setAfkModeHeaderLatched,
   setFastModeHeaderLatched,
   setLastMainRequestId,
   setPromptCache1hAllowlist,
   setPromptCache1hEligible,
-  setThinkingClearLatched,
 } from 'src/bootstrap/state.js'
 import {
-  AFK_MODE_BETA_HEADER,
-  CONTEXT_MANAGEMENT_BETA_HEADER,
   EFFORT_BETA_HEADER,
   FAST_MODE_BETA_HEADER,
-  REDACT_THINKING_BETA_HEADER,
-  TASK_BUDGETS_BETA_HEADER,
 } from 'src/constants/betas.js'
 import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
@@ -157,7 +147,6 @@ import { getAgentContext } from 'src/utils/agentContext.js'
 import { isClaudeAISubscriber } from 'src/utils/auth.js'
 import {
   getToolSearchBetaHeader,
-  shouldIncludeFirstPartyOnlyBetas,
 } from 'src/utils/betas.js'
 import { getMaxThinkingTokensForModel } from 'src/utils/context.js'
 import { logForDebugging } from 'src/utils/debug.js'
@@ -235,7 +224,6 @@ import {
   type NonNullableUsage,
 } from './logging.js'
 import {
-  CACHE_TTL_1HOUR_MS,
   checkResponseForCacheBreak,
   recordPromptState,
 } from './promptCacheBreakDetection.js'
@@ -287,20 +275,6 @@ export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
         { level: 'error' },
       )
     }
-  }
-
-  // Anti-distillation: send fake_tools opt-in for 1P CLI only
-  if (
-    feature('ANTI_DISTILLATION_CC')
-      ? process.env.CLAUDE_CODE_ENTRYPOINT === 'cli' &&
-        shouldIncludeFirstPartyOnlyBetas() &&
-        getFeatureValue_CACHED_MAY_BE_STALE(
-          'tengu_anti_distill_fake_tool_injection',
-          false,
-        )
-      : false
-  ) {
-    result.anti_distillation = ['fake_tools']
   }
 
   // Handle beta headers if provided
@@ -553,41 +527,6 @@ function configureEffortParams(
   }
 }
 
-// output_config.task_budget — API-side token budget awareness for the model.
-// Stainless SDK types don't yet include task_budget on BetaOutputConfig, so we
-// define the wire shape locally and cast. The API validates on receipt; see
-// api/api/schemas/messages/request/output_config.py:12-39 in the monorepo.
-// Beta: task-budgets-2026-03-13 (EAP, claude-strudel-eap only as of Mar 2026).
-type TaskBudgetParam = {
-  type: 'tokens'
-  total: number
-  remaining?: number
-}
-
-export function configureTaskBudgetParams(
-  taskBudget: Options['taskBudget'],
-  outputConfig: BetaOutputConfig & { task_budget?: TaskBudgetParam },
-  betas: string[],
-): void {
-  if (
-    !taskBudget ||
-    'task_budget' in outputConfig ||
-    !shouldIncludeFirstPartyOnlyBetas()
-  ) {
-    return
-  }
-  outputConfig.task_budget = {
-    type: 'tokens',
-    total: taskBudget.total,
-    ...(taskBudget.remaining !== undefined && {
-      remaining: taskBudget.remaining,
-    }),
-  }
-  if (!betas.includes(TASK_BUDGETS_BETA_HEADER)) {
-    betas.push(TASK_BUDGETS_BETA_HEADER)
-  }
-}
-
 export function getAPIMetadata() {
   // https://docs.google.com/document/d/1dURO9ycXXQCBS0V4Vhl4poDBRgkelFc5t2BNPoEgH5Q/edit?tab=t.0#heading=h.5g7nec5b09w5
   let extra: JsonObject = {}
@@ -783,11 +722,6 @@ export type Options = {
   fastMode?: boolean
   advisorModel?: string
   addNotification?: (notif: Notification) => void
-  // API-side task budget (output_config.task_budget). Distinct from the
-  // tokenBudget.ts +500k auto-continue feature — this one is sent to the API
-  // so the model can pace itself. `remaining` is computed by the caller
-  // (query.ts decrements across the agentic loop).
-  taskBudget?: { total: number; remaining?: number }
 }
 
 export async function queryModelWithoutStreaming({
@@ -1784,37 +1718,10 @@ async function* queryModel(
   // Per-call gates (isAgenticQuery, querySource===repl_main_thread) stay
   // per-call so non-agentic queries keep their own stable header set.
 
-  let afkHeaderLatched = getAfkModeHeaderLatched() === true
-  if (feature('TRANSCRIPT_CLASSIFIER')) {
-    if (
-      !afkHeaderLatched &&
-      isAgenticQuery &&
-      shouldIncludeFirstPartyOnlyBetas() &&
-      (autoModeStateModule?.isAutoModeActive() ?? false)
-    ) {
-      afkHeaderLatched = true
-      setAfkModeHeaderLatched(true)
-    }
-  }
-
   let fastModeHeaderLatched = getFastModeHeaderLatched() === true
   if (!fastModeHeaderLatched && isFastMode) {
     fastModeHeaderLatched = true
     setFastModeHeaderLatched(true)
-  }
-
-  // Only latch from agentic queries so a classifier call doesn't flip the
-  // main thread's context_management mid-turn.
-  let thinkingClearLatched = getThinkingClearLatched() === true
-  if (!thinkingClearLatched && isAgenticQuery) {
-    const lastCompletion = getLastApiCompletionTimestamp()
-    if (
-      lastCompletion !== null &&
-      Date.now() - lastCompletion > CACHE_TTL_1HOUR_MS
-    ) {
-      thinkingClearLatched = true
-      setThinkingClearLatched(true)
-    }
   }
 
   const effort = resolveAppliedEffort(options.model, options.effortValue)
@@ -1838,7 +1745,6 @@ async function* queryModel(
       agentId: options.agentId,
       fastMode: fastModeHeaderLatched,
       betas,
-      autoModeActive: afkHeaderLatched,
       isUsingOverage: currentLimits.isUsingOverage ?? false,
       effortValue: effort,
       extraBodyParams: getExtraBodyParams(),
@@ -1904,12 +1810,6 @@ async function* queryModel(
       extraBodyParams,
       betasParams,
       options.model,
-    )
-
-    configureTaskBudgetParams(
-      options.taskBudget,
-      outputConfig as BetaOutputConfig & { task_budget?: TaskBudgetParam },
-      betasParams,
     )
 
     // Merge outputFormat into extraBodyParams.output_config alongside effort
@@ -1978,13 +1878,6 @@ async function* queryModel(
       } satisfies BetaMessageStreamParams['thinking']
     }
 
-    // Get API context management strategies if enabled
-    const contextManagement = getAPIContextManagement({
-      hasThinking,
-      isRedactThinkingActive: betasParams.includes(REDACT_THINKING_BETA_HEADER),
-      clearAllThinking: thinkingClearLatched,
-    })
-
     const enablePromptCaching =
       options.enablePromptCaching ?? getPromptCachingEnabled(retryContext.model)
 
@@ -2003,19 +1896,6 @@ async function* queryModel(
     }
     if (fastModeHeaderLatched && !betasParams.includes(FAST_MODE_BETA_HEADER)) {
       betasParams.push(FAST_MODE_BETA_HEADER)
-    }
-
-    // AFK mode beta: latched once auto mode is first activated. Still gated
-    // by isAgenticQuery per-call so classifiers/compaction don't get it.
-    if (feature('TRANSCRIPT_CLASSIFIER')) {
-      if (
-        afkHeaderLatched &&
-        shouldIncludeFirstPartyOnlyBetas() &&
-        isAgenticQuery &&
-        !betasParams.includes(AFK_MODE_BETA_HEADER)
-      ) {
-        betasParams.push(AFK_MODE_BETA_HEADER)
-      }
     }
 
     // Only send temperature when thinking is disabled — the API requires
@@ -2048,11 +1928,6 @@ async function* queryModel(
       max_tokens: maxOutputTokens,
       thinking,
       ...(temperature !== undefined && { temperature }),
-      ...(contextManagement &&
-        useBetas &&
-        betasParams.includes(CONTEXT_MANAGEMENT_BETA_HEADER) && {
-          context_management: contextManagement,
-        }),
       ...extraBodyParams,
       ...(Object.keys(outputConfig).length > 0 && {
         output_config: outputConfig,
