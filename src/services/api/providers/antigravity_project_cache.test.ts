@@ -12,7 +12,7 @@ const {
   peekCodeAssistProject,
   describeAntigravityEntitlementGap,
 } = await import('./gemini_code_assist.js')
-const cacheDir = join(testHome, '.config', 'claude-code')
+const cacheDir = join(testHome, '.config', 'tau')
 const cacheFile = join(cacheDir, 'gemini-code-assist.json')
 const originalFetch = globalThis.fetch
 const originalProject = process.env.GOOGLE_CLOUD_PROJECT

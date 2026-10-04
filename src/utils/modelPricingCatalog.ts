@@ -36,12 +36,12 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'fs'
-import { homedir } from 'os'
 import { join } from 'path'
+import { getTauConfigHomeDir } from './envUtils.js'
 // Reads the environment and nothing else, so this module still loads alone.
 import { isEssentialTrafficOnly } from './privacyLevel.js'
 
-const CONFIG_DIR = join(homedir(), '.config', 'claude-code')
+const CONFIG_DIR = getTauConfigHomeDir()
 const CACHE_FILE = join(CONFIG_DIR, 'model-prices.json')
 const CATALOG_URL = 'https://models.dev/api.json'
 // 2: rows carry long-context tiers. A v1 file has no tier data, so it is

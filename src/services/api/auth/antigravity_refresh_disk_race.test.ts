@@ -10,7 +10,7 @@ mock.module('os', () => ({ ...os, homedir: () => testHome }))
 
 const { refreshGeminiOAuth } = await import('./google_oauth.js')
 
-const configDir = join(testHome, '.config', 'claude-code')
+const configDir = join(testHome, '.config', 'tau')
 const keyFile = join(configDir, 'provider-keys.json')
 const storageKey = 'gemini_oauth_antigravity'
 const originalFetch = globalThis.fetch

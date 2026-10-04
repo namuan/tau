@@ -34,8 +34,8 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { isModelPricingDisabled } from '../modelPricingCatalog.js'
 
 const CATALOG_URL = 'https://models.dev/api.json'
@@ -56,7 +56,7 @@ const EFFORT_VARIANT_SEPARATOR = '::cline-effort='
 
 function cacheFile(): string {
   return process.env.TAU_CLINE_MODELS_DEV_CACHE
-    || join(homedir(), '.config', 'claude-code', 'cline-models-dev.json')
+    || join(getTauConfigHomeDir(), 'cline-models-dev.json')
 }
 
 export interface ClineModelMeta {

@@ -29,8 +29,8 @@
  * Ported from router-for-me/CLIProxyAPI internal/auth/antigravity/auth.go.
  */
 
-import { homedir } from 'os'
 import { join } from 'path'
+import { getTauConfigHomeDir } from '../../../utils/envUtils.js'
 import { createHash, randomUUID } from 'crypto'
 import {
   existsSync,
@@ -538,7 +538,7 @@ export function executorForModel(model: string): GeminiExecutor {
 const ANTIGRAVITY_NODE_API_CLIENT = 'google-api-nodejs-client/10.3.0'
 const ANTIGRAVITY_NODE_X_GOOG_API_CLIENT = 'gl-node/22.21.1'
 
-const CONFIG_DIR = join(homedir(), '.config', 'claude-code')
+const CONFIG_DIR = getTauConfigHomeDir()
 
 // Per-executor cache files — each executor type gets its own onboarding
 // and project ID because the Code Assist server tracks them separately.

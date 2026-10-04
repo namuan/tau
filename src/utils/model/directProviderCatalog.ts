@@ -3,8 +3,8 @@
  * The bundled snapshot is only an offline fallback (see direct-provider-models.md).
  */
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import type { ModelInfo } from '../../services/api/providers/base_provider.js'
 import { isEssentialTrafficOnly } from '../privacyLevel.js'
 import { recordModelVision } from '../../lanes/shared/vision_capability.js'
@@ -49,7 +49,7 @@ export function directCatalogSurface(provider: DirectProvider, baseUrl?: string)
 }
 
 function cachePath(): string {
-  return process.env.TAU_DIRECT_MODEL_CATALOG_STORE || join(homedir(), '.config', 'claude-code', 'direct-models.json')
+  return process.env.TAU_DIRECT_MODEL_CATALOG_STORE || join(getTauConfigHomeDir(), 'direct-models.json')
 }
 function load(): void {
   const path = cachePath()

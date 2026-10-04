@@ -1,18 +1,18 @@
 /**
  * API Key Manager — persistent storage for third-party provider API keys.
  *
- * Stores keys in: ~/.config/claude-code/provider-keys.json
+ * Stores keys in the Tau config directory's provider-keys.json.
  * Keys are encrypted at rest using a machine-local key derived from the OS username.
  *
- * This allows users to configure provider keys once via `claude config` or
+ * This allows users to configure provider keys once via Tau config or
  * env vars, and have them persist across sessions without re-entry.
  */
 
-import { homedir } from 'os'
 import { join } from 'path'
+import { getTauConfigHomeDir } from '../../../utils/envUtils.js'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 
-const CONFIG_DIR = join(homedir(), '.config', 'claude-code')
+const CONFIG_DIR = getTauConfigHomeDir()
 const KEYS_FILE = join(CONFIG_DIR, 'provider-keys.json')
 
 interface KeyStore {

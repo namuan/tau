@@ -42,12 +42,12 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import type { ModelInfo } from '../../services/api/providers/base_provider.js'
 import { isModelPricingDisabled } from '../modelPricingCatalog.js'
 
-const CONFIG_DIR = join(homedir(), '.config', 'claude-code')
+const CONFIG_DIR = getTauConfigHomeDir()
 const CACHE_FILE = join(CONFIG_DIR, 'alibaba-models.json')
 const CATALOG_URL = 'https://models.dev/api.json'
 const CACHE_VERSION = 1

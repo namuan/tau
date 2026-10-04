@@ -47,8 +47,8 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { isModelPricingDisabled } from '../modelPricingCatalog.js'
 
 const CATALOG_URL = 'https://models.dev/api.json'
@@ -72,7 +72,7 @@ type OpencodeModelsDevSource = (typeof SOURCES)[OpencodeProvider]
 
 function cacheFile(): string {
   return process.env.TAU_OPENCODE_MODELS_DEV_CACHE
-    || join(homedir(), '.config', 'claude-code', 'opencode-models-dev.json')
+    || join(getTauConfigHomeDir(), 'opencode-models-dev.json')
 }
 
 /** The AI SDK a row names in `provider.npm`, when it names a non-default one. */

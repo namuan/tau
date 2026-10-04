@@ -1662,7 +1662,7 @@ function _validateKeyFormat(provider: APIProvider, key: string): { valid: boolea
   return { valid: true }
 }
 
-/** Load a stored key from ~/.config/claude-code/provider-keys.json */
+/** Load a stored key from the Tau config directory's provider-keys.json */
 function _loadStoredKey(provider: string): string | null {
   try {
     return loadProviderKey(provider)

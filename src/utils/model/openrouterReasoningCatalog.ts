@@ -41,10 +41,10 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { getTauConfigHomeDir } from '../envUtils.js'
 
-const CONFIG_DIR = join(homedir(), '.config', 'claude-code')
+const CONFIG_DIR = getTauConfigHomeDir()
 const CACHE_FILE = join(CONFIG_DIR, 'openrouter-reasoning.json')
 const CATALOG_URL = 'https://openrouter.ai/api/v1/models'
 const CACHE_VERSION = 1

@@ -2,7 +2,7 @@
  * Cursor Lane entry point.
  *
  * Auth source: the blob written by `/login cursor` at
- * `~/.config/claude-code/provider-keys.json:cursor_oauth`. `/login cursor`
+ * `~/.config/tau/provider-keys.json:cursor_oauth`. `/login cursor`
  * now uses Cursor's native browser login (`loginDeepControl` → `auth/poll`)
  * and stores the resulting access/refresh tokens here. Legacy manual token
  * imports may still include a machineId; otherwise `buildCursorHeaders`
