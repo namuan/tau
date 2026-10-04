@@ -23,8 +23,8 @@ import { jsonStringify } from '../slowOperations.js'
  * read back synchronously on the next launch, so a model only has to be seen
  * once — by any provider path, in any session — to stay known.
  *
- * Shape mirrors utils/model/modelCapabilities.ts: a memoized `readFileSync` so
- * the synchronous `getContextWindowForModel` can consult it, plus a coalesced
+ * A memoized `readFileSync` lets the synchronous `getContextWindowForModel`
+ * consult it, plus a coalesced
  * async write that busts the memo. Every path is fail-safe — a missing,
  * corrupt, or unwritable cache degrades to the in-memory behaviour that
  * existed before, never to a thrown error.

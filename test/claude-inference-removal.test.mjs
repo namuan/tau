@@ -28,6 +28,13 @@ test('first-party advisor request support is removed while historical blocks rem
   assert.match(messages, /Strip advisor blocks from messages/)
 })
 
+test('first-party Anthropic capability discovery is absent from startup and context sizing', async () => {
+  const main = await readFile(new URL('../src/main.tsx', import.meta.url), 'utf8')
+  const context = await readFile(new URL('../src/utils/context.ts', import.meta.url), 'utf8')
+  assert.doesNotMatch(main, /refreshModelCapabilities|modelCapabilities/)
+  assert.doesNotMatch(context, /getModelCapability|modelCapabilities/)
+})
+
 test('legacy Claude provider selections are rejected by routing and model selection', async () => {
   const client = await readFile(new URL('../src/services/api/client.ts', import.meta.url), 'utf8')
   const providers = await readFile(new URL('../src/utils/model/providers.ts', import.meta.url), 'utf8')

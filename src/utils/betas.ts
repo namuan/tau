@@ -123,16 +123,6 @@ export function getToolSearchBetaHeader(): string {
 }
 
 /**
- * Check if native Anthropic API betas should be included.
- */
-export function shouldIncludeFirstPartyOnlyBetas(): boolean {
-  return (
-    getAPIProvider() === 'firstParty' &&
-    !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)
-  )
-}
-
-/**
  * Whether to insert the SYSTEM_PROMPT_DYNAMIC_BOUNDARY marker into the system
  * prompt. The marker is inert — it never reaches the wire; consumers slice on
  * it and drop it.

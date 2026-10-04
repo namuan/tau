@@ -9,7 +9,7 @@
  *
  * The measurement is async while the status line is built synchronously on
  * every render, so it is taken once in the background and read synchronously
- * from here — the same shape as utils/model/modelCapabilities.ts.
+ * from here.
  *
  * Nothing here is hardcoded: the number comes from the live session's own
  * prompt and tools, so it tracks the project it is in.
