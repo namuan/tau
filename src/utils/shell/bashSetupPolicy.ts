@@ -5,7 +5,7 @@ export function shouldPromptForBashSetup(
   options: { alreadyAcknowledged: boolean; resetRequested: boolean },
   platform: NodeJS.Platform = process.platform,
 ): boolean {
+  if (platform !== 'darwin') return false
   if (options.alreadyAcknowledged && !options.resetRequested) return false
-  if (!status.ok) return true
-  return platform === 'win32' && status.source !== 'git-for-windows'
+  return !status.ok
 }

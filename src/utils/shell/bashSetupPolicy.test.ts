@@ -33,38 +33,16 @@ function status(overrides: Partial<BashStatus> = {}): BashStatus {
 
 const notAcknowledged = { alreadyAcknowledged: false, resetRequested: false }
 
-test('old system bash does not trigger setup on macOS', () => {
+test('old Bash does not trigger setup on macOS', () => {
   assertEqual(shouldPromptForBashSetup(status(), notAcknowledged, 'darwin'), false)
 })
 
-test('old system bash does not trigger setup on Linux', () => {
-  assertEqual(shouldPromptForBashSetup(status(), notAcknowledged, 'linux'), false)
-})
-
-test('Git Bash does not trigger setup on Windows', () => {
-  assertEqual(
-    shouldPromptForBashSetup(status({ source: 'git-for-windows' }), notAcknowledged, 'win32'),
-    false,
-  )
-})
-
-test('missing bash triggers setup on Unix', () => {
+test('missing Bash triggers setup on macOS', () => {
   const missingBash = status({ ok: false, path: null, source: null })
   assertEqual(shouldPromptForBashSetup(missingBash, notAcknowledged, 'darwin'), true)
 })
 
-test('WSL bash triggers setup on Windows', () => {
-  assertEqual(
-    shouldPromptForBashSetup(status({ source: 'wsl', path: 'wsl.exe' }), notAcknowledged, 'win32'),
-    true,
-  )
-})
-
-test('generic system bash triggers setup on Windows', () => {
-  assertEqual(shouldPromptForBashSetup(status(), notAcknowledged, 'win32'), true)
-})
-
-test('an acknowledged missing shell does not prompt again', () => {
+test('an acknowledged missing Bash does not prompt again', () => {
   const missingBash = status({ ok: false, path: null, source: null })
   assertEqual(
     shouldPromptForBashSetup(
@@ -86,6 +64,16 @@ test('the reset option shows the setup prompt again', () => {
     ),
     true,
   )
+})
+
+test('Linux does not run Bash setup', () => {
+  const missingBash = status({ ok: false, path: null, source: null })
+  assertEqual(shouldPromptForBashSetup(missingBash, notAcknowledged, 'linux'), false)
+})
+
+test('Windows does not run Bash setup', () => {
+  const missingBash = status({ ok: false, path: null, source: null })
+  assertEqual(shouldPromptForBashSetup(missingBash, notAcknowledged, 'win32'), false)
 })
 
 console.log(`\n${passed} passed, ${failed} failed`)

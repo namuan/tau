@@ -23,8 +23,7 @@ type Props = {
 type Decision = 'satisfied' | 'installed' | 'declined' | 'manual'
 
 /**
- * First-launch prompt offering to install Bash when it is missing or when
- * Windows lacks Git Bash for native shell commands.
+ * First-launch prompt offering to install Bash when it is missing on macOS.
  */
 export function BashSetupDialog({ initialStatus, onDone }: Props): React.ReactNode {
   const [plan] = useState<InstallPlan>(() => planBashInstall())
@@ -32,7 +31,7 @@ export function BashSetupDialog({ initialStatus, onDone }: Props): React.ReactNo
   const [resultMessage, setResultMessage] = useState<string | null>(null)
   const [resultOk, setResultOk] = useState<boolean | null>(null)
 
-  const why = describeReason(initialStatus)
+  const why = 'No Bash was detected on this Mac.'
 
   function persist(decision: Decision): void {
     saveGlobalConfig(current => ({
@@ -172,23 +171,4 @@ export function shouldShowBashSetup(opts: {
 }): BashStatus | null {
   const status = detectBash()
   return shouldPromptForBashSetup(status, opts) ? status : null
-}
-
-function describeReason(status: BashStatus): string {
-  if (!status.ok) {
-    if (process.platform === 'win32') {
-      return 'No Git Bash detected on this machine.'
-    }
-    if (process.platform === 'linux') {
-      return 'No bash detected on this Linux machine (very rare — most distros preinstall it).'
-    }
-    return 'No bash detected.'
-  }
-  if (process.platform === 'win32' && status.source === 'wsl') {
-    return 'WSL bash was detected, but Tau on Windows needs Git Bash for native shell commands.'
-  }
-  if (process.platform === 'win32' && status.source !== 'git-for-windows') {
-    return 'No Git Bash detected on this machine.'
-  }
-  return 'A supported Bash shell is unavailable.'
 }
