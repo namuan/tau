@@ -6,7 +6,6 @@ import {
 } from 'src/services/analytics/growthbook.js'
 import { getIsNonInteractiveSession, getSdkBetas } from '../bootstrap/state.js'
 import {
-  BEDROCK_EXTRA_PARAMS_HEADERS,
   CLAUDE_CODE_20250219_BETA_HEADER,
   CLI_INTERNAL_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
@@ -17,9 +16,7 @@ import {
   STRUCTURED_OUTPUTS_BETA_HEADER,
   SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER,
   TOKEN_EFFICIENT_TOOLS_BETA_HEADER,
-  TOOL_SEARCH_BETA_HEADER_1P,
-  TOOL_SEARCH_BETA_HEADER_3P,
-  WEB_SEARCH_BETA_HEADER,
+  TOOL_SEARCH_BETA_HEADER,
 } from '../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
 import { isClaudeAISubscriber } from './auth.js'
@@ -112,16 +109,6 @@ export function modelSupportsISP(model: string): boolean {
   )
 }
 
-function vertexModelSupportsWebSearch(model: string): boolean {
-  const canonical = getCanonicalName(model)
-  // Web search only supported on Claude 4.0+ models on Vertex
-  return (
-    canonical.includes('claude-opus-4') ||
-    canonical.includes('claude-sonnet-4') ||
-    canonical.includes('claude-haiku-4')
-  )
-}
-
 // Context management is supported on Claude 4+ models
 export function modelSupportsContextManagement(model: string): boolean {
   const canonical = getCanonicalName(model)
@@ -198,26 +185,18 @@ export function modelSupportsAutoMode(model: string): boolean {
 }
 
 /**
- * Get the correct tool search beta header for the current API provider.
- * - Claude API / Foundry: advanced-tool-use-2025-11-20
- * - Vertex AI / Bedrock: tool-search-tool-2025-10-19
+ * Get the tool search beta header for the shared messages endpoint.
  */
 export function getToolSearchBetaHeader(): string {
-  const provider = getAPIProvider()
-  if (provider === 'vertex' || provider === 'bedrock') {
-    return TOOL_SEARCH_BETA_HEADER_3P
-  }
-  return TOOL_SEARCH_BETA_HEADER_1P
+  return TOOL_SEARCH_BETA_HEADER
 }
 
 /**
- * Check if experimental betas should be included.
- * These are betas that are only available on firstParty provider
- * and may not be supported by proxies or other providers.
+ * Check if native Anthropic API betas should be included.
  */
 export function shouldIncludeFirstPartyOnlyBetas(): boolean {
   return (
-    (getAPIProvider() === 'firstParty' || getAPIProvider() === 'foundry') &&
+    getAPIProvider() === 'firstParty' &&
     !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)
   )
 }
@@ -363,15 +342,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(TOKEN_EFFICIENT_TOOLS_BETA_HEADER)
   }
 
-  // Add web search beta for Vertex Claude 4.0+ models only
-  if (provider === 'vertex' && vertexModelSupportsWebSearch(model)) {
-    betaHeaders.push(WEB_SEARCH_BETA_HEADER)
-  }
-  // Foundry only ships models that already support Web Search
-  if (provider === 'foundry') {
-    betaHeaders.push(WEB_SEARCH_BETA_HEADER)
-  }
-
   // Always send the beta header for 1P. The header is a no-op without a scope field.
   if (includeFirstPartyOnlyBetas) {
     betaHeaders.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
@@ -390,19 +360,8 @@ export const getAllModelBetas = memoize((model: string): string[] => {
 })
 
 export const getModelBetas = memoize((model: string): string[] => {
-  const modelBetas = getAllModelBetas(model)
-  if (getAPIProvider() === 'bedrock') {
-    return modelBetas.filter(b => !BEDROCK_EXTRA_PARAMS_HEADERS.has(b))
-  }
-  return modelBetas
+  return getAllModelBetas(model)
 })
-
-export const getBedrockExtraBodyParamsBetas = memoize(
-  (model: string): string[] => {
-    const modelBetas = getAllModelBetas(model)
-    return modelBetas.filter(b => BEDROCK_EXTRA_PARAMS_HEADERS.has(b))
-  },
-)
 
 /**
  * Merge SDK-provided betas with auto-detected model betas.
@@ -451,5 +410,4 @@ export function getMergedBetas(
 export function clearBetasCaches(): void {
   getAllModelBetas.cache?.clear?.()
   getModelBetas.cache?.clear?.()
-  getBedrockExtraBodyParamsBetas.cache?.clear?.()
 }

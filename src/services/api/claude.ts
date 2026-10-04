@@ -57,7 +57,6 @@ import {
 } from '../../utils/api.js'
 import { getOauthAccountInfo } from '../../utils/auth.js'
 import {
-  getBedrockExtraBodyParamsBetas,
   getMergedBetas,
   getModelBetas,
 } from '../../utils/betas.js'
@@ -272,7 +271,7 @@ type JsonArray = JsonValue[]
 /**
  * Assemble the extra body parameters for the API request, based on the
  * CLAUDE_CODE_EXTRA_BODY environment variable if present and on any beta
- * headers (primarily for Bedrock requests).
+ * headers for the shared messages endpoint.
  *
  * @param betaHeaders - An array of beta headers to include in the request.
  * @returns A JSON object representing the extra body parameters.
@@ -500,15 +499,6 @@ export function getCacheControl({
 function should1hCacheTTL(querySource?: QuerySource): boolean {
   if (getAPIProvider() === 'agentrouter') {
     return false
-  }
-
-  // 3P Bedrock users get 1h TTL when opted in via env var — they manage their own billing
-  // No GrowthBook gating needed since 3P users don't have GrowthBook configured
-  if (
-    getAPIProvider() === 'bedrock' &&
-    isEnvTruthy(process.env.ENABLE_PROMPT_CACHING_1H_BEDROCK)
-  ) {
-    return true
   }
 
   // Latch eligibility in bootstrap state for session stability — prevents
@@ -1636,13 +1626,9 @@ async function* queryModel(
   })
 
   // Add tool search beta header if enabled - required for defer_loading to be accepted
-  // Header differs by provider: 1P/Foundry use advanced-tool-use, Vertex/Bedrock use tool-search-tool
-  // For Bedrock, this header must go in extraBodyParams, not the betas array
   const toolSearchHeader = useToolSearch ? getToolSearchBetaHeader() : null
-  if (toolSearchHeader && getAPIProvider() !== 'bedrock') {
-    if (!betas.includes(toolSearchHeader)) {
-      betas.push(toolSearchHeader)
-    }
+  if (toolSearchHeader && !betas.includes(toolSearchHeader)) {
+    betas.push(toolSearchHeader)
   }
 
   // Determine if cached microcompact is enabled for this model.
@@ -2001,15 +1987,7 @@ async function* queryModel(
       betasParams.push(CONTEXT_1M_BETA_HEADER)
     }
 
-    // For Bedrock, include both model-based betas and dynamically-added tool search header
-    const bedrockBetas =
-      getAPIProvider() === 'bedrock'
-        ? [
-            ...getBedrockExtraBodyParamsBetas(retryContext.model),
-            ...(toolSearchHeader ? [toolSearchHeader] : []),
-          ]
-        : []
-    const extraBodyParams = getExtraBodyParams(bedrockBetas)
+    const extraBodyParams = getExtraBodyParams()
 
     const outputConfig: BetaOutputConfig = {
       ...((extraBodyParams.output_config as BetaOutputConfig) ?? {}),
@@ -4128,7 +4106,6 @@ export function adjustParamsForNonStreaming<
 }
 
 function isMaxTokensCapEnabled(): boolean {
-  // 3P default: false (not validated on Bedrock/Vertex)
   return getFeatureValue_CACHED_MAY_BE_STALE('tengu_otk_slot_v1', false)
 }
 

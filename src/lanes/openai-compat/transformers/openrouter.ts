@@ -189,8 +189,8 @@ function applyOpenRouterToolCacheBreakpoint(body: OpenAIChatRequest): void {
 }
 
 /**
- * Opt-in one-hour cache for Claude, like ENABLE_PROMPT_CACHING_1H_BEDROCK does
- * for Bedrock. A five-minute cache write costs 1.25x the input price and a
+ * Opt-in one-hour cache for Claude on OpenRouter. A five-minute cache write
+ * costs 1.25x the input price and a
  * one-hour write 2x, so it pays off when replies are more than five minutes
  * apart. Every breakpoint gets the same lifetime because Anthropic requires
  * one-hour breakpoints to come before five-minute ones. Other model families
