@@ -65,7 +65,7 @@ test('a warning, when present, names the repair command', () => {
   const warning = getInstallHealthWarning()
   if (warning === null) return // healthy here; the fixture cases cover the text
   assert(
-    warning.fix.includes('@abdoknbgit/tau-installer'),
+    warning.fix.includes('@namuan/tau-installer'),
     `the fix must name the installer: ${warning.fix}`,
   )
 })
@@ -90,10 +90,10 @@ function evaluate(
   return matches ? 'complete' : 'marker-invalid'
 }
 
-const PKG = { name: '@abdoknbgit/tau', version: '0.92.27' }
+const PKG = { name: '@namuan/tau', version: '0.92.27' }
 const GOOD = {
   schema: 1,
-  packageName: '@abdoknbgit/tau',
+  packageName: '@namuan/tau',
   version: '0.92.27',
   completedAt: '2026-09-01T19:29:49.613Z',
 }

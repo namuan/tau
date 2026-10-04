@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
  * Runtime read of the lifecycle-completion marker that `scripts/postinstall.mjs`
  * writes as its final mandatory step.
  *
- * WHY THIS EXISTS. `npm install -g @abdoknbgit/tau` run directly honours the
+ * WHY THIS EXISTS. `npm install -g @namuan/tau` run directly honours the
  * user's npm config, so `ignore-scripts=true` — common in corporate and
  * security-hardened setups — silently skips postinstall. That install has no
  * vendored ripgrep and no native helpers, and until now nothing noticed:
@@ -15,7 +15,7 @@ import { fileURLToPath } from 'url'
  * says "a failed run means the missing marker makes the updater repair it on
  * next launch" — this is the missing half of that sentence.
  *
- * The installer (`@abdoknbgit/tau-installer`) forces
+ * The installer (`@namuan/tau-installer`) forces
  * `--ignore-scripts=false --include=optional` plus npm's newer
  * `--allow-scripts` allowlist, so an install that went through it always has a
  * marker. A missing one therefore means the install bypassed the installer or
@@ -127,6 +127,6 @@ export function getInstallHealthWarning(): { issue: string; fix: string } | null
 
   return {
     issue,
-    fix: 'Repair with: npx @abdoknbgit/tau-installer',
+    fix: 'Repair with: npx @namuan/tau-installer',
   }
 }

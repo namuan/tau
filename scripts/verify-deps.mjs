@@ -46,8 +46,8 @@ const defaultPackageRoot = resolve(dirname(__filename), '..');
 
 export const LIFECYCLE_MARKER_FILENAME = '.tau-lifecycle-complete.json';
 export const LIFECYCLE_MARKER_SCHEMA = 1;
-const TAU_PACKAGE_NAME = '@abdoknbgit/tau';
-const TAU_INSTALLER_SPEC = '@abdoknbgit/tau-installer@latest';
+const TAU_PACKAGE_NAME = '@namuan/tau';
+const TAU_INSTALLER_SPEC = '@namuan/tau-installer@latest';
 const GLOBAL_UPDATE_LOCK_ENV = 'TAU_UPDATE_LOCK';
 const LOCAL_UPDATE_LOCK_ENV = 'TAU_LOCAL_UPDATE_LOCK';
 export const TAU_RUNTIME_ALLOW_SCRIPTS = Object.freeze([
@@ -799,7 +799,7 @@ export function manualFixInstructions(packageName) {
     ``,
     `For an npm-global install, run:`,
     ``,
-    `  npx -y @abdoknbgit/tau-installer@latest`,
+    `  npx -y @namuan/tau-installer@latest`,
     ``,
     `If npm reports EEXIST on the 'tau' command, delete only a dangling shim`,
     `and re-run the install. If it reports EPERM on Windows, close every`,

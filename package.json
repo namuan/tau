@@ -1,5 +1,5 @@
 {
-  "name": "@abdoknbgit/tau",
+  "name": "@namuan/tau",
   "version": "0.92.38",
   "workspaces": [
     "packages/*"
@@ -153,7 +153,7 @@
     "typescript": "^5.7.3"
   },
   "allowScripts": {
-    "@abdoknbgit/tau": true,
+    "@namuan/tau": true,
     "core-js": true,
     "esbuild": true,
     "fsevents": true,

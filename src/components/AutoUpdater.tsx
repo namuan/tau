@@ -192,7 +192,7 @@ export function AutoUpdater({
       {(autoUpdaterResult?.status === 'install_failed' || autoUpdaterResult?.status === 'no_permissions') && <Text color="error" wrap="truncate">
           ✗ Auto-update failed &middot; Try <Text bold>tau doctor</Text> or{' '}
           <Text bold>
-            {hasLocalInstall ? 'tau update' : 'npx -y @abdoknbgit/tau-installer@latest'}
+            {hasLocalInstall ? 'tau update' : 'npx -y @namuan/tau-installer@latest'}
           </Text>
         </Text>}
     </Box>;

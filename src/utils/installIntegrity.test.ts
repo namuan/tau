@@ -22,7 +22,7 @@ import {
 } from './installIntegrity.js'
 import { cleanDanglingBinShims } from '../../scripts/preinstall.mjs'
 
-const TAU_PACKAGE = '@abdoknbgit/tau'
+const TAU_PACKAGE = '@namuan/tau'
 
 type Fixture = {
   prefix: string

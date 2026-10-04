@@ -1,6 +1,6 @@
 {
   "lockfileVersion": 3,
-  "name": "@abdoknbgit/tau",
+  "name": "@namuan/tau",
   "packages": {
     "": {
       "bin": {
@@ -82,7 +82,7 @@
       },
       "hasInstallScript": true,
       "license": "MIT",
-      "name": "@abdoknbgit/tau",
+      "name": "@namuan/tau",
       "optionalDependencies": {
         "node-pty": "^1.1.0"
       },

@@ -51,7 +51,7 @@ function makePackage(packageRoot, options = {}) {
   writeFileSync(
     join(packageRoot, 'package.json'),
     `${JSON.stringify({
-      name: '@abdoknbgit/tau',
+      name: '@namuan/tau',
       version: options.version ?? '0.93.0',
       dependencies,
       ...(options.allowScripts ? { allowScripts: options.allowScripts } : {}),
@@ -132,12 +132,12 @@ test('writes an exact-version marker atomically with no temporary file left behi
     markerPath,
     expected: {
       schema: 1,
-      packageName: '@abdoknbgit/tau',
+      packageName: '@namuan/tau',
       version: '0.93.0',
     },
     actual: {
       schema: 1,
-      packageName: '@abdoknbgit/tau',
+      packageName: '@namuan/tau',
       version: '0.93.0',
       completedAt: '2026-07-16T00:00:00.000Z',
     },
@@ -154,7 +154,7 @@ test('rejects a completion marker from a different Tau version', () => {
     join(packageRoot, LIFECYCLE_MARKER_FILENAME),
     JSON.stringify({
       schema: 1,
-      packageName: '@abdoknbgit/tau',
+      packageName: '@namuan/tau',
       version: '0.92.14',
     }),
   );
@@ -362,7 +362,7 @@ test('missing global marker triggers an exact-version installer repair with scru
   const temporaryRoot = makeTemporaryRoot();
   const globalNodeModules = join(temporaryRoot, 'prefix', 'node_modules');
   const packageRoot = makePackage(
-    join(globalNodeModules, '@abdoknbgit', 'tau'),
+    join(globalNodeModules, '@namuan', 'tau'),
     { version: '0.93.1-rc.2', dependencies: { zod: '4.0.0' } },
   );
   const calls = [];
@@ -400,7 +400,7 @@ test('missing global marker triggers an exact-version installer repair with scru
   );
   assert.equal(calls.length, 2);
   const repair = calls[1];
-  assert.ok(repair.args.includes('--package=@abdoknbgit/tau-installer@latest'));
+  assert.ok(repair.args.includes('--package=@namuan/tau-installer@latest'));
   assert.deepEqual(
     repair.args.slice(repair.args.indexOf('--tau-version')),
     ['--tau-version', '0.93.1-rc.2'],
@@ -418,7 +418,7 @@ test('missing global marker triggers an exact-version installer repair with scru
 test('a failed installer fails closed', () => {
   const temporaryRoot = makeTemporaryRoot();
   const globalNodeModules = join(temporaryRoot, 'prefix', 'node_modules');
-  const packageRoot = makePackage(join(globalNodeModules, '@abdoknbgit', 'tau'));
+  const packageRoot = makePackage(join(globalNodeModules, '@namuan', 'tau'));
   let calls = 0;
 
   assert.equal(
@@ -442,7 +442,7 @@ test('a failed installer fails closed', () => {
 test('an exit-zero installer is not accepted until the exact marker exists', () => {
   const temporaryRoot = makeTemporaryRoot();
   const globalNodeModules = join(temporaryRoot, 'prefix', 'node_modules');
-  const packageRoot = makePackage(join(globalNodeModules, '@abdoknbgit', 'tau'));
+  const packageRoot = makePackage(join(globalNodeModules, '@namuan', 'tau'));
 
   assert.equal(
     ensureDeps(packageRoot, {
@@ -464,11 +464,11 @@ test('managed-local installation rebuilds reviewed lifecycles in place', () => {
   const home = join(temporaryRoot, 'home');
   const projectRoot = join(home, '.claude', 'local');
   const packageRoot = makePackage(
-    join(projectRoot, 'node_modules', '@abdoknbgit', 'tau'),
+    join(projectRoot, 'node_modules', '@namuan', 'tau'),
     {
       version: '0.93.2',
       allowScripts: {
-        '@abdoknbgit/tau': true,
+        '@namuan/tau': true,
         'core-js': true,
         'fsevents': true,
         'node-pty': true,
@@ -507,13 +507,13 @@ test('managed-local installation rebuilds reviewed lifecycles in place', () => {
           return { status: 0, stdout: '12.4.1\n', stderr: '' };
         }
         if (args.includes('install')) {
-          assert.ok(args.includes('@abdoknbgit/tau@0.93.2'));
+          assert.ok(args.includes('@namuan/tau@0.93.2'));
           writeLifecycleCompletionMarker(packageRoot, {
             nonce: 'preliminary-install',
           });
         } else {
           assert.ok(args.includes('rebuild'));
-          if (args.at(-1) === '@abdoknbgit/tau') {
+          if (args.at(-1) === '@namuan/tau') {
             writeLifecycleCompletionMarker(packageRoot, {
               nonce: 'local-repair',
             });
@@ -538,11 +538,11 @@ test('managed-local installation rebuilds reviewed lifecycles in place', () => {
   assert.ok(install.args.includes('install'));
   assert.deepEqual(
     dependencyRebuild.args.slice(
-      -TAU_RUNTIME_ALLOW_SCRIPTS.filter(name => name !== '@abdoknbgit/tau').length,
+      -TAU_RUNTIME_ALLOW_SCRIPTS.filter(name => name !== '@namuan/tau').length,
     ),
-    TAU_RUNTIME_ALLOW_SCRIPTS.filter(name => name !== '@abdoknbgit/tau'),
+    TAU_RUNTIME_ALLOW_SCRIPTS.filter(name => name !== '@namuan/tau'),
   );
-  assert.deepEqual(tauRebuild.args.slice(-1), ['@abdoknbgit/tau']);
+  assert.deepEqual(tauRebuild.args.slice(-1), ['@namuan/tau']);
   assert.equal(install.options.timeout, undefined);
   assert.equal(install.options.env.TAU_LIFECYCLE_BRIDGE_REPAIR, '1');
   assert.equal(
@@ -570,7 +570,7 @@ test('managed-local lifecycle repair does not mutate while another updater owns 
     TAU_RUNTIME_ALLOW_SCRIPTS.map(name => [name, true]),
   );
   const packageRoot = makePackage(
-    join(projectRoot, 'node_modules', '@abdoknbgit', 'tau'),
+    join(projectRoot, 'node_modules', '@namuan', 'tau'),
     { allowScripts: policy },
   );
   const projectManifestPath = join(projectRoot, 'package.json');
@@ -619,7 +619,7 @@ test('failed local dependency rebuild cannot retain an install-created marker', 
     TAU_RUNTIME_ALLOW_SCRIPTS.map(name => [name, true]),
   );
   const packageRoot = makePackage(
-    join(projectRoot, 'node_modules', '@abdoknbgit', 'tau'),
+    join(projectRoot, 'node_modules', '@namuan', 'tau'),
     { allowScripts: policy },
   );
   writeFileSync(
@@ -781,7 +781,7 @@ test('the generated launcher checks required installed files before import', () 
   assert.ok(verifierCheck < bundleImport, 'verifier must be checked before import');
   assert.match(launcherSource, /if \(!isSourceCheckout\) \{[\s\S]*installation verifier is missing/);
   assert.match(launcherSource, /npm run build/);
-  assert.match(launcherSource, /npx -y @abdoknbgit\/tau-installer@latest/);
+  assert.match(launcherSource, /npx -y @namuan\/tau-installer@latest/);
 });
 
 test('the generated launcher catches only module and native load failures', () => {

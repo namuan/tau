@@ -20,10 +20,10 @@ import {
 import { homedir } from "node:os";
 import { dirname, join, posix, resolve, win32 } from "node:path";
 
-export const TAU_PACKAGE = "@abdoknbgit/tau";
+export const TAU_PACKAGE = "@namuan/tau";
 
 export const ALLOWED_SCRIPTS = Object.freeze([
-  "@abdoknbgit/tau",
+  "@namuan/tau",
   "core-js",
   "fsevents",
   "node-pty",
@@ -1300,7 +1300,7 @@ export async function runInstaller(
 
 export const HELP_TEXT = `Usage: tau-installer [options]
 
-Installs @abdoknbgit/tau globally while allowing its reviewed lifecycle scripts
+Installs @namuan/tau globally while allowing its reviewed lifecycle scripts
 for this npm command only.
 
 Options:

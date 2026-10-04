@@ -124,7 +124,7 @@ test('staging inputs remove development and workspace metadata before pruning', 
   assert.equal(stagedLock.packages[''].workspaces, undefined);
   assert.equal(stagedLock.packages['packages/tau-installer'], undefined);
   assert.equal(
-    stagedLock.packages['node_modules/@abdoknbgit/tau-installer'],
+    stagedLock.packages['node_modules/@namuan/tau-installer'],
     undefined,
   );
 });

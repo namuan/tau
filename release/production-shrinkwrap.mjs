@@ -196,7 +196,7 @@ export function verifyProductionShrinkwrap(
 
   invariant(
     !candidatePackages['packages/tau-installer'] &&
-      !candidatePackages['node_modules/@abdoknbgit/tau-installer'],
+      !candidatePackages['node_modules/@namuan/tau-installer'],
     'Shrinkwrap must not contain the tau-installer workspace.',
   );
 

@@ -31,8 +31,8 @@ import {
   UpdateLock,
 } from './updateLock.js'
 
-const TAU_NPM_PACKAGE = '@abdoknbgit/tau'
-const TAU_INSTALLER_PACKAGE = '@abdoknbgit/tau-installer@latest'
+const TAU_NPM_PACKAGE = '@namuan/tau'
+const TAU_INSTALLER_PACKAGE = '@namuan/tau-installer@latest'
 const TAU_INSTALL_TIMEOUT_MS = 20 * 60 * 1000
 
 class AutoUpdaterError extends ClaudeError {}

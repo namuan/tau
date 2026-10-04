@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const INSTALLER_PACKAGE = '@abdoknbgit/tau-installer';
+export const INSTALLER_PACKAGE = '@namuan/tau-installer';
 export const INSTALLER_RELATIVE_DIRECTORY = './packages/tau-installer';
 
 const releaseDirectory = dirname(fileURLToPath(import.meta.url));

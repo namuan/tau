@@ -6,7 +6,7 @@
  * Background. `/config` used to offer a "stable" auto-update channel, and three
  * places turned that setting into an npm dist-tag with
  * `channel === 'stable' ? 'stable' : 'latest'`. No `stable` tag has ever been
- * published, so `npm view @abdoknbgit/tau@stable version` exits non-zero with
+ * published, so `npm view @namuan/tau@stable version` exits non-zero with
  * E404. getLatestVersion reports that as null, and every caller reads null as
  * "already up to date":
  *

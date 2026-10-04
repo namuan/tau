@@ -26,7 +26,7 @@ import {
 // Project-scoped npm installs cannot use the CLI --allow-scripts flag. Keep
 // the managed local project's policy aligned with Tau's published installer.
 export const LOCAL_ALLOW_SCRIPTS = [
-  '@abdoknbgit/tau',
+  '@namuan/tau',
   'core-js',
   'fsevents',
   'node-pty',

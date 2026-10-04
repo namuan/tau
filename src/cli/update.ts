@@ -250,7 +250,7 @@ export async function update() {
     process.stderr.write('Try:\n')
     process.stderr.write('  • Check your internet connection\n')
     process.stderr.write('  • Run with --debug flag for more details\n')
-    const packageName = MACRO.PACKAGE_URL || '@abdoknbgit/tau'
+    const packageName = MACRO.PACKAGE_URL || '@namuan/tau'
     process.stderr.write(
       `  • Manually check: npm view ${packageName} version\n`,
     )
@@ -272,7 +272,7 @@ export async function update() {
       )
       process.stderr.write(
         diagnostic.installationType === 'npm-global'
-          ? 'Repair it with:\n  npx -y @abdoknbgit/tau-installer@latest\n'
+          ? 'Repair it with:\n  npx -y @namuan/tau-installer@latest\n'
           : 'Run "tau doctor", then retry:\n  tau update\n',
       )
       await gracefulShutdown(1)
@@ -376,8 +376,8 @@ export async function update() {
       } else {
         process.stderr.write('Fix your npm global-prefix permissions, then run:\n')
         process.stderr.write(
-          MACRO.PACKAGE_URL === '@abdoknbgit/tau'
-            ? '  npx -y @abdoknbgit/tau-installer@latest\n'
+          MACRO.PACKAGE_URL === '@namuan/tau'
+            ? '  npx -y @namuan/tau-installer@latest\n'
             : `  npm install -g ${MACRO.PACKAGE_URL}@latest\n`,
         )
       }
@@ -392,8 +392,8 @@ export async function update() {
       } else {
         process.stderr.write('Try manually updating with:\n')
         process.stderr.write(
-          MACRO.PACKAGE_URL === '@abdoknbgit/tau'
-            ? '  npx -y @abdoknbgit/tau-installer@latest\n'
+          MACRO.PACKAGE_URL === '@namuan/tau'
+            ? '  npx -y @namuan/tau-installer@latest\n'
             : `  npm install -g ${MACRO.PACKAGE_URL}@latest\n`,
         )
       }

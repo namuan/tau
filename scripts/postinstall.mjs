@@ -350,7 +350,7 @@ async function verifyDependencyTree() {
     skipLifecycleMarker: true,
   });
   if (!ok) {
-    throw new Error(manualFixInstructions('@abdoknbgit/tau'));
+    throw new Error(manualFixInstructions('@namuan/tau'));
   }
 }
 

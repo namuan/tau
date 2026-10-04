@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "claudex",
+      "name": "@namuan/tau",
       "dependencies": {
         "@alcalzone/ansi-tokenize": "^0.1.3",
         "@anthropic-ai/sdk": "^0.50.1",
@@ -89,7 +89,7 @@
       },
     },
     "packages/tau-installer": {
-      "name": "@abdoknbgit/tau-installer",
+      "name": "@namuan/tau-installer",
       "version": "0.1.3",
       "bin": {
         "tau-installer": "bin/tau-installer.mjs",
@@ -102,8 +102,6 @@
     "uuid": "^11.1.1",
   },
   "packages": {
-    "@abdoknbgit/tau-installer": ["@abdoknbgit/tau-installer@workspace:packages/tau-installer"],
-
     "@alcalzone/ansi-tokenize": ["@alcalzone/ansi-tokenize@0.1.3", "", { "dependencies": { "ansi-styles": "^6.2.1", "is-fullwidth-code-point": "^4.0.0" } }, "sha512-3yWxPTq3UQ/FY9p1ErPxIyfT64elWaMvM9lIHnaqpyft63tkxodF5aUElYHrdisWve5cETkh1+KBw1yJuW0aRw=="],
 
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.50.4", "", { "bin": { "anthropic-ai-sdk": "bin/cli" } }, "sha512-zZOWyIuznx2uqiRcCNuidkAsLC8IBHgS9lTwSVEB29sUCwEcqL95MWpWP1nccHSKfiZga+hbZaI0btR2zjuMmw=="],
@@ -225,6 +223,8 @@
     "@isaacs/fs-minipass": ["@isaacs/fs-minipass@4.0.1", "", { "dependencies": { "minipass": "^7.0.4" } }, "sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w=="],
 
     "@mixmark-io/domino": ["@mixmark-io/domino@2.2.0", "", {}, "sha512-Y28PR25bHXUg88kCV7nivXrP2Nj2RueZ3/l/jdx6J9f8J4nsEGcgX0Qe6lt7Pa+J79+kPiJU3LguR6O/6zrLOw=="],
+
+    "@namuan/tau-installer": ["@namuan/tau-installer@workspace:packages/tau-installer"],
 
     "@noble/ciphers": ["@noble/ciphers@1.3.0", "", {}, "sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw=="],
 

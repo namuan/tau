@@ -44,7 +44,7 @@ function createGlobalFixture(testContext, version = "0.92.15", withMarker = fals
   mkdirSync(installedPackageRoot, { recursive: true });
   writeFileSync(
     join(installedPackageRoot, "package.json"),
-    `${JSON.stringify({ name: "@abdoknbgit/tau", version })}\n`,
+    `${JSON.stringify({ name: "@namuan/tau", version })}\n`,
   );
 
   const writeMarker = () => {
@@ -52,7 +52,7 @@ function createGlobalFixture(testContext, version = "0.92.15", withMarker = fals
       join(installedPackageRoot, ".tau-lifecycle-complete.json"),
       `${JSON.stringify({
         schema: 1,
-        packageName: "@abdoknbgit/tau",
+        packageName: "@namuan/tau",
         version,
       })}\n`,
     );
@@ -163,7 +163,7 @@ test("default arguments install the latest Tau globally with a command-only allo
   assert.deepEqual(buildInstallArguments(undefined, "12.0.0"), [
     "install",
     "--global",
-    "@abdoknbgit/tau@latest",
+    "@namuan/tau@latest",
     "--ignore-scripts=false",
     "--dry-run=false",
     "--package-lock-only=false",
@@ -186,7 +186,7 @@ test("allow-scripts is used only by npm versions that support it", () => {
   assert.deepEqual(buildInstallArguments(undefined, "10.9.3"), [
     "install",
     "--global",
-    "@abdoknbgit/tau@latest",
+    "@namuan/tau@latest",
     "--ignore-scripts=false",
     "--dry-run=false",
     "--package-lock-only=false",
@@ -227,7 +227,7 @@ test("preflight removes only definitely dangling tau launchers", (t) => {
     root,
     "healthy",
     "node_modules",
-    "@abdoknbgit",
+    "@namuan",
     "tau",
     "dist",
     "cli.mjs",
@@ -243,7 +243,7 @@ test("preflight removes only definitely dangling tau launchers", (t) => {
     root,
     "missing",
     "node_modules",
-    "@abdoknbgit",
+    "@namuan",
     "tau",
     "dist",
     "cli.mjs",
@@ -532,7 +532,7 @@ test("spawn uses argument arrays, disables the shell, and propagates npm's exit 
     "/opt/npm/bin/npm-cli.js",
     "install",
     "--global",
-    "@abdoknbgit/tau@0.92.15",
+    "@namuan/tau@0.92.15",
     "--ignore-scripts=false",
     "--dry-run=false",
     "--package-lock-only=false",
@@ -585,7 +585,7 @@ test("dry-run probes npm but never starts an install", async () => {
 
   assert.equal(code, 0);
   assert.deepEqual(spawnedArguments, [["--version"]]);
-  assert.match(output, /@abdoknbgit\/tau@0\.92\.15/);
+  assert.match(output, /@namuan\/tau@0\.92\.15/);
   assert.match(output, /--allow-scripts=/);
 });
 
@@ -641,7 +641,7 @@ test("a same-version install without a marker rebuilds reviewed dependencies and
     prefix,
     calls,
     onCommand: (args) => {
-      if (args.includes("rebuild") && args.includes("@abdoknbgit/tau")) {
+      if (args.includes("rebuild") && args.includes("@namuan/tau")) {
         writeMarker();
       }
       return 0;
@@ -665,7 +665,7 @@ test("a same-version install without a marker rebuilds reviewed dependencies and
   assert.equal(rebuildCalls.length, 2);
 
   const dependencyPackages = ALLOWED_SCRIPTS.filter(
-    (packageName) => packageName !== "@abdoknbgit/tau",
+    (packageName) => packageName !== "@namuan/tau",
   );
   const dependencyRebuildIndex = rebuildCalls[0].args.indexOf("rebuild");
   assert.deepEqual(
@@ -680,7 +680,7 @@ test("a same-version install without a marker rebuilds reviewed dependencies and
   const tauRebuildIndex = rebuildCalls[1].args.indexOf("rebuild");
   assert.deepEqual(
     rebuildCalls[1].args.slice(tauRebuildIndex, tauRebuildIndex + 3),
-    ["rebuild", "--global", "@abdoknbgit/tau"],
+    ["rebuild", "--global", "@namuan/tau"],
   );
 });
 
@@ -1087,7 +1087,7 @@ test("the packaged CLI can be spawned in dry-run mode without installing Tau", (
   assert.equal(result.stderr, "");
   assert.match(
     result.stdout,
-    /(?:npm-cli\.js"?|npm) install --global @abdoknbgit\/tau@0\.92\.15/,
+    /(?:npm-cli\.js"?|npm) install --global @namuan\/tau@0\.92\.15/,
   );
   assert.match(result.stdout, /--no-fund/);
 });

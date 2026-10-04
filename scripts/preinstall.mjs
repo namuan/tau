@@ -40,7 +40,7 @@ function getPackageName() {
       readFileSync(join(packageRoot, 'package.json'), 'utf8'),
     ).name;
   } catch {
-    return '@abdoknbgit/tau';
+    return '@namuan/tau';
   }
 }
 

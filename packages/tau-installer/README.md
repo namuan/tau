@@ -1,6 +1,6 @@
 # Tau Installer
 
-`@abdoknbgit/tau-installer` installs Tau globally. On npm 11.16 and newer, it
+`@namuan/tau-installer` installs Tau globally. On npm 11.16 and newer, it
 allows only Tau's reviewed npm lifecycle scripts for that single install
 command. Older npm versions use npm's normal lifecycle-script behavior because
 they do not support the command-scoped policy.
@@ -10,7 +10,7 @@ Node.js 20.18.1 or newer is required.
 ## Install or update to the latest Tau
 
 ```sh
-npx -y @abdoknbgit/tau-installer@latest
+npx -y @namuan/tau-installer@latest
 ```
 
 ## Install an exact Tau version
@@ -18,7 +18,7 @@ npx -y @abdoknbgit/tau-installer@latest
 Tau's updater can pin the release it already selected:
 
 ```sh
-npx -y @abdoknbgit/tau-installer@latest --tau-version 0.92.15
+npx -y @namuan/tau-installer@latest --tau-version 0.92.15
 ```
 
 `--tau-version` accepts an exact semantic version only. Tags and ranges such as
@@ -27,7 +27,7 @@ npx -y @abdoknbgit/tau-installer@latest --tau-version 0.92.15
 ## Inspect without installing
 
 ```sh
-npx -y @abdoknbgit/tau-installer@latest --dry-run
+npx -y @namuan/tau-installer@latest --dry-run
 ```
 
 The installer has no dependencies and no lifecycle scripts of its own. It runs

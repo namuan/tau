@@ -436,7 +436,7 @@ function stopForIntegrityFailure(reason, verifier) {
   } else {
     process.stderr.write(
       'Retry the installation with:\\n\\n' +
-      '  npx -y @abdoknbgit/tau-installer@latest\\n'
+      '  npx -y @namuan/tau-installer@latest\\n'
     )
   }
   process.exit(1)
