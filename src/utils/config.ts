@@ -413,18 +413,8 @@ export type GlobalConfig = {
   // Idle-return dialog tracking
   idleReturnDismissed?: boolean // "Don't ask again" picked
 
-  // Opus 4.5 Pro migration tracking
-  opusProMigrationComplete?: boolean
-  opusProMigrationTimestamp?: number
-
   // Sonnet 4.5 1m migration tracking
   sonnet1m45MigrationComplete?: boolean
-
-  // Opus 4.0/4.1 → current Opus migration (shows one-time notif)
-  legacyOpusMigrationTimestamp?: number
-
-  // Sonnet 4.5 → 4.6 migration (pro/max/team premium)
-  sonnet45To46MigrationTimestamp?: number
 
   // Cached statsig gate values
   cachedStatsigGates: {

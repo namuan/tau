@@ -228,7 +228,6 @@ import { useNpmUpdateNotification } from 'src/hooks/notifs/useNpmUpdateNotificat
 import { UserTextMessage } from 'src/components/messages/UserTextMessage.js';
 import { useRateLimitWarningNotification } from 'src/hooks/notifs/useRateLimitWarningNotification.js';
 import { useDeprecationWarningNotification } from 'src/hooks/notifs/useDeprecationWarningNotification.js';
-import { useModelMigrationNotifications } from 'src/hooks/notifs/useModelMigrationNotifications.js';
 import { useCanSwitchToExistingSubscription } from 'src/hooks/notifs/useCanSwitchToExistingSubscription.js';
 import { useTeammateLifecycleNotification } from 'src/hooks/notifs/useTeammateShutdownNotification.js';
 import { useFastModeNotification } from 'src/hooks/notifs/useFastModeNotification.js';
@@ -703,7 +702,6 @@ export function REPL({
   const [showEffortCallout, setShowEffortCallout] = useState(() => shouldShowEffortCallout(mainLoopModel));
   const [showDesktopUpsellStartup, setShowDesktopUpsellStartup] = useState(() => shouldShowDesktopUpsellStartup());
   // notifications
-  useModelMigrationNotifications();
   useCanSwitchToExistingSubscription();
   useAutoModeUnavailableNotification();
   useNpmUpdateNotification();
