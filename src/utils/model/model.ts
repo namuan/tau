@@ -211,6 +211,10 @@ export function getDefaultMainLoopModelSetting(): ModelName | ModelAlias {
     )
   }
 
+  if (isThirdPartyProvider(getAPIProvider())) {
+    return getDefaultSonnetModel()
+  }
+
   // Max users get Opus as default
   if (isMaxSubscriber()) {
     return getDefaultOpusModel() + (isOpus1mMergeEnabled() ? '[1m]' : '')

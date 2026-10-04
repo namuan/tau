@@ -158,6 +158,19 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
   ) {
     return false;
   }
+  {
+    const { shouldShowBashSetup, BashSetupDialog } = await import('./components/BashSetupDialog.js');
+    const bashStatus = shouldShowBashSetup({
+      alreadyAcknowledged: !!getGlobalConfig().bashSetupResponse,
+      resetRequested: isEnvTruthy(process.env.CLAUDEX_BASH_SETUP_RESET),
+    });
+    if (bashStatus) {
+      trace('showing BashSetupDialog');
+      await showSetupDialog(root, done => <BashSetupDialog initialStatus={bashStatus} onDone={() => done()} />);
+      trace('BashSetupDialog completed');
+    }
+  }
+
   const config = getGlobalConfig();
   trace(`config: theme=${config.theme}, hasCompletedOnboarding=${config.hasCompletedOnboarding}`);
   let onboardingShown = false;
@@ -173,26 +186,6 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
     }} />, {
       onChangeAppState
     });
-  }
-
-  // First-launch bash setup. Runs before TrustDialog so a fresh-machine
-  // user gets bash sorted out (or explicitly declines) before any tool
-  // path that depends on it. The dialog only renders when bash is
-  // missing entirely or stuck on macOS's Apple-stock 3.2; otherwise this
-  // returns immediately. If bash is still missing or too old, we keep
-  // prompting on launch because claudex no longer falls back to PowerShell.
-  // CLAUDEX_BASH_SETUP_RESET=1 is accepted for compatibility.
-  {
-    const { shouldShowBashSetup, BashSetupDialog } = await import('./components/BashSetupDialog.js');
-    const bashStatus = shouldShowBashSetup({
-      alreadyAcknowledged: !!getGlobalConfig().bashSetupResponse,
-      resetRequested: isEnvTruthy(process.env.CLAUDEX_BASH_SETUP_RESET),
-    });
-    if (bashStatus) {
-      trace('showing BashSetupDialog');
-      await showSetupDialog(root, done => <BashSetupDialog initialStatus={bashStatus} onDone={() => done()} />);
-      trace('BashSetupDialog completed');
-    }
   }
 
   // Always show the trust dialog in interactive sessions, regardless of permission mode.
