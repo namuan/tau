@@ -220,15 +220,6 @@ function main(): void {
     }
   })
 
-  test('Anthropic-native providers retain normal tier resolution', () => {
-    for (const provider of ['firstParty', 'bedrock', 'vertex', 'foundry'] as const) {
-      for (const alias of ROUTED_ALIASES) {
-        const resolved = resolveAgentAliasPolicy(alias, 'claude-sonnet-4-6', provider)
-        assert(resolved === undefined, `${provider}/${alias}=${resolved}`)
-      }
-    }
-  })
-
   test('every other provider inherits the exact parent model', () => {
     const cases: Array<[APIProvider, string]> = [
       ['gemini', 'gemini-3.1-pro-preview'],

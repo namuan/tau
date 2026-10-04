@@ -128,17 +128,10 @@ export function getDefaultOpusModel(): ModelName {
     return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
   }
   const provider = getAPIProvider()
-  // Third-party non-Anthropic providers use their own model mappings
   if (isThirdPartyProvider(provider)) {
     return getProviderModelSet(provider).opus
   }
-  // Anthropic-native providers (Bedrock, Vertex, Foundry) — kept as a
-  // separate branch even when values match, since 3P availability lags
-  // firstParty and these will diverge again at the next model launch.
-  if (provider !== 'firstParty') {
-    return getModelStrings().opus46
-  }
-  return getModelStrings().opus48
+  return getModelStrings().opus46
 }
 
 // @[MODEL LAUNCH]: Update the default Sonnet model (3P providers may lag so keep defaults unchanged).
@@ -147,15 +140,10 @@ export function getDefaultSonnetModel(): ModelName {
     return process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
   }
   const provider = getAPIProvider()
-  // Third-party non-Anthropic providers use their own model mappings
   if (isThirdPartyProvider(provider)) {
     return getProviderModelSet(provider).sonnet
   }
-  // Default to Sonnet 4.5 for Anthropic cloud partners since they may not have 4.6 yet
-  if (provider !== 'firstParty') {
-    return getModelStrings().sonnet45
-  }
-  return getModelStrings().sonnet46
+  return getModelStrings().sonnet45
 }
 
 // @[MODEL LAUNCH]: Update the default Haiku model (3P providers may lag so keep defaults unchanged).
@@ -168,7 +156,6 @@ export function getDefaultHaikuModel(): ModelName {
   if (isThirdPartyProvider(provider)) {
     return getProviderModelSet(provider).haiku
   }
-  // Haiku 4.5 is available on all Anthropic platforms (first-party, Foundry, Bedrock, Vertex)
   return getModelStrings().haiku45
 }
 
@@ -564,19 +551,6 @@ export function parseUserSpecifiedModel(
     }
   }
 
-  // Opus 4/4.1 are no longer available on the first-party API (same as
-  // Claude.ai) — silently remap to the current Opus default. The 'opus'
-  // alias already resolves to 4.6, so the only users on these explicit
-  // strings pinned them in settings/env/--model/SDK before 4.5 launched.
-  // 3P providers may not yet have 4.6 capacity, so pass through unchanged.
-  if (
-    getAPIProvider() === 'firstParty' &&
-    isLegacyOpusFirstParty(modelString) &&
-    isLegacyModelRemapEnabled()
-  ) {
-    return getDefaultOpusModel() + (has1mTag ? '[1m]' : '')
-  }
-
   if (process.env.USER_TYPE === 'ant') {
     const has1mAntTag = has1mContext(normalizedModel)
     const baseAntModel = normalizedModel.replace(/\[1m]$/i, '').trim()
@@ -592,7 +566,7 @@ export function parseUserSpecifiedModel(
     // can tell the user to restart/wait for flag cache refresh to get the latest values.
   }
 
-  // Preserve original case for custom model names (e.g., Azure Foundry deployment IDs)
+  // Preserve original case for custom provider deployment IDs.
   // Only strip [1m] suffix if present, maintaining case of the base model
   if (has1mTag) {
     return modelInputTrimmed.replace(/\[1m\]$/i, '').trim() + '[1m]'
@@ -632,17 +606,6 @@ export function resolveSkillModelOverride(
   return skillModel
 }
 
-const LEGACY_OPUS_FIRSTPARTY = [
-  'claude-opus-4-20250514',
-  'claude-opus-4-1-20250805',
-  'claude-opus-4-0',
-  'claude-opus-4-1',
-]
-
-function isLegacyOpusFirstParty(model: string): boolean {
-  return LEGACY_OPUS_FIRSTPARTY.includes(model)
-}
-
 /**
  * Opt-out for the legacy Opus 4.0/4.1 → current Opus remap.
  */
@@ -665,11 +628,6 @@ export function modelDisplayString(model: ModelSetting): string {
 
 // @[MODEL LAUNCH]: Add a marketing name mapping for the new model below.
 export function getMarketingNameForModel(modelId: string): string | undefined {
-  if (getAPIProvider() === 'foundry') {
-    // deployment ID is user-defined in Foundry, so it may have no relation to the actual model
-    return undefined
-  }
-
   const has1m = modelId.toLowerCase().includes('[1m]')
   const canonical = getCanonicalName(modelId)
 

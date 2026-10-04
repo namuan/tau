@@ -10,7 +10,6 @@
  *    use GPT-5.6 Luna for every tier;
  *  - Antigravity uses its provider-specific Gemini Flash-low model;
  *  - OpenRouter uses the requested free Nemotron agent model;
- *  - Anthropic-native routes keep their existing tier resolution;
  *  - every other provider inherits the exact live session model.
  *
  * Concrete model IDs and `inherit` are deliberately outside this policy. A
@@ -54,10 +53,8 @@ export function isOpenAIAgentAliasParent(parentModel: string): boolean {
 /**
  * Resolve a tier alias according to the active provider policy.
  *
- * `undefined` means "use the provider's normal alias resolver". That is used
- * only by Anthropic-native routes, where the existing resolver also applies
- * Bedrock region prefixes correctly. All third-party routes return a concrete
- * model when a parent model is available.
+ * `undefined` means the model is not a tier alias. Every supported provider
+ * resolves tier aliases to a concrete model when a parent model is available.
  */
 export function resolveAgentAliasPolicy(
   spec: string,
@@ -79,15 +76,6 @@ export function resolveAgentAliasPolicy(
       return OPENAI_AGENT_MODEL
     }
     return parentModel || undefined
-  }
-
-  if (
-    provider === 'firstParty' ||
-    provider === 'bedrock' ||
-    provider === 'vertex' ||
-    provider === 'foundry'
-  ) {
-    return undefined
   }
 
   return parentModel || undefined
@@ -136,14 +124,5 @@ export function pinnedAgentModelOutranksAlias(
  * uses this to reject that pairing instead of resolving it wrongly.
  */
 export function resolvesAgentAliasIndependently(provider: APIProvider): boolean {
-  return (
-    // Anthropic-native routes run the real tier resolver.
-    provider === 'firstParty' ||
-    provider === 'bedrock' ||
-    provider === 'vertex' ||
-    provider === 'foundry' ||
-    // These two map every alias to a fixed model of their own.
-    provider === 'antigravity' ||
-    provider === 'openrouter'
-  )
+  return provider === 'antigravity' || provider === 'openrouter'
 }
