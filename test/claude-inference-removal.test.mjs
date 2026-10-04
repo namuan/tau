@@ -15,6 +15,19 @@ test('Claude inference providers are not selectable', () => {
   }
 })
 
+test('first-party advisor request support is removed while historical blocks remain compatible', async () => {
+  const main = await readFile(new URL('../src/main.tsx', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/services/api/claude.ts', import.meta.url), 'utf8')
+  const advisor = await readFile(new URL('../src/utils/advisor.ts', import.meta.url), 'utf8')
+  const messages = await readFile(new URL('../src/utils/messages.ts', import.meta.url), 'utf8')
+  assert.doesNotMatch(main, /--advisor|advisorModel|canUserConfigureAdvisor/)
+  assert.doesNotMatch(api, /ADVISOR_BETA_HEADER|advisor_20260301|advisorModel/)
+  assert.match(api, /messagesForAPI = stripAdvisorBlocks\(messagesForAPI\)/)
+  assert.match(advisor, /isAdvisorBlock/)
+  assert.match(advisor, /getAdvisorUsage/)
+  assert.match(messages, /Strip advisor blocks from messages/)
+})
+
 test('legacy Claude provider selections are rejected by routing and model selection', async () => {
   const client = await readFile(new URL('../src/services/api/client.ts', import.meta.url), 'utf8')
   const providers = await readFile(new URL('../src/utils/model/providers.ts', import.meta.url), 'utf8')

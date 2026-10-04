@@ -835,7 +835,6 @@ async function* queryLoop(
               fetchOverride: dumpPromptsFetch,
               queryTracking,
               effortValue: currentEffortValue,
-              advisorModel: appState.advisorModel,
               skipCacheWrite,
               agentId: toolUseContext.agentId,
               addNotification: toolUseContext.addNotification,

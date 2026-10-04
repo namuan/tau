@@ -140,7 +140,6 @@ import antTrace from './commands/ant-trace/index.js'
 import perfIssue from './commands/perf-issue/index.js'
 import sandboxToggle from './commands/sandbox-toggle/index.js'
 import stickers from './commands/stickers/index.js'
-import advisor from './commands/advisor.js'
 import pin from './commands/pin.js'
 import { logError } from './utils/log.js'
 import { toError } from './utils/errors.js'
@@ -252,7 +251,6 @@ export const INTERNAL_ONLY_COMMANDS = [
 // since underlying functions read from config, which can't be read at module initialization time
 const COMMANDS = memoize((): Command[] => [
   addDir,
-  advisor,
   agents,
   branch,
   clone,
