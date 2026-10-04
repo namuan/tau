@@ -15,8 +15,8 @@ const HELP = `/corrections — mine past sessions for command corrections (ran X
 
 Usage:
   /corrections          scan transcripts and preview the rules (writes nothing)
-  /corrections apply    write/refresh the rules block in this project's CLAUDE.md
-  /corrections clear    remove the rules block from CLAUDE.md
+  /corrections apply    write/refresh the rules block in this project's AGENTS.md
+  /corrections clear    remove the rules block from AGENTS.md
 
 The block is marker-delimited and idempotent: re-running apply replaces it in
 place, and everything outside the markers is never touched. Mining is fully
@@ -36,20 +36,20 @@ export async function call(args: string): Promise<LocalCommandResult> {
     return { type: 'text' as const, value: HELP }
   }
 
-  const claudeMdPath = getMemoryPath('Project')
+  const agentsPath = getMemoryPath('Project')
 
   if (action === 'clear') {
-    const existing = await readFileOrEmpty(claudeMdPath)
+    const existing = await readFileOrEmpty(agentsPath)
     if (!existing.includes(CORRECTIONS_BEGIN)) {
       return {
         type: 'text' as const,
-        value: `No corrections block found in ${claudeMdPath} — nothing to clear.`,
+        value: `No corrections block found in ${agentsPath} — nothing to clear.`,
       }
     }
-    await writeFile(claudeMdPath, upsertCorrectionsBlock(existing, null), 'utf8')
+    await writeFile(agentsPath, upsertCorrectionsBlock(existing, null), 'utf8')
     return {
       type: 'text' as const,
-      value: `Removed the learned-corrections block from ${claudeMdPath}.`,
+      value: `Removed the learned-corrections block from ${agentsPath}.`,
     }
   }
 
@@ -68,14 +68,14 @@ export async function call(args: string): Promise<LocalCommandResult> {
   const block = renderCorrectionsBlock(rules)
 
   if (action === 'apply') {
-    const existing = await readFileOrEmpty(claudeMdPath)
-    await writeFile(claudeMdPath, upsertCorrectionsBlock(existing, block), 'utf8')
+    const existing = await readFileOrEmpty(agentsPath)
+    await writeFile(agentsPath, upsertCorrectionsBlock(existing, block), 'utf8')
     return {
       type: 'text' as const,
       value:
-        `Wrote ${rules.length} correction rule(s) (from ${sessionsScanned} sessions) into ${claudeMdPath}:\n\n` +
+        `Wrote ${rules.length} correction rule(s) (from ${sessionsScanned} sessions) into ${agentsPath}:\n\n` +
         `${block}\n\n` +
-        `They load with CLAUDE.md from the next session on. Re-run \`/corrections apply\` anytime to refresh, or \`/corrections clear\` to remove.`,
+        `They load with AGENTS.md from the next session on. Re-run \`/corrections apply\` anytime to refresh, or \`/corrections clear\` to remove.`,
     }
   }
 
@@ -84,6 +84,6 @@ export async function call(args: string): Promise<LocalCommandResult> {
     value:
       `Found ${rules.length} correction rule(s) across ${sessionsScanned} session transcript(s) — preview (nothing written):\n\n` +
       `${block}\n\n` +
-      `Run \`/corrections apply\` to write this block into ${claudeMdPath}.`,
+      `Run \`/corrections apply\` to write this block into ${agentsPath}.`,
   }
 }

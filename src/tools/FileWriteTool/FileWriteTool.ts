@@ -427,9 +427,11 @@ export const FileWriteTool = buildTool({
       limit: undefined,
     })
 
-    // Log when writing to CLAUDE.md
-    if (fullFilePath.endsWith(`${sep}CLAUDE.md`)) {
-      logEvent('tengu_write_claudemd', {})
+    if (
+      fullFilePath.endsWith(`${sep}AGENTS.md`) ||
+      fullFilePath.endsWith(`${sep}AGENTS.local.md`)
+    ) {
+      logEvent('tengu_write_agents_md', {})
     }
 
     let gitDiff: ToolUseDiff | undefined

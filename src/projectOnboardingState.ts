@@ -17,8 +17,8 @@ export type Step = {
 }
 
 export function getSteps(): Step[] {
-  const hasClaudeMd = getFsImplementation().existsSync(
-    join(getCwd(), 'CLAUDE.md'),
+  const hasAgentsMd = getFsImplementation().existsSync(
+    join(getCwd(), 'AGENTS.md'),
   )
   const isWorkspaceDirEmpty = isDirEmpty(getCwd())
 
@@ -31,9 +31,9 @@ export function getSteps(): Step[] {
       isEnabled: isWorkspaceDirEmpty,
     },
     {
-      key: 'claudemd',
-      text: 'Run /init to create a CLAUDE.md file with instructions for Tau',
-      isComplete: hasClaudeMd,
+      key: 'agentsmd',
+      text: 'Run /init to create an AGENTS.md file with instructions for Tau',
+      isComplete: hasAgentsMd,
       isCompletable: true,
       isEnabled: !isWorkspaceDirEmpty,
     },

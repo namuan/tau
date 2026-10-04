@@ -91,7 +91,7 @@ const codeSpanTexts = (markdown: string): string[] =>
 // on Windows, and __init__ turned bold everywhere.
 const inProject = [
   join(cwd, 'src', 'b.ts'),
-  join(cwd, 'CLAUDE.md'),
+  join(cwd, 'AGENTS.md'),
   join(cwd, '.claude', 'settings.json'),
   join(cwd, 'app', '[id]', 'page.tsx'),
   join(cwd, 'app', '(marketing)', 'page.tsx'),

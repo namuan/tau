@@ -460,7 +460,7 @@ const CORE_TOOL_NAMES = new Set([
 
 // ─── System Instruction Splitter ─────────────────────────────────
 // The system prompt contains a boundary marker that separates static
-// content (instructions, tool descriptions, CLAUDE.md) from volatile
+// content (instructions, tool descriptions, AGENTS.md) from volatile
 // per-turn content (git status, current date, working dir, env info).
 //
 // For caching to work, we MUST hash only the stable part. Otherwise

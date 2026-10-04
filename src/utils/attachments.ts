@@ -35,7 +35,6 @@ import {
 import { getPlanFilePath, getPlan } from './plans.js'
 import {
   filterInjectedMemoryFiles,
-  getManagedAndUserConditionalRules,
   getMemoryFiles,
   getMemoryFilesForNestedDirectory,
   getConditionalRulesForCwdLevelDirectory,
@@ -1634,7 +1633,7 @@ function getOutputStyleAttachment(): Attachment[] {
 /**
  * Computes the directories to process for nested memory file loading.
  * Returns two lists:
- * - nestedDirs: Directories between CWD and targetPath (processed for CLAUDE.md + all rules)
+ * - nestedDirs: Directories between CWD and targetPath (processed for AGENTS.md + all rules)
  * - cwdLevelDirs: Directories from root to CWD (processed for conditional rules only)
  *
  * @param targetPath The target file path
@@ -1706,7 +1705,7 @@ export function memoryFilesToAttachments(
   for (const memoryFile of memoryFiles) {
     // Dedup: loadedNestedMemoryPaths is a non-evicting Set; readFileState
     // is a 100-entry LRU that drops entries in busy sessions, so relying
-    // on it alone re-injects the same CLAUDE.md on every eviction cycle.
+    // on it alone re-injects the same AGENTS.md on every eviction cycle.
     if (toolUseContext.loadedNestedMemoryPaths?.has(memoryFile.path)) {
       continue
     }
@@ -1764,12 +1763,12 @@ export function memoryFilesToAttachments(
 
 /**
  * Loads nested memory files for a given file path and returns them as attachments.
- * This function performs directory traversal to find CLAUDE.md files and conditional rules
+ * This function performs directory traversal to find AGENTS.md files and conditional rules
  * that apply to the target file path.
  *
  * Processing order (must be preserved):
  * 1. Managed/User conditional rules matching targetPath
- * 2. Nested directories (CWD → target): CLAUDE.md + unconditional + conditional rules
+ * 2. Nested directories (CWD → target): AGENTS.md + unconditional + conditional rules
  * 3. CWD-level directories (root → CWD): conditional rules only
  *
  * @param filePath The file path to get nested memory files for
@@ -1793,16 +1792,7 @@ async function getNestedMemoryAttachmentsForFile(
     const processedPaths = new Set<string>()
     const originalCwd = getOriginalCwd()
 
-    // Phase 1: Process Managed and User conditional rules
-    const managedUserRules = await getManagedAndUserConditionalRules(
-      filePath,
-      processedPaths,
-    )
-    attachments.push(
-      ...memoryFilesToAttachments(managedUserRules, toolUseContext, filePath),
-    )
-
-    // Phase 2: Get directories to process
+    // Phase 1: Get directories to process
     const { nestedDirs, cwdLevelDirs } = getDirectoriesToProcess(
       filePath,
       originalCwd,
@@ -1814,7 +1804,7 @@ async function getNestedMemoryAttachmentsForFile(
     )
 
     // Phase 3: Process nested directories (CWD → target)
-    // Each directory gets: CLAUDE.md + unconditional rules + conditional rules
+    // Each directory gets: AGENTS.md + unconditional rules + conditional rules
     for (const dir of nestedDirs) {
       const memoryFiles = (
         await getMemoryFilesForNestedDirectory(dir, filePath, processedPaths)
@@ -2055,7 +2045,7 @@ export async function getChangedFiles(
 }
 
 /**
- * Processes paths that need nested memory attachments and checks for nested CLAUDE.md files
+ * Processes paths that need nested memory attachments and checks for nested AGENTS.md files
  * Uses nestedMemoryAttachmentTriggers field from ToolUseContext
  */
 async function getNestedMemoryAttachments(

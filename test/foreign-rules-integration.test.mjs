@@ -15,6 +15,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   unlinkSync,
   writeFileSync,
@@ -47,7 +48,7 @@ function runInRepo(repoDir, body) {
     process.env.TAU_CONFIG_DIR = ${JSON.stringify(join(repoDir, '.cfg'))};
     process.chdir(${JSON.stringify(repoDir)});
     const api = (await import(${JSON.stringify(harnessUrl)})).__memory();
-    const base = ${JSON.stringify(repoDir)};
+    const base = ${JSON.stringify(realpathSync(repoDir))};
     const rel = p => p.slice(base.length + 1).replaceAll('\\\\', '/');
     ${body}
   `
@@ -75,7 +76,7 @@ function conditionalFor(repoDir, target) {
   return runInRepo(
     repoDir,
     `const files = await api.getConditionalRulesForCwdLevelDirectory(
-       base, ${JSON.stringify(target)}, new Set());
+       base, ${JSON.stringify(realpathSync(target))}, new Set());
      console.log('@@' + JSON.stringify(files.map(f => rel(f.path))));`,
   )
 }
@@ -186,12 +187,12 @@ test('the fallback yields to AGENTS.md', () => {
   )
 })
 
-test('the fallback yields to CLAUDE.md', () => {
+test('CLAUDE.md does not suppress a foreign fallback', () => {
   const dir = repo({
-    'CLAUDE.md': '# repo\nnative\n',
-    '.clinerules': 'leftover\n',
+    'CLAUDE.md': '# repo\nlegacy\n',
+    '.github/copilot-instructions.md': 'current instructions\n',
   })
-  assert.deepEqual(eagerFiles(dir), ['CLAUDE.md'])
+  assert.deepEqual(eagerFiles(dir), ['.github/copilot-instructions.md'])
 })
 
 test('only the first fallback wins', () => {
@@ -244,16 +245,12 @@ test('.windsurfrules loads, and .windsurf/rules honors trigger', () => {
 
 // ── No-overlap / no-regression guarantees ───────────────────────────────────
 
-test('a repo with only native files is completely unaffected', () => {
+test('Claude-specific instruction files are ignored', () => {
   const dir = repo({
-    'CLAUDE.md': '# claude\nnative\n',
-    '.claude/rules/style.md': '# style\nunconditional\n',
-    '.claude/rules/scoped.md': '---\npaths: src/**\n---\nscoped\n',
+    'CLAUDE.md': '# claude\nlegacy\n',
+    '.claude/rules/style.md': '# style\nlegacy rule\n',
   })
-  assert.deepEqual(eagerFiles(dir).sort(), [
-    '.claude/rules/style.md',
-    'CLAUDE.md',
-  ])
+  assert.deepEqual(eagerFiles(dir), [])
 })
 
 test('legacy .cursorrules is ignored, as Cursor itself ignores it', () => {
@@ -281,7 +278,7 @@ test('foreign rules are project-scoped: a fake HOME copy is ignored', () => {
   }
   created.push(home)
 
-  const dir = repo({ 'CLAUDE.md': 'PROJECT-ONLY\n' })
+  const dir = repo({ 'AGENTS.md': 'PROJECT-ONLY\n' })
   const loaded = runInRepo(
     dir,
     `process.env.HOME = ${JSON.stringify(home)};
@@ -306,31 +303,25 @@ test('foreign rules are project-scoped: a fake HOME copy is ignored', () => {
   assert.ok(blob.includes('PROJECT-ONLY'))
 })
 
-test('native instructions rank above inherited ones', () => {
-  // Later files are higher priority in this module, so the order must run
-  // foreign -> AGENTS.md -> native. A rule inherited from another tool must
-  // not outrank the repo's own CLAUDE.md.
+test('AGENTS.md ranks above inherited instructions', () => {
   const dir = repo({
-    'CLAUDE.md': 'CLAUDE-BODY\n',
     'AGENTS.md': 'AGENTS-BODY\n',
     '.cursor/rules/always.mdc': '---\nalwaysApply: true\n---\nCURSOR-BODY\n',
   })
   assert.deepEqual(eagerFiles(dir), [
     '.cursor/rules/always.mdc',
     'AGENTS.md',
-    'CLAUDE.md',
   ])
 })
 
-test('a foreign conditional rule ranks below native rules', () => {
+test('Claude conditional rules are ignored while foreign rules still load', () => {
   const dir = repo({
-    '.claude/rules/native.md': '---\npaths: src/**\n---\nNATIVE-SCOPED\n',
+    '.claude/rules/native.md': '---\npaths: src/**\n---\nLEGACY-SCOPED\n',
     '.cursor/rules/db.mdc': '---\nglobs: "src/**"\n---\nCURSOR-SCOPED\n',
     'src/x.ts': '',
   })
   assert.deepEqual(conditionalFor(dir, join(dir, 'src/x.ts')), [
     '.cursor/rules/db.mdc',
-    '.claude/rules/native.md',
   ])
 })
 
@@ -339,7 +330,7 @@ test('an explicit @include into a foreign rules dir still resolves', () => {
   // must keep native semantics, or a Cursor-dir target would be classified
   // dormant and silently vanish from content the author asked for by name.
   const dir = repo({
-    'CLAUDE.md': '# root\n@./.cursor/rules/shared.mdc\nmain body\n',
+    'AGENTS.md': '# root\n@./.cursor/rules/shared.mdc\nmain body\n',
     '.cursor/rules/shared.mdc': 'SHARED-INCLUDE-BODY\n',
   })
   const names = eagerFiles(dir)

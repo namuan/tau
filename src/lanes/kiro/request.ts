@@ -498,7 +498,7 @@ export function _convertMessages(
   }
 
   // Kiro has no system role — 9router prepends the system prompt onto
-  // the first user turn. Mirror that so CLAUDE.md / environment / git
+  // the first user turn. Mirror that so AGENTS.md / environment / git
   // status still reach the model. Sent once; subsequent user turns carry
   // only their own content.
   let systemInjected = !systemText

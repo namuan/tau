@@ -135,23 +135,20 @@ test('dialect is chosen from the file location', () => {
   assert.equal(d('/repo/.github/instructions/tests.instructions.md'), 'copilot-instructions')
   assert.equal(d('/repo/.windsurf/rules/style.md'), 'windsurf')
   assert.equal(d('/repo/.clinerules/coding.md'), 'cline')
-  // Native paths must not be reinterpreted.
-  assert.equal(d('/repo/CLAUDE.md'), 'claude')
-  assert.equal(d('/repo/AGENTS.md'), 'claude')
-  assert.equal(d('/repo/.claude/rules/style.md'), 'claude')
-  assert.equal(d('/repo/.github/copilot-instructions.md'), 'claude')
+  assert.equal(d('/repo/AGENTS.md'), 'tau')
+  assert.equal(d('/repo/.github/copilot-instructions.md'), 'tau')
 })
 
 test('dialect detection works with Windows separators', () => {
   assert.equal(F.dialectForPath('C:\\repo\\.cursor\\rules\\db.mdc').id, 'cursor')
-  assert.equal(F.dialectForPath('C:\\repo\\CLAUDE.md').id, 'claude')
+  assert.equal(F.dialectForPath('C:\\repo\\AGENTS.md').id, 'tau')
 })
 
 test('a directory named like a rules dir elsewhere still resolves', () => {
   // `.cursor/rules` nested deeper in the tree is still a Cursor rules dir.
   assert.equal(F.dialectForPath('/repo/packages/app/.cursor/rules/a.mdc').id, 'cursor')
   // A file merely named `.cursor` is not a rules dir.
-  assert.equal(F.dialectForPath('/repo/.cursor').id, 'claude')
+  assert.equal(F.dialectForPath('/repo/.cursor').id, 'tau')
 })
 
 test('trailing /** is trimmed and all-** collapses to everything', () => {

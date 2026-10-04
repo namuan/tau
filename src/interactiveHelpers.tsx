@@ -23,7 +23,7 @@ import { initializeGrowthBook, resetGrowthBook } from './services/analytics/grow
 import { AppStateProvider } from './state/AppState.js';
 import { onChangeAppState } from './state/onChangeAppState.js';
 import { normalizeApiKeyForConfig } from './utils/authPortable.js';
-import { getExternalClaudeMdIncludes, getMemoryFiles, shouldShowClaudeMdExternalIncludesWarning } from './utils/claudemd.js';
+import { getExternalInstructionIncludes, getMemoryFiles, shouldShowExternalInstructionWarning } from './utils/claudemd.js';
 import { checkHasTrustDialogAccepted, getCustomApiKeyStatus, getGlobalConfig, saveGlobalConfig } from './utils/config.js';
 import { updateDeepLinkTerminalPreference } from './utils/deepLink/terminalPreference.js';
 import { isEnvTruthy, isRunningOnHomespace } from './utils/envUtils.js';
@@ -197,7 +197,7 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
 
   // Always show the trust dialog in interactive sessions, regardless of permission mode.
   // The trust dialog is the workspace trust boundary — it warns about untrusted repos
-  // and checks CLAUDE.md external includes. bypassPermissions mode
+  // and checks AGENTS.md external includes. bypassPermissions mode
   // only affects tool execution permissions, not workspace trust.
   // Note: non-interactive sessions (CI/CD with -p) never reach showSetupScreens at all.
   // Skip permission checks in claubbit
@@ -227,9 +227,9 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
     void getSystemContext();
 
     // Check for claude.md includes that need approval
-    trace('before shouldShowClaudeMdExternalIncludesWarning');
-    if (await shouldShowClaudeMdExternalIncludesWarning()) {
-      const externalIncludes = getExternalClaudeMdIncludes(await getMemoryFiles(true));
+    trace('before shouldShowExternalInstructionWarning');
+    if (await shouldShowExternalInstructionWarning()) {
+      const externalIncludes = getExternalInstructionIncludes(await getMemoryFiles(true));
       const {
         ClaudeMdExternalIncludesDialog
       } = await import('./components/ClaudeMdExternalIncludesDialog.js');

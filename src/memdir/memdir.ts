@@ -331,7 +331,7 @@ export function buildCompactMemoryLines(
     '  - `decision`: a significant choice, rejected alternatives, and rationale; mark it superseded when a later decision replaces it.',
     '  - `project`: non-derivable goals, deadlines, incidents, or coordination context; convert relative dates to absolute dates.',
     '  - `reference`: where current information lives in an external system.',
-    '- Never save secrets or sensitive credentials, negative personal judgments, code patterns/architecture/paths, git history, fix recipes, CLAUDE.md content, or current-task/conversation/temporary state. These exclusions still apply when asked to save; isolate the surprising durable lesson or ask what that lesson is.',
+    '- Never save secrets or sensitive credentials, negative personal judgments, code patterns/architecture/paths, git history, fix recipes, AGENTS.md content, or current-task/conversation/temporary state. These exclusions still apply when asked to save; isolate the surprising durable lesson or ask what that lesson is.',
     '',
     '## File contract',
     'Use one semantic topic file per memory (not chronological files), with this exact frontmatter:',
@@ -437,7 +437,7 @@ function buildAssistantDailyLogPrompt(
     return [
       '# auto memory',
       `Append durable, non-derivable memories to today\'s log at \`${logPathPattern}\`, substituting the current date. Use short timestamped bullets; create parents on first write, never rewrite the append-only log, and move to the new date when it changes.`,
-      'Log explicit remember requests, user corrections/preferences, user context, non-code project decisions/deadlines/incidents, and external-system pointers. Never log secrets, code/architecture/paths, git history, fix recipes, CLAUDE.md content, or temporary/current-task state.',
+      'Log explicit remember requests, user corrections/preferences, user context, non-code project decisions/deadlines/incidents, and external-system pointers. Never log secrets, code/architecture/paths, git history, fix recipes, AGENTS.md content, or temporary/current-task state.',
       ...(skipIndex
         ? []
         : [

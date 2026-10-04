@@ -8,7 +8,7 @@
  * transcripts, pairs each failed shell command with the next similar
  * successful one in the same session, folds the pairs into a handful of
  * rules, and (via the /corrections command) writes them into a marker-
- * delimited block in the project CLAUDE.md so the NEXT session runs the
+ * delimited block in the project AGENTS.md so the NEXT session runs the
  * right command first.
  *
  * Precision beats recall throughout: an unpaired failure teaches nothing
@@ -472,7 +472,7 @@ export async function scanTranscriptsForCorrections(
   }
 }
 
-// --- CLAUDE.md block rendering -------------------------------------------------
+// --- AGENTS.md block rendering -------------------------------------------------
 
 export const CORRECTIONS_BEGIN = '<!-- tau:learned-corrections:start -->'
 export const CORRECTIONS_END = '<!-- tau:learned-corrections:end -->'
@@ -496,7 +496,7 @@ function renderRule(rule: CorrectionRule): string {
   }
 }
 
-/** Render the full marker-delimited CLAUDE.md block for these rules. */
+/** Render the full marker-delimited AGENTS.md block for these rules. */
 export function renderCorrectionsBlock(rules: readonly CorrectionRule[]): string {
   return [
     CORRECTIONS_BEGIN,
@@ -509,7 +509,7 @@ export function renderCorrectionsBlock(rules: readonly CorrectionRule[]): string
 
 /**
  * Idempotently upsert (or, with `block === null`, remove) the corrections
- * block in a CLAUDE.md body. Content outside the markers is untouched.
+ * block in a AGENTS.md body. Content outside the markers is untouched.
  */
 export function upsertCorrectionsBlock(
   existing: string,

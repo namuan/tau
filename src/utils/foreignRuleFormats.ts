@@ -47,7 +47,7 @@ export type ForeignRuleDialect = {
   /**
    * Whether `alwaysApply` / `trigger` in this dialect mean anything. Native tau
    * rules are scoped by `paths:` alone, so those keys stay inert data there —
-   * a CLAUDE.md rule that happens to carry `alwaysApply: true` alongside
+   * an AGENTS.md rule that happens to carry `alwaysApply: true` alongside
    * `paths:` must keep behaving exactly as it did before this existed.
    */
   honorsActivationMarkers: boolean
@@ -55,7 +55,7 @@ export type ForeignRuleDialect = {
 
 /** Native tau rules: only `paths:`, unscoped means unconditional. */
 export const NATIVE_DIALECT: ForeignRuleDialect = {
-  id: 'claude',
+  id: 'tau',
   pathKeys: ['paths'],
   unscoped: 'always',
   honorsActivationMarkers: false,
@@ -244,7 +244,7 @@ export const FOREIGN_RULE_DIR_SOURCES: readonly ForeignRuleDirSource[] = [
  *
  * Read as a fallback chain — the first hit in a directory wins and the rest are
  * skipped — and only when that directory produced no native instructions
- * (CLAUDE.md, .claude/rules, AGENTS.md) of its own. These files all mean "apply
+ * (AGENTS.md) of its own. These files all mean "apply
  * to the entire project", so a repo that accumulated several across tool
  * migrations would otherwise pay for near-identical copies of the same guidance
  * in its cached prompt prefix on every request. The maintained file is the one
@@ -289,8 +289,7 @@ export const FOREIGN_GENERIC_SOURCES: readonly ForeignGenericSource[] = [
  *
  * A file's location is what identifies its author tool, so detection is by
  * path rather than by threading a dialect through the loader. Anything that
- * matches no foreign location reads as native, which keeps CLAUDE.md and
- * .claude/rules behavior byte-identical.
+ * matches no foreign location reads with Tau's native instruction semantics.
  */
 export function dialectForPath(filePath: string): ForeignRuleDialect {
   const parts = filePath.replaceAll('\\', '/').split('/')

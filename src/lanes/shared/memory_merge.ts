@@ -1,23 +1,19 @@
 /**
- * Memory merger — loads CLAUDE.md / GEMINI.md / AGENTS.md / QWEN.md
+ * Memory merger — loads AGENTS.md / GEMINI.md / QWEN.md
  * interchangeably and returns a single merged context block each lane
  * can inject into its native system prompt.
  *
  * Filename precedence (highest wins for same-key sections):
- *   1. <cwd>/CLAUDE.md         — project-local, highest priority
- *   2. <cwd>/.claude/CLAUDE.md — nested Claude convention
- *   3. <cwd>/AGENTS.md         — OpenCode / cross-CLI standard
- *   4. <cwd>/.opencode/AGENTS.md
- *   5. <cwd>/GEMINI.md + <cwd>/.gemini/GEMINI.md
- *   6. <cwd>/QWEN.md + <cwd>/.qwen/QWEN.md
- *   7. <HOME>/.claude/CLAUDE.md      — user-global
- *   8. <HOME>/.config/opencode/AGENTS.md
- *   9. <HOME>/.gemini/GEMINI.md
- *  10. <HOME>/.qwen/QWEN.md
+ *   1. <cwd>/AGENTS.md
+ *   2. <cwd>/.opencode/AGENTS.md
+ *   3. <cwd>/GEMINI.md + <cwd>/.gemini/GEMINI.md
+ *   4. <cwd>/QWEN.md + <cwd>/.qwen/QWEN.md
+ *   5. <HOME>/.config/tau/AGENTS.md
+ *   6. <HOME>/.config/opencode/AGENTS.md
+ *   7. <HOME>/.gemini/GEMINI.md
+ *   8. <HOME>/.qwen/QWEN.md
  *
- * Rationale: project files override user-global files; Claude-flavored
- * files win over agents.md only because most users will put their
- * repo-specific instructions there first. All four are treated as
+ * Rationale: project files override user-global files. All supported formats are treated as
  * equivalent semantically — if a project carries more than one, they
  * get concatenated with explicit source markers so the model can tell
  * them apart.
@@ -63,8 +59,6 @@ export function loadMergedMemory(opts: MemoryMergeOptions = {}): MergedMemory {
   const candidates: Array<{ path: string; label: string }> = []
 
   // Project-local, in priority order.
-  candidates.push({ path: join(cwd, 'CLAUDE.md'), label: 'CLAUDE.md' })
-  candidates.push({ path: join(cwd, '.claude', 'CLAUDE.md'), label: '.claude/CLAUDE.md' })
   candidates.push({ path: join(cwd, 'AGENTS.md'), label: 'AGENTS.md' })
   candidates.push({ path: join(cwd, '.opencode', 'AGENTS.md'), label: '.opencode/AGENTS.md' })
   candidates.push({ path: join(cwd, 'GEMINI.md'), label: 'GEMINI.md' })
@@ -76,7 +70,7 @@ export function loadMergedMemory(opts: MemoryMergeOptions = {}): MergedMemory {
   // User-global.
   if (includeHome) {
     const home = homedir()
-    candidates.push({ path: join(home, '.claude', 'CLAUDE.md'), label: '~/.claude/CLAUDE.md' })
+    candidates.push({ path: join(home, '.config', 'tau', 'AGENTS.md'), label: '~/.config/tau/AGENTS.md' })
     candidates.push({ path: join(home, '.config', 'opencode', 'AGENTS.md'), label: '~/.config/opencode/AGENTS.md' })
     candidates.push({ path: join(home, '.gemini', 'GEMINI.md'), label: '~/.gemini/GEMINI.md' })
     candidates.push({ path: join(home, '.qwen', 'QWEN.md'), label: '~/.qwen/QWEN.md' })

@@ -3,7 +3,7 @@
  *
  * Memories are constrained to six types capturing context NOT derivable
  * from the current project state. Code patterns, architecture, git history,
- * and file structure are derivable (via grep/git/CLAUDE.md) and should NOT
+ * and file structure are derivable (via grep/git/AGENTS.md) and should NOT
  * be saved as memories.
  *
  * `feedback` and `invariant` form a soft/hard pair: feedback is advisory
@@ -253,7 +253,7 @@ export const WHAT_NOT_TO_SAVE_SECTION: readonly string[] = [
   '- Code patterns, conventions, architecture, file paths, or project structure — these can be derived by reading the current project state.',
   '- Git history, recent changes, or who-changed-what — `git log` / `git blame` are authoritative.',
   '- Debugging solutions or fix recipes — the fix is in the code; the commit message has the context.',
-  '- Anything already documented in CLAUDE.md files.',
+  '- Anything already documented in AGENTS.md files.',
   '- Ephemeral task details: in-progress work, temporary state, current conversation context.',
   '',
   // H2: explicit-save gate. Eval-validated (memory-prompt-iteration case 3,

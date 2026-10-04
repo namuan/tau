@@ -28,7 +28,7 @@ import { Dialog } from '../design-system/Dialog.js';
 import { Select } from '../CustomSelect/index.js';
 import { OutputStylePicker } from '../OutputStylePicker.js';
 import { LanguagePicker } from '../LanguagePicker.js';
-import { getExternalClaudeMdIncludes, getMemoryFiles, hasExternalClaudeMdIncludes } from 'src/utils/claudemd.js';
+import { getExternalInstructionIncludes, getMemoryFiles, hasExternalInstructionIncludes } from 'src/utils/claudemd.js';
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
 import { Byline } from '../design-system/Byline.js';
@@ -195,7 +195,7 @@ export function Config({
   }, [ownsEsc, onIsSearchModeChange]);
   const isFileCheckpointingAvailable = !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING);
   const memoryFiles = React.use(getMemoryFiles(true));
-  const shouldShowExternalIncludesToggle = hasExternalClaudeMdIncludes(memoryFiles);
+  const shouldShowExternalIncludesToggle = hasExternalInstructionIncludes(memoryFiles);
   const autoUpdaterDisabledReason = getAutoUpdaterDisabledReason();
   function onChangeMainModelConfig(value: string | null): void {
     const previousModel = mainLoopModel;
@@ -872,10 +872,10 @@ export function Config({
   })() : []),
 ...(shouldShowExternalIncludesToggle ? [{
     id: 'showExternalIncludesDialog',
-    label: 'External CLAUDE.md includes',
+    label: 'External instruction imports',
     value: (() => {
       const projectConfig = getCurrentProjectConfig();
-      if (projectConfig.hasClaudeMdExternalIncludesApproved) {
+      if (projectConfig.hasInstructionFileIncludesApproved) {
         return 'true';
       } else {
         return 'false';
@@ -1411,7 +1411,7 @@ export function Config({
           <ClaudeMdExternalIncludesDialog onDone={() => {
         setShowSubmenu(null);
         setTabsHidden(false);
-      }} externalIncludes={getExternalClaudeMdIncludes(memoryFiles)} />
+      }} externalIncludes={getExternalInstructionIncludes(memoryFiles)} />
           <Text dimColor>
             <Byline>
               <KeyboardShortcutHint shortcut="Enter" action="confirm" />

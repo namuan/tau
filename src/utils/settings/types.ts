@@ -727,14 +727,14 @@ export const SettingsSchema = lazySchema(() =>
             'Typically set in managed settings by enterprise administrators ' +
             'to pre-configure SSH connections for team members.',
         ),
-      claudeMdExcludes: z
+      instructionFileExcludes: z
         .array(z.string())
         .optional()
         .describe(
-          'Glob patterns or absolute paths of CLAUDE.md files to exclude from loading. ' +
+          'Glob patterns or absolute paths of instruction files to exclude from loading. ' +
             'Patterns are matched against absolute file paths using picomatch. ' +
             'Only applies to User, Project, and Local memory types (Managed/policy files cannot be excluded). ' +
-            'Examples: "/home/user/monorepo/CLAUDE.md", "**/code/CLAUDE.md", "**/some-dir/.claude/rules/**"',
+            'Examples: "/home/user/monorepo/AGENTS.md", "**/code/AGENTS.local.md", "**/some-dir/AGENTS.md"',
         ),
     })
     .passthrough(),

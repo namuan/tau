@@ -198,13 +198,13 @@ export interface LaneRunContext {
 
 // ─── System Prompt Parts ─────────────────────────────────────────
 //
-// The shared layer extracts these from CLAUDE.md/GEMINI.md/AGENTS.md,
+// The shared layer extracts these from AGENTS.md/GEMINI.md/AGENTS.md,
 // environment, git status, hooks, skills, etc. Each lane injects them
 // into its native prompt template at the appropriate slots.
 
 export interface SystemPromptParts {
   /**
-   * User/project memory content (from CLAUDE.md, GEMINI.md, AGENTS.md,
+   * User/project memory content (from AGENTS.md, GEMINI.md, AGENTS.md,
    * QWEN.md — whichever exists). Already merged and deduplicated.
    */
   memory: string

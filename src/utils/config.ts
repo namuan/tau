@@ -16,7 +16,7 @@ import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { getGlobalClaudeFile } from './env.js'
-import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
+import { getTauConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { ConfigParseError, getErrnoCode } from './errors.js'
 import { writeFileSyncAndFlush_DEPRECATED } from './file.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -108,8 +108,8 @@ export type ProjectConfig = {
 
   hasCompletedProjectOnboarding?: boolean
   projectOnboardingSeenCount: number
-  hasClaudeMdExternalIncludesApproved?: boolean
-  hasClaudeMdExternalIncludesWarningShown?: boolean
+  hasInstructionFileIncludesApproved?: boolean
+  hasInstructionFileIncludesWarningShown?: boolean
   // Worktree session management
   activeWorktreeSession?: {
     originalCwd: string
@@ -125,8 +125,8 @@ const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   allowedTools: [],
   hasTrustDialogAccepted: false,
   projectOnboardingSeenCount: 0,
-  hasClaudeMdExternalIncludesApproved: false,
-  hasClaudeMdExternalIncludesWarningShown: false,
+  hasInstructionFileIncludesApproved: false,
+  hasInstructionFileIncludesWarningShown: false,
 }
 
 export type InstallMethod = 'local' | 'native' | 'global' | 'unknown'
@@ -1327,7 +1327,7 @@ export function enableConfigs(): void {
  * Uses ~/.claude/backups/ to keep the home directory clean.
  */
 function getConfigBackupDir(): string {
-  return join(getClaudeConfigHomeDir(), 'backups')
+  return join(getTauConfigHomeDir(), 'backups')
 }
 
 /**
@@ -1735,13 +1735,13 @@ export function getMemoryPath(memoryType: MemoryType): string {
 
   switch (memoryType) {
     case 'User':
-      return join(getClaudeConfigHomeDir(), 'CLAUDE.md')
+      return join(getTauConfigHomeDir(), 'AGENTS.md')
     case 'Local':
-      return join(cwd, 'CLAUDE.local.md')
+      return join(cwd, 'AGENTS.local.md')
     case 'Project':
-      return join(cwd, 'CLAUDE.md')
+      return join(cwd, 'AGENTS.md')
     case 'Managed':
-      return join(getManagedFilePath(), 'CLAUDE.md')
+      return join(getManagedFilePath(), 'AGENTS.md')
     case 'AutoMem':
       return getAutoMemEntrypoint()
   }
@@ -1750,14 +1750,6 @@ export function getMemoryPath(memoryType: MemoryType): string {
     return teamMemPaths!.getTeamMemEntrypoint()
   }
   return '' // unreachable in external builds where TeamMem is not in MemoryType
-}
-
-export function getManagedClaudeRulesDir(): string {
-  return join(getManagedFilePath(), '.claude', 'rules')
-}
-
-export function getUserClaudeRulesDir(): string {
-  return join(getClaudeConfigHomeDir(), 'rules')
 }
 
 // Exported for testing only

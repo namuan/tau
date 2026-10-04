@@ -13,7 +13,7 @@
  *                     mandates, workflow descriptions, tool usage
  *                     guidelines, skills context, MCP intro. Feeds the
  *                     cache key.
- *   - Volatile slot — per-turn content: memory (CLAUDE.md etc.),
+ *   - Volatile slot — per-turn content: memory (AGENTS.md etc.),
  *                     environment block, git status, date. Lives
  *                     AFTER the cache boundary — inline in the first
  *                     user message, or in a trailing system block past
@@ -87,7 +87,7 @@ export function stableFrom(
  * Render the volatile portion — content that changes turn-to-turn.
  *
  * Volatile sections:
- *   - memory (CLAUDE.md / GEMINI.md / AGENTS.md / QWEN.md merged)
+ *   - memory (AGENTS.md / GEMINI.md / AGENTS.md / QWEN.md merged)
  *   - environment (cwd, date, os, shell)
  *   - gitStatus (branch, dirty/clean, ahead/behind)
  *

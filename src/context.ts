@@ -159,15 +159,15 @@ export const getUserContext = memoize(
     const startTime = Date.now()
     logForDiagnosticsNoPII('info', 'user_context_started')
 
-    // CLAUDE_CODE_DISABLE_CLAUDE_MDS: hard off, always.
+    // TAU_DISABLE_INSTRUCTION_FILES: hard off, always.
     // --bare: skip auto-discovery (cwd walk), BUT honor explicit --add-dir.
     // --bare means "skip what I didn't ask for", not "ignore what I asked for".
-    const shouldDisableClaudeMd =
-      isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_CLAUDE_MDS) ||
+    const shouldDisableInstructions =
+      isEnvTruthy(process.env.TAU_DISABLE_INSTRUCTION_FILES) ||
       (isBareMode() && getAdditionalDirectoriesForClaudeMd().length === 0)
     // Await the async I/O (readFile/readdir directory walk) so the event
     // loop yields naturally at the first fs.readFile.
-    const claudeMd = shouldDisableClaudeMd
+    const claudeMd = shouldDisableInstructions
       ? null
       : getClaudeMds(filterInjectedMemoryFiles(await getMemoryFiles()))
     // Cache for the auto-mode classifier (yoloClassifier.ts reads this
@@ -178,7 +178,7 @@ export const getUserContext = memoize(
     logForDiagnosticsNoPII('info', 'user_context_completed', {
       duration_ms: Date.now() - startTime,
       claudemd_length: claudeMd?.length ?? 0,
-      claudemd_disabled: Boolean(shouldDisableClaudeMd),
+      claudemd_disabled: Boolean(shouldDisableInstructions),
     })
 
     return {

@@ -5,14 +5,14 @@ import type { Command } from '../../commands.js'
  * transcripts. Finds commands that failed and were re-run in a fixed form
  * (e.g. `python` failing, `.venv\Scripts\python.exe` working), folds them
  * into rules, and on `apply` writes them into a marker-delimited block in
- * the project CLAUDE.md so the next session runs the right command first.
+ * the project AGENTS.md so the next session runs the right command first.
  * Dry-run by default; no model calls.
  */
 const corrections = {
   type: 'local',
   name: 'corrections',
   description:
-    'Mine past sessions for command corrections and write them to CLAUDE.md',
+    'Mine past sessions for command corrections and write them to AGENTS.md',
   argumentHint: '[apply|clear]',
   isEnabled: () => true,
   supportsNonInteractive: true,

@@ -128,7 +128,7 @@ export function buildCompactCombinedMemoryPrompt(
     '  - `decision`: significant choice, alternatives, and rationale; usually team; mark superseded decisions.',
     '  - `project`: non-code goals/deadlines/incidents/coordination; strongly prefer team and make dates absolute.',
     '  - `reference`: location of current external information; usually team.',
-    '- Never put secrets/credentials or sensitive personal data in team memory. Never save negative personal judgments, code patterns/architecture/paths, git history, fix recipes, CLAUDE.md content, or current-task/conversation/temporary state. These exclusions still apply when asked; isolate the surprising durable lesson or ask what it is.',
+    '- Never put secrets/credentials or sensitive personal data in team memory. Never save negative personal judgments, code patterns/architecture/paths, git history, fix recipes, AGENTS.md content, or current-task/conversation/temporary state. These exclusions still apply when asked; isolate the surprising durable lesson or ask what it is.',
     '',
     '## File contract',
     'Use one semantic topic file per memory in the chosen directory, with:',

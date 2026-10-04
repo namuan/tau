@@ -113,12 +113,12 @@ type State = {
   // Last API request for bug reports
   lastAPIRequest: Omit<BetaMessageStreamParams, 'messages'> | null
   // Messages from the last API request (ant-only; reference, not clone).
-  // Captures the exact post-compaction, CLAUDE.md-injected message set sent
+  // Captures the exact post-compaction, AGENTS.md-injected message set sent
   // to the API so /share's serialized_conversation.json reflects reality.
   lastAPIRequestMessages: BetaMessageStreamParams['messages'] | null
   // Last auto-mode classifier request(s) for /share transcript
   lastClassifierRequests: unknown[] | null
-  // CLAUDE.md content cached by context.ts for the auto-mode classifier.
+  // AGENTS.md content cached by context.ts for the auto-mode classifier.
   // Breaks the yoloClassifier → claudemd → filesystem → permissions cycle.
   cachedClaudeMdContent: string | null
   // In-memory error log for recent errors
@@ -193,7 +193,7 @@ type State = {
   systemPromptSectionCache: Map<string, string | null>
   // Last date emitted to the model (for detecting midnight date changes)
   lastEmittedDate: string | null
-  // Additional directories from --add-dir flag (for CLAUDE.md loading)
+  // Additional directories from --add-dir flag (for AGENTS.md loading)
   additionalDirectoriesForClaudeMd: string[]
   // Dir containing the session's `.jsonl`; null = derive from originalCwd.
   sessionProjectDir: string | null
@@ -352,7 +352,7 @@ function getInitialState(): State {
     systemPromptSectionCache: new Map(),
     // Last date emitted to the model
     lastEmittedDate: null,
-    // Additional directories from --add-dir flag (for CLAUDE.md loading)
+    // Additional directories from --add-dir flag (for AGENTS.md loading)
     additionalDirectoriesForClaudeMd: [],
     // Session project dir (null = derive from originalCwd)
     sessionProjectDir: null,

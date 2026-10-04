@@ -1,20 +1,14 @@
 /**
- * Files are loaded in the following order:
+ * Instruction files are loaded from managed and Tau-owned user locations, then
+ * project and local files found while walking from the current directory to root.
+ * Project AGENTS.md files are shareable; AGENTS.local.md files are private.
+ * Later files in the load order have higher priority.
  *
- * 1. Managed memory (eg. /etc/claude-code/CLAUDE.md) - Global instructions for all users
- * 2. User memory (~/.claude/CLAUDE.md) - Private global instructions for all projects
- * 3. Project memory (CLAUDE.md, .claude/CLAUDE.md, .claude/rules/*.md, and AGENTS.md in project roots) - Instructions checked into the codebase
- * 4. Local memory (CLAUDE.local.md in project roots) - Private project-specific instructions
- *
- * Files are loaded in reverse order of priority, i.e. the latest files are highest priority
- * with the model paying more attention to them.
- *
- * File discovery:
- * - User memory is loaded from the user's home directory
- * - Project and Local files are discovered by traversing from the current directory up to root
- * - Files closer to the current directory have higher priority (loaded later)
- * - CLAUDE.md, .claude/CLAUDE.md, all .md files in .claude/rules/, and AGENTS.md are checked in each directory for Project memory
- * - AGENTS.md is the cross-vendor convention (Codex, Cursor, Zed); it is read last in each directory and skipped when its content duplicates a CLAUDE.md already loaded
+ * Foreign coding-agent rule formats are supported separately:
+ * - .cursor/rules/*.mdc, .github/instructions/*.instructions.md, and
+ *   .windsurf/rules/*.md use each tool's activation semantics
+ * - .github/copilot-instructions.md, .clinerules, and .windsurfrules are
+ *   whole-project fallbacks used only when the directory has no AGENTS.md
  *
  * Rules written by other coding agents (project-scoped only; their user-level
  * locations are deliberately not read):
@@ -66,9 +60,7 @@ import { getAutoMemEntrypoint, isAutoMemoryEnabled } from '../memdir/paths.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import {
   getCurrentProjectConfig,
-  getManagedClaudeRulesDir,
   getMemoryPath,
-  getUserClaudeRulesDir,
 } from './config.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
@@ -594,19 +586,19 @@ function extractIncludePathsFromTokens(
 const MAX_INCLUDE_DEPTH = 5
 
 /**
- * Checks whether a CLAUDE.md file path is excluded by the claudeMdExcludes setting.
+ * Checks whether a AGENTS.md file path is excluded by the instructionFileExcludes setting.
  * Only applies to User, Project, and Local memory types.
  * Managed, AutoMem, and TeamMem types are never excluded.
  *
  * Matches both the original path and the realpath-resolved path to handle symlinks
  * (e.g., /tmp -> /private/tmp on macOS).
  */
-function isClaudeMdExcluded(filePath: string, type: MemoryType): boolean {
+function isInstructionFileExcluded(filePath: string, type: MemoryType): boolean {
   if (type !== 'User' && type !== 'Project' && type !== 'Local') {
     return false
   }
 
-  const patterns = getInitialSettings().claudeMdExcludes
+  const patterns = getInitialSettings().instructionFileExcludes
   if (!patterns || patterns.length === 0) {
     return false
   }
@@ -616,7 +608,7 @@ function isClaudeMdExcluded(filePath: string, type: MemoryType): boolean {
 
   // Build an expanded pattern list that includes realpath-resolved versions of
   // absolute patterns. This handles symlinks like /tmp -> /private/tmp on macOS:
-  // the user writes "/tmp/project/CLAUDE.md" in their exclude, but the system
+  // the user writes "/tmp/project/AGENTS.md" in their exclude, but the system
   // resolves the CWD to "/private/tmp/project/...", so the file path uses the
   // real path. By resolving the patterns too, both sides match.
   const expandedPatterns = resolveExcludePatterns(patterns).filter(
@@ -653,7 +645,7 @@ function resolveExcludePatterns(patterns: string[]): string[] {
     const dirToResolve = dirname(staticPrefix)
 
     try {
-      // sync IO: called from sync context (isClaudeMdExcluded -> processMemoryFile -> getMemoryFiles)
+      // sync IO: called from sync context (isInstructionFileExcluded -> processMemoryFile -> getMemoryFiles)
       const resolvedDir = fs.realpathSync(dirToResolve).replaceAll('\\', '/')
       if (resolvedDir !== dirToResolve) {
         const resolvedPattern =
@@ -688,8 +680,8 @@ export async function processMemoryFile(
     return []
   }
 
-  // Skip if path is excluded by claudeMdExcludes setting
-  if (isClaudeMdExcluded(filePath, type)) {
+  // Skip if path is excluded by instructionFileExcludes setting
+  if (isInstructionFileExcluded(filePath, type)) {
     return []
   }
 
@@ -742,7 +734,7 @@ export async function processMemoryFile(
 }
 
 /**
- * Processes all .md files in the .claude/rules/ directory and its subdirectories
+ * Processes rule files from supported coding-agent rule directories.
  * @param rulesDir The path to the rules directory
  * @param type Type of memory file (User, Project, Local)
  * @param processedPaths Set of already processed file paths
@@ -856,30 +848,14 @@ export async function processMdRules({
 }
 
 /**
- * Reads `AGENTS.md` from `dir` in the same slot as CLAUDE.md.
+ * Reads `AGENTS.md` from `dir`.
  *
  * AGENTS.md is the instruction file Codex, Cursor, Zed and others already
  * write, so a team that has one gets their build commands and conventions
  * honored without converting anything.
  *
- * Probed after the CLAUDE.md sources so that CLAUDE.md wins the content dedup
- * below. Note this also places AGENTS.md later in the load order, and this
- * module treats later files as higher priority, so a repo carrying both gives
- * AGENTS.md slightly more weight. The two orderings cannot both be satisfied
- * without re-sorting after the walk; dedup correctness was chosen because it
- * is a hard guarantee while load order is a soft hint to the model.
- *
- * Content-deduped against what is already loaded. Repos routinely ship
- * AGENTS.md as a copy of — or a symlink to — CLAUDE.md, and the path dedup in
- * processMemoryFile does not catch that here: it tests the *link* path and
- * only then records the resolved path, so it dedupes a symlink solely when the
- * link is visited before its target. CLAUDE.md is probed first, so that
- * ordering never holds, and identical content would otherwise reach the prompt
- * twice. Dedup is scoped to this probe to leave every existing source's
- * behavior untouched.
- *
- * Opting out uses the existing `claudeMdExcludes` setting (e.g.
- * `"**\/AGENTS.md"`), which already covers every Project-type memory file.
+ * Content is deduplicated against instructions already loaded from parent
+ * directories so identical files do not reach the prompt twice.
  */
 async function processAgentsMemoryFile(
   dir: string,
@@ -931,24 +907,11 @@ function foreignRuleDirSpecs(
  */
 async function hasNativeProjectInstructions(dir: string): Promise<boolean> {
   const fs = getFsImplementation()
-  // Emptiness counts as absence. A zero-byte CLAUDE.md or a `.claude/rules`
-  // holding nothing but a .gitkeep contributes no guidance, so letting either
-  // suppress the fallback would leave the directory with no instructions at
-  // all — worse than the duplication the gate exists to prevent.
-  for (const name of ['CLAUDE.md', 'AGENTS.md', join('.claude', 'CLAUDE.md')]) {
-    try {
-      if ((await fs.stat(join(dir, name))).size > 0) return true
-    } catch {
-      // missing candidate; keep looking
-    }
-  }
   try {
-    const entries = await fs.readdir(join(dir, '.claude', 'rules'))
-    if (entries.some(entry => entry.name.endsWith('.md'))) return true
+    return (await fs.stat(join(dir, 'AGENTS.md'))).size > 0
   } catch {
-    // no rules directory
+    return false
   }
-  return false
 }
 
 /**
@@ -1126,7 +1089,7 @@ export const getMemoryFiles = memoize(
     const config = getCurrentProjectConfig()
     const includeExternal =
       forceIncludeExternal ||
-      config.hasClaudeMdExternalIncludesApproved ||
+      config.hasInstructionFileIncludesApproved ||
       false
 
     // Process Managed file first (always loaded - policy settings)
@@ -1139,18 +1102,6 @@ export const getMemoryFiles = memoize(
         includeExternal,
       )),
     )
-    // Process Managed .claude/rules/*.md files
-    const managedClaudeRulesDir = getManagedClaudeRulesDir()
-    result.push(
-      ...(await processMdRules({
-        rulesDir: managedClaudeRulesDir,
-        type: 'Managed',
-        processedPaths,
-        includeExternal,
-        conditionalRule: false,
-      })),
-    )
-
     // Process User file (only if userSettings is enabled)
     if (isSettingSourceEnabled('userSettings')) {
       const userClaudeMd = getMemoryPath('User')
@@ -1161,17 +1112,6 @@ export const getMemoryFiles = memoize(
           processedPaths,
           true, // User memory can always include external files
         )),
-      )
-      // Process User ~/.claude/rules/*.md files
-      const userClaudeRulesDir = getUserClaudeRulesDir()
-      result.push(
-        ...(await processMdRules({
-          rulesDir: userClaudeRulesDir,
-          type: 'User',
-          processedPaths,
-          includeExternal: true,
-          conditionalRule: false,
-        })),
       )
     }
 
@@ -1186,13 +1126,11 @@ export const getMemoryFiles = memoize(
     }
 
     // When running from a git worktree nested inside its main repo (e.g.,
-    // .claude/worktrees/<name>/ from `claude -w`), the upward walk passes
-    // through both the worktree root and the main repo root. Both contain
-    // checked-in files like CLAUDE.md and .claude/rules/*.md, so the same
-    // content gets loaded twice. Skip Project-type (checked-in) files from
-    // directories above the worktree but within the main repo — the worktree
-    // already has its own checkout. CLAUDE.local.md is gitignored so it only
-    // exists in the main repo and is still loaded.
+    // .claude/worktrees/<name>/), the upward walk passes through both the
+    // worktree root and the main repo root. Both contain checked-in AGENTS.md
+    // files, so the same content could load twice. Skip Project-type files
+    // from directories above the worktree but within the main repo. Each
+    // checkout keeps its own ignored AGENTS.local.md.
     // See: https://github.com/anthropics/claude-code/issues/29599
     const gitRoot = findGitRoot(originalCwd)
     const canonicalRoot = findCanonicalGitRoot(originalCwd)
@@ -1212,44 +1150,10 @@ export const getMemoryFiles = memoize(
         pathInWorkingPath(dir, canonicalRoot) &&
         !pathInWorkingPath(dir, gitRoot)
 
-      // Try reading CLAUDE.md (Project) - only if projectSettings is enabled
       if (isSettingSourceEnabled('projectSettings') && !skipProject) {
-        // Read the native sources first so AGENTS.md can be deduped against
-        // them, but push them last: this module treats later files as higher
-        // priority, and a repo's own tau instructions should outrank rules it
-        // inherited from another tool. Reading order and push order are
-        // separated here precisely because those two needs disagree.
-        const nativeFiles: MemoryFileInfo[] = [
-          // CLAUDE.md (Project)
-          ...(await processMemoryFile(
-            join(dir, 'CLAUDE.md'),
-            'Project',
-            processedPaths,
-            includeExternal,
-          )),
-          // .claude/CLAUDE.md (Project)
-          ...(await processMemoryFile(
-            join(dir, '.claude', 'CLAUDE.md'),
-            'Project',
-            processedPaths,
-            includeExternal,
-          )),
-          // .claude/rules/*.md files (Project)
-          ...(await processMdRules({
-            rulesDir: join(dir, '.claude', 'rules'),
-            type: 'Project',
-            processedPaths,
-            includeExternal,
-            conditionalRule: false,
-          })),
-        ]
-
-        // AGENTS.md (Project) - the cross-vendor convention. Deduped against
-        // everything already loaded plus the native files just read, so a
-        // repo whose AGENTS.md copies its CLAUDE.md keeps only CLAUDE.md.
         const agentsFiles = await processAgentsMemoryFile(
           dir,
-          [...result, ...nativeFiles],
+          result,
           processedPaths,
           includeExternal,
         )
@@ -1262,15 +1166,13 @@ export const getMemoryFiles = memoize(
           conditionalRule: false,
         })
 
-        result.push(...foreignFiles, ...agentsFiles, ...nativeFiles)
+        result.push(...foreignFiles, ...agentsFiles)
       }
 
-      // Try reading CLAUDE.local.md (Local) - only if localSettings is enabled
       if (isSettingSourceEnabled('localSettings')) {
-        const localPath = join(dir, 'CLAUDE.local.md')
         result.push(
           ...(await processMemoryFile(
-            localPath,
+            join(dir, 'AGENTS.local.md'),
             'Local',
             processedPaths,
             includeExternal,
@@ -1279,40 +1181,15 @@ export const getMemoryFiles = memoize(
       }
     }
 
-    // Process CLAUDE.md from additional directories (--add-dir) if env var is enabled
-    // This is controlled by CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD and defaults to off
+    // Process AGENTS.md from additional directories (--add-dir) when enabled
     // Note: we don't check isSettingSourceEnabled('projectSettings') here because --add-dir
     // is an explicit user action and the SDK defaults settingSources to [] when not specified
-    if (isEnvTruthy(process.env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD)) {
+    if (isEnvTruthy(process.env.TAU_ADDITIONAL_DIRECTORIES_AGENTS)) {
       const additionalDirs = getAdditionalDirectoriesForClaudeMd()
       for (const dir of additionalDirs) {
-        // Native sources read first (so AGENTS.md dedupes against them) and
-        // pushed last (so they outrank foreign rules) — see the main walk.
-        const nativeFiles: MemoryFileInfo[] = [
-          ...(await processMemoryFile(
-            join(dir, 'CLAUDE.md'),
-            'Project',
-            processedPaths,
-            includeExternal,
-          )),
-          ...(await processMemoryFile(
-            join(dir, '.claude', 'CLAUDE.md'),
-            'Project',
-            processedPaths,
-            includeExternal,
-          )),
-          ...(await processMdRules({
-            rulesDir: join(dir, '.claude', 'rules'),
-            type: 'Project',
-            processedPaths,
-            includeExternal,
-            conditionalRule: false,
-          })),
-        ]
-
         const agentsFiles = await processAgentsMemoryFile(
           dir,
-          [...result, ...nativeFiles],
+          result,
           processedPaths,
           includeExternal,
         )
@@ -1326,7 +1203,7 @@ export const getMemoryFiles = memoize(
           conditionalRule: false,
         })
 
-        result.push(...foreignFiles, ...agentsFiles, ...nativeFiles)
+        result.push(...foreignFiles, ...agentsFiles)
       }
     }
 
@@ -1396,9 +1273,9 @@ export const getMemoryFiles = memoize(
     // Fire InstructionsLoaded hook for each instruction file loaded
     // (fire-and-forget, audit/observability only).
     // AutoMem/TeamMem are intentionally excluded — they're a separate
-    // memory system, not "instructions" in the CLAUDE.md/rules sense.
+    // memory system, not "instructions" in the AGENTS.md/rules sense.
     // Gated on !forceIncludeExternal: the forceIncludeExternal=true variant
-    // is only used by getExternalClaudeMdIncludes() for approval checks, not
+    // is only used by getExternalInstructionIncludes() for approval checks, not
     // for building context — firing the hook there would double-fire on startup.
     // The one-shot flag is consumed on every !forceIncludeExternal cache miss
     // (NOT gated on hasInstructionsLoadedHook) so the flag is released even
@@ -1549,51 +1426,8 @@ export const getClaudeMds = (
 }
 
 /**
- * Gets managed and user conditional rules that match the target path.
- * This is the first phase of nested memory loading.
- *
- * @param targetPath The target file path to match against glob patterns
- * @param processedPaths Set of already processed file paths (will be mutated)
- * @returns Array of MemoryFileInfo objects for matching conditional rules
- */
-export async function getManagedAndUserConditionalRules(
-  targetPath: string,
-  processedPaths: Set<string>,
-): Promise<MemoryFileInfo[]> {
-  const result: MemoryFileInfo[] = []
-
-  // Process Managed conditional .claude/rules/*.md files
-  const managedClaudeRulesDir = getManagedClaudeRulesDir()
-  result.push(
-    ...(await processConditionedMdRules(
-      targetPath,
-      managedClaudeRulesDir,
-      'Managed',
-      processedPaths,
-      false,
-    )),
-  )
-
-  if (isSettingSourceEnabled('userSettings')) {
-    // Process User conditional .claude/rules/*.md files
-    const userClaudeRulesDir = getUserClaudeRulesDir()
-    result.push(
-      ...(await processConditionedMdRules(
-        targetPath,
-        userClaudeRulesDir,
-        'User',
-        processedPaths,
-        true,
-      )),
-    )
-  }
-
-  return result
-}
-
-/**
  * Gets memory files for a single nested directory (between CWD and target).
- * Loads CLAUDE.md, unconditional rules, and conditional rules for that directory.
+ * Loads AGENTS.md and foreign conditional rules for that directory.
  *
  * @param dir The directory to process
  * @param targetPath The target file path (for conditional rule matching)
@@ -1613,21 +1447,10 @@ export async function getMemoryFilesForNestedDirectory(
     ...(await processForeignConditionedRules(targetPath, dir, processedPaths)),
   )
 
-  // Process project memory files (CLAUDE.md and .claude/CLAUDE.md)
   if (isSettingSourceEnabled('projectSettings')) {
-    const projectPath = join(dir, 'CLAUDE.md')
     result.push(
       ...(await processMemoryFile(
-        projectPath,
-        'Project',
-        processedPaths,
-        false,
-      )),
-    )
-    const dotClaudePath = join(dir, '.claude', 'CLAUDE.md')
-    result.push(
-      ...(await processMemoryFile(
-        dotClaudePath,
+        join(dir, 'AGENTS.md'),
         'Project',
         processedPaths,
         false,
@@ -1635,43 +1458,15 @@ export async function getMemoryFilesForNestedDirectory(
     )
   }
 
-  // Process local memory file (CLAUDE.local.md)
   if (isSettingSourceEnabled('localSettings')) {
-    const localPath = join(dir, 'CLAUDE.local.md')
     result.push(
-      ...(await processMemoryFile(localPath, 'Local', processedPaths, false)),
+      ...(await processMemoryFile(
+        join(dir, 'AGENTS.local.md'),
+        'Local',
+        processedPaths,
+        false,
+      )),
     )
-  }
-
-  const rulesDir = join(dir, '.claude', 'rules')
-
-  // Process project unconditional .claude/rules/*.md files, which were not eagerly loaded
-  // Use a separate processedPaths set to avoid marking conditional rule files as processed
-  const unconditionalProcessedPaths = new Set(processedPaths)
-  result.push(
-    ...(await processMdRules({
-      rulesDir,
-      type: 'Project',
-      processedPaths: unconditionalProcessedPaths,
-      includeExternal: false,
-      conditionalRule: false,
-    })),
-  )
-
-  // Process project conditional .claude/rules/*.md files
-  result.push(
-    ...(await processConditionedMdRules(
-      targetPath,
-      rulesDir,
-      'Project',
-      processedPaths,
-      false,
-    )),
-  )
-
-  // processedPaths must be seeded with unconditional paths for subsequent directories
-  for (const path of unconditionalProcessedPaths) {
-    processedPaths.add(path)
   }
 
   return result
@@ -1691,31 +1486,19 @@ export async function getConditionalRulesForCwdLevelDirectory(
   targetPath: string,
   processedPaths: Set<string>,
 ): Promise<MemoryFileInfo[]> {
-  const rulesDir = join(dir, '.claude', 'rules')
   // Foreign rule dirs live at the project root, which is a cwd-level directory
   // rather than a nested one, so a Cursor `globs:` rule would never attach
-  // without this pass. Listed before the native rules because later files rank
-  // higher and tau's own rules should win.
+  // without this pass.
   const foreignRules = await processForeignConditionedRules(
     targetPath,
     dir,
     processedPaths,
   )
-  return [
-    ...foreignRules,
-    ...(await processConditionedMdRules(
-      targetPath,
-      rulesDir,
-      'Project',
-      processedPaths,
-      false,
-    )),
-  ]
+  return foreignRules
 }
 
 /**
- * Processes all .md files in the .claude/rules/ directory and its subdirectories,
- * filtering to only include files with frontmatter paths that match the target path
+ * Processes rule files from a supported rule directory, filtering by target path.
  * @param targetPath The file path to match against frontmatter glob patterns
  * @param rulesDir The path to the rules directory
  * @param type Type of memory file (User, Project, Local)
@@ -1733,10 +1516,8 @@ export async function processConditionedMdRules(
     /** Filename suffixes to accept; other tools do not use `.md`. */
     extensions?: readonly string[]
     /**
-     * Root the rule's globs are written against. Defaults to the parent of the
-     * `.claude` directory, which is also correct for every two-segment foreign
-     * source (.cursor/rules, .github/instructions, .windsurf/rules). A
-     * one-segment source such as `.clinerules` must pass its own.
+     * Root the rule's globs are written against. Foreign rule sources pass
+     * their project directory explicitly when it differs from this default.
      */
     baseDir?: string
   } = {},
@@ -1756,8 +1537,7 @@ export async function processConditionedMdRules(
       return false
     }
 
-    // For Project rules: glob patterns are relative to the directory containing .claude
-    // For Managed/User rules: glob patterns are relative to the original CWD
+    // Glob patterns are relative to the rule source's project or managed root.
     const baseDir =
       options.baseDir ??
       (type === 'Project'
@@ -1781,15 +1561,15 @@ export async function processConditionedMdRules(
   })
 }
 
-export type ExternalClaudeMdInclude = {
+export type ExternalInstructionInclude = {
   path: string
   parent: string
 }
 
-export function getExternalClaudeMdIncludes(
+export function getExternalInstructionIncludes(
   files: MemoryFileInfo[],
-): ExternalClaudeMdInclude[] {
-  const externals: ExternalClaudeMdInclude[] = []
+): ExternalInstructionInclude[] {
+  const externals: ExternalInstructionInclude[] = []
   for (const file of files) {
     if (file.type !== 'User' && file.parent && !pathInOriginalCwd(file.path)) {
       externals.push({ path: file.path, parent: file.parent })
@@ -1798,38 +1578,29 @@ export function getExternalClaudeMdIncludes(
   return externals
 }
 
-export function hasExternalClaudeMdIncludes(files: MemoryFileInfo[]): boolean {
-  return getExternalClaudeMdIncludes(files).length > 0
+export function hasExternalInstructionIncludes(files: MemoryFileInfo[]): boolean {
+  return getExternalInstructionIncludes(files).length > 0
 }
 
-export async function shouldShowClaudeMdExternalIncludesWarning(): Promise<boolean> {
+export async function shouldShowExternalInstructionWarning(): Promise<boolean> {
   const config = getCurrentProjectConfig()
   if (
-    config.hasClaudeMdExternalIncludesApproved ||
-    config.hasClaudeMdExternalIncludesWarningShown
+    config.hasInstructionFileIncludesApproved ||
+    config.hasInstructionFileIncludesWarningShown
   ) {
     return false
   }
 
-  return hasExternalClaudeMdIncludes(await getMemoryFiles(true))
+  return hasExternalInstructionIncludes(await getMemoryFiles(true))
 }
 
 /**
- * Check if a file path is a memory file (CLAUDE.md, CLAUDE.local.md, or .claude/rules/*.md)
+ * Check if a file path is a memory instruction file.
  */
 export function isMemoryFilePath(filePath: string): boolean {
   const name = basename(filePath)
 
-  // CLAUDE.md or CLAUDE.local.md anywhere
-  if (name === 'CLAUDE.md' || name === 'CLAUDE.local.md') {
-    return true
-  }
-
-  // .md files in .claude/rules/ directories
-  if (
-    name.endsWith('.md') &&
-    filePath.includes(`${sep}.claude${sep}rules${sep}`)
-  ) {
+  if (name === 'AGENTS.md' || name === 'AGENTS.local.md') {
     return true
   }
 
