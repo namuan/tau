@@ -41,8 +41,7 @@ type PreviousState = {
   fastMode: boolean
   /** Sorted beta header list. Diffed to show which headers were added/removed. */
   betas: string[]
-  /** Overage state flip — should NOT break cache anymore (eligibility is
-   *  latched session-stable in should1hCacheTTL). Tracked to verify the fix. */
+  /** Overage state retained for cache-break diagnosis. */
   isUsingOverage: boolean
   /** Resolved effort (env → options → model default). Goes into output_config
    *  or anthropic_internal.effort_override. */

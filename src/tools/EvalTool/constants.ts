@@ -18,7 +18,7 @@
  *      offenders — do not become the third.
  *   2. Availability is LATCHED once per process (see `isEvalToolEnabled`).
  *      A tool that appears on turn 3 because Python was found late is a
- *      `+1 tools` cache break. Same discipline as `should1hCacheTTL` and
+ *      `+1 tools` cache break. Same discipline as API request shaping and
  *      `freezeSessionVolatileText`.
  *   3. The tool registers LAST in `getAllBaseTools()`. Tool order is the
  *      cache prefix; see `lanes/gemini/lazy_tools.test.ts`.

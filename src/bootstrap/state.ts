@@ -197,12 +197,6 @@ type State = {
   additionalDirectoriesForClaudeMd: string[]
   // Dir containing the session's `.jsonl`; null = derive from originalCwd.
   sessionProjectDir: string | null
-  // Cached prompt cache 1h TTL allowlist from GrowthBook (session-stable)
-  promptCache1hAllowlist: string[] | null
-  // Cached 1h TTL user eligibility (session-stable). Latched on first
-  // evaluation so mid-session overage flips don't change the cache_control
-  // TTL, which would bust the server-side prompt cache.
-  promptCache1hEligible: boolean | null
   // Sticky-on latch for FAST_MODE_BETA_HEADER. Once fast mode is first
   // enabled, keep sending the header so cooldown enter/exit doesn't
   // double-bust the prompt cache. The `speed` body param stays dynamic.
@@ -362,10 +356,6 @@ function getInitialState(): State {
     additionalDirectoriesForClaudeMd: [],
     // Session project dir (null = derive from originalCwd)
     sessionProjectDir: null,
-    // Prompt cache 1h allowlist (null = not yet fetched from GrowthBook)
-    promptCache1hAllowlist: null,
-    // Prompt cache 1h eligibility (null = not yet evaluated)
-    promptCache1hEligible: null,
     // Beta header latches (null = not yet triggered)
     fastModeHeaderLatched: null,
     // Current prompt ID
@@ -1621,22 +1611,6 @@ export function setAdditionalDirectoriesForClaudeMd(
   directories: string[],
 ): void {
   STATE.additionalDirectoriesForClaudeMd = directories
-}
-
-export function getPromptCache1hAllowlist(): string[] | null {
-  return STATE.promptCache1hAllowlist
-}
-
-export function setPromptCache1hAllowlist(allowlist: string[] | null): void {
-  STATE.promptCache1hAllowlist = allowlist
-}
-
-export function getPromptCache1hEligible(): boolean | null {
-  return STATE.promptCache1hEligible
-}
-
-export function setPromptCache1hEligible(eligible: boolean | null): void {
-  STATE.promptCache1hEligible = eligible
 }
 
 export function getFastModeHeaderLatched(): boolean | null {

@@ -50,7 +50,6 @@ import type {
   UserMessage,
 } from '../../types/message.js'
 import {
-  type CacheScope,
   logAPIPrefix,
   splitSysPromptPrefix,
   toolToAPISchema,
@@ -119,13 +118,9 @@ import {
 } from '@anthropic-ai/sdk/error'
 import {
   getFastModeHeaderLatched,
-  getPromptCache1hAllowlist,
-  getPromptCache1hEligible,
   getSessionId,
   setFastModeHeaderLatched,
   setLastMainRequestId,
-  setPromptCache1hAllowlist,
-  setPromptCache1hEligible,
 } from 'src/bootstrap/state.js'
 import {
   EFFORT_BETA_HEADER,
@@ -411,77 +406,12 @@ function maybeNotifyAgentRouterCacheStats({
   })
 }
 
-export function getCacheControl({
-  scope,
-  querySource,
-}: {
-  scope?: CacheScope
+export function getCacheControl(_options?: {
   querySource?: QuerySource
-} = {}): {
+}): {
   type: 'ephemeral'
-  ttl?: '1h'
-  scope?: CacheScope
 } {
-  return {
-    type: 'ephemeral',
-    ...(should1hCacheTTL(querySource) && { ttl: '1h' }),
-    ...(scope === 'global' && { scope }),
-  }
-}
-
-/**
- * Determines if 1h TTL should be used for prompt caching.
- *
- * Only applied when:
- * 1. User is eligible (ant or subscriber within rate limits)
- * 2. The query source matches a pattern in the GrowthBook allowlist
- *
- * GrowthBook config shape: { allowlist: string[] }
- * Patterns support trailing '*' for prefix matching.
- * Examples:
- * - { allowlist: ["repl_main_thread*", "sdk"] } — main thread + SDK only
- * - { allowlist: ["repl_main_thread*", "sdk", "agent:*"] } — also subagents
- * - { allowlist: ["*"] } — all sources
- *
- * The allowlist is cached in STATE for session stability — prevents mixed
- * TTLs when GrowthBook's disk cache updates mid-request.
- */
-function should1hCacheTTL(querySource?: QuerySource): boolean {
-  if (getAPIProvider() === 'agentrouter') {
-    return false
-  }
-
-  // Latch eligibility in bootstrap state for session stability — prevents
-  // mid-session overage flips from changing the cache_control TTL, which
-  // would bust the server-side prompt cache (~20K tokens per flip).
-  let userEligible = getPromptCache1hEligible()
-  if (userEligible === null) {
-    userEligible =
-      process.env.USER_TYPE === 'ant' ||
-      (isClaudeAISubscriber() && !currentLimits.isUsingOverage)
-    setPromptCache1hEligible(userEligible)
-  }
-  if (!userEligible) return false
-
-  // Cache allowlist in bootstrap state for session stability — prevents mixed
-  // TTLs when GrowthBook's disk cache updates mid-request
-  let allowlist = getPromptCache1hAllowlist()
-  if (allowlist === null) {
-    const config = getFeatureValue_CACHED_MAY_BE_STALE<{
-      allowlist?: string[]
-    }>('tengu_prompt_cache_1h_config', {})
-    allowlist = config.allowlist ?? []
-    setPromptCache1hAllowlist(allowlist)
-  }
-
-  return (
-    querySource !== undefined &&
-    allowlist.some(pattern =>
-      pattern.endsWith('*')
-        ? querySource.startsWith(pattern.slice(0, -1))
-        : querySource === pattern,
-    )
-  )
+  return { type: 'ephemeral' }
 }
 
 /**

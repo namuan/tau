@@ -28,6 +28,13 @@ test('first-party advisor request support is removed while historical blocks rem
   assert.match(messages, /Strip advisor blocks from messages/)
 })
 
+test('first-party cache TTL and global-scope shaping are absent', async () => {
+  const api = await readFile(new URL('../src/services/api/claude.ts', import.meta.url), 'utf8')
+  const state = await readFile(new URL('../src/bootstrap/state.ts', import.meta.url), 'utf8')
+  assert.doesNotMatch(api, /should1hCacheTTL|tengu_prompt_cache_1h_config|scope === 'global'/)
+  assert.doesNotMatch(state, /promptCache1h/)
+})
+
 test('first-party Anthropic capability discovery is absent from startup and context sizing', async () => {
   const main = await readFile(new URL('../src/main.tsx', import.meta.url), 'utf8')
   const context = await readFile(new URL('../src/utils/context.ts', import.meta.url), 'utf8')
