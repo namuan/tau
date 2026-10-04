@@ -27,9 +27,6 @@ type OAuthStatus = {
   state: 'idle';
 } // Initial state, waiting to select login method
 | {
-  state: 'platform_setup';
-} // Show platform setup info (Bedrock/Vertex/Foundry)
-| {
   state: 'ready_to_start';
 } // Flow started, waiting for browser to open
 | {
@@ -117,16 +114,6 @@ export function ConsoleOAuthFlow({
   }, {
     context: 'Confirmation',
     isActive: oauthStatus.state === 'success' && mode !== 'setup-token'
-  });
-
-  // Handle Enter to continue from platform setup
-  useKeybinding('confirm:yes', () => {
-    setOAuthStatus({
-      state: 'idle'
-    });
-  }, {
-    context: 'Confirmation',
-    isActive: oauthStatus.state === 'platform_setup'
   });
 
   // Handle Enter to retry on error state
@@ -402,10 +389,7 @@ function OAuthStatusMessage(t0) {
         }
         let t6;
         if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
-          t6 = [t4, t5, {
-            label: <Text>3rd-party platform ·{" "}<Text dimColor={true}>Amazon Bedrock, Microsoft Foundry, or Vertex AI</Text>{"\n"}</Text>,
-            value: "platform"
-          }];
+          t6 = [t4, t5];
           $[5] = t6;
         } else {
           t6 = $[5];
@@ -413,22 +397,15 @@ function OAuthStatusMessage(t0) {
         let t7;
         if ($[6] !== setLoginWithClaudeAi || $[7] !== setOAuthStatus) {
           t7 = <Box><Select options={t6} onChange={value_0 => {
-              if (value_0 === "platform") {
-                logEvent("tengu_oauth_platform_selected", {});
-                setOAuthStatus({
-                  state: "platform_setup"
-                });
+              setOAuthStatus({
+                state: "ready_to_start"
+              });
+              if (value_0 === "claudeai") {
+                logEvent("tengu_oauth_claudeai_selected", {});
+                setLoginWithClaudeAi(true);
               } else {
-                setOAuthStatus({
-                  state: "ready_to_start"
-                });
-                if (value_0 === "claudeai") {
-                  logEvent("tengu_oauth_claudeai_selected", {});
-                  setLoginWithClaudeAi(true);
-                } else {
-                  logEvent("tengu_oauth_console_selected", {});
-                  setLoginWithClaudeAi(false);
-                }
+                logEvent("tengu_oauth_console_selected", {});
+                setLoginWithClaudeAi(false);
               }
             }} /></Box>;
           $[6] = setLoginWithClaudeAi;
@@ -445,63 +422,6 @@ function OAuthStatusMessage(t0) {
           $[11] = t8;
         } else {
           t8 = $[11];
-        }
-        return t8;
-      }
-    case "platform_setup":
-      {
-        let t1;
-        if ($[12] === Symbol.for("react.memo_cache_sentinel")) {
-          t1 = <Text bold={true}>Using 3rd-party platforms</Text>;
-          $[12] = t1;
-        } else {
-          t1 = $[12];
-        }
-        let t2;
-        let t3;
-        if ($[13] === Symbol.for("react.memo_cache_sentinel")) {
-          t2 = <Text>Tau supports Amazon Bedrock, Microsoft Foundry, and Vertex AI. Set the required environment variables, then restart Tau.</Text>;
-          t3 = <Text>If you are part of an enterprise organization, contact your administrator for setup instructions.</Text>;
-          $[13] = t2;
-          $[14] = t3;
-        } else {
-          t2 = $[13];
-          t3 = $[14];
-        }
-        let t4;
-        if ($[15] === Symbol.for("react.memo_cache_sentinel")) {
-          t4 = <Text bold={true}>Documentation:</Text>;
-          $[15] = t4;
-        } else {
-          t4 = $[15];
-        }
-        let t5;
-        if ($[16] === Symbol.for("react.memo_cache_sentinel")) {
-          t5 = <Text>· Amazon Bedrock:{" "}<Link url="https://code.claude.com/docs/en/amazon-bedrock">https://code.claude.com/docs/en/amazon-bedrock</Link></Text>;
-          $[16] = t5;
-        } else {
-          t5 = $[16];
-        }
-        let t6;
-        if ($[17] === Symbol.for("react.memo_cache_sentinel")) {
-          t6 = <Text>· Microsoft Foundry:{" "}<Link url="https://code.claude.com/docs/en/microsoft-foundry">https://code.claude.com/docs/en/microsoft-foundry</Link></Text>;
-          $[17] = t6;
-        } else {
-          t6 = $[17];
-        }
-        let t7;
-        if ($[18] === Symbol.for("react.memo_cache_sentinel")) {
-          t7 = <Box flexDirection="column" marginTop={1}>{t4}{t5}{t6}<Text>· Vertex AI:{" "}<Link url="https://code.claude.com/docs/en/google-vertex-ai">https://code.claude.com/docs/en/google-vertex-ai</Link></Text></Box>;
-          $[18] = t7;
-        } else {
-          t7 = $[18];
-        }
-        let t8;
-        if ($[19] === Symbol.for("react.memo_cache_sentinel")) {
-          t8 = <Box flexDirection="column" gap={1} marginTop={1}>{t1}<Box flexDirection="column" gap={1}>{t2}{t3}{t7}<Box marginTop={1}><Text dimColor={true}>Press <Text bold={true}>Enter</Text> to go back to login options.</Text></Box></Box></Box>;
-          $[19] = t8;
-        } else {
-          t8 = $[19];
         }
         return t8;
       }

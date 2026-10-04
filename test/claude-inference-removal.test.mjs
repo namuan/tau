@@ -22,6 +22,7 @@ test('legacy Claude provider selections are rejected by routing and model select
   const login = await readFile(new URL('../src/commands/login/login.tsx', import.meta.url), 'utf8')
   const remoteSettings = await readFile(new URL('../src/services/remoteManagedSettings/syncCache.ts', import.meta.url), 'utf8')
   const settingsSchema = await readFile(new URL('../src/utils/settings/types.ts', import.meta.url), 'utf8')
+  const oauthFlow = await readFile(new URL('../src/components/ConsoleOAuthFlow.tsx', import.meta.url), 'utf8')
   const auth = await readFile(new URL('../src/utils/auth.ts', import.meta.url), 'utf8')
   assert.match(client, /REMOVED_CLAUDE_INFERENCE_PROVIDERS\.includes\(provider\)/)
   assert.match(client, /inference support has been removed/)
@@ -35,4 +36,5 @@ test('legacy Claude provider selections are rejected by routing and model select
   assert.match(remoteSettings, /isFirstPartyAnthropicBaseUrl/)
   assert.doesNotMatch(settingsSchema, /awsAuthRefresh|awsCredentialExport|gcpAuthRefresh/)
   assert.doesNotMatch(auth, /awsAuthRefresh|awsCredentialExport|gcpAuthRefresh|isUsing3PServices/)
+  assert.doesNotMatch(oauthFlow, /platform_setup|Amazon Bedrock|Vertex AI|Microsoft Foundry/)
 })
