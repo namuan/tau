@@ -382,6 +382,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 // The dependency tree needs require(esm) (e.g. e2b's CommonJS build requires
 // the ESM-only chalk 5): Node 20.19+, 22.12+, or 23+. Fail with a clear
 // message instead of a raw ERR_REQUIRE_ESM crash from deep inside a dependency.
+if (process.platform !== 'darwin') {
+  process.stderr.write(
+    '[tau] Tau is supported only on macOS. Linux, WSL, and Windows are not supported.\\n'
+  )
+  process.exit(1)
+}
+
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number)
 const nodeSupportsRequireEsm =
   (nodeMajor === 20 && nodeMinor >= 19) ||
