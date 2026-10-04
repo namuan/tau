@@ -7,7 +7,6 @@ import { clearClassifierApprovals } from '../../utils/classifierApprovals.js'
 import { resetGetMemoryFilesCache } from '../../utils/claudemd.js'
 import { clearSessionMessagesCache } from '../../utils/sessionStorage.js'
 import { clearBetaTracingState } from '../../utils/telemetry/betaSessionTracing.js'
-import { resetMicrocompactState } from './microCompact.js'
 
 /**
  * Run cleanup of caches and tracking state after compaction.
@@ -38,7 +37,6 @@ export function runPostCompactCleanup(querySource?: QuerySource): void {
     querySource.startsWith('repl_main_thread') ||
     querySource === 'sdk'
 
-  resetMicrocompactState()
   if (feature('CONTEXT_COLLAPSE')) {
     if (isMainThreadCompact) {
       /* eslint-disable @typescript-eslint/no-require-imports */

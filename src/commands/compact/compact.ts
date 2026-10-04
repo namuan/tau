@@ -96,7 +96,7 @@ export const call: LocalCommandCall = async (args, context) => {
 
     // Fall back to traditional compaction
     // Run microcompact first to reduce tokens before summarization
-    const microcompactResult = await microcompactMessages(messages, context)
+    const microcompactResult = await microcompactMessages(messages)
     const messagesForCompact = microcompactResult.messages
 
     const result = await compactConversation(
@@ -196,9 +196,7 @@ async function compactViaReactive(
       }
     }
 
-    // Mirrors the post-success cleanup in tryReactiveCompact, minus
-    // resetMicrocompactState — processSlashCommand calls that for all
-    // type:'compact' results.
+    // Mirrors the post-success cleanup in tryReactiveCompact.
     setLastSummarizedMessageId(undefined)
     runPostCompactCleanup()
     suppressCompactWarning()

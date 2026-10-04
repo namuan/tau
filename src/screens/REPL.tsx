@@ -162,7 +162,6 @@ import { copyPlanForFork, copyPlanForResume, getPlanSlug, setPlanSlug } from '..
 import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, removeTranscriptMessage, restoreSessionMetadata, getCurrentSessionTitle, isEphemeralToolProgress, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
 import { deserializeMessages } from '../utils/conversationRecovery.js';
 import { extractReadFilesFromMessages, extractBashToolsFromMessages } from '../utils/queryHelpers.js';
-import { resetMicrocompactState } from '../services/compact/microCompact.js';
 import { runPostCompactCleanup } from '../services/compact/postCompactCleanup.js';
 import { provisionContentReplacementState, reconstructContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
 import { partialCompactConversation } from '../services/compact/compact.js';
@@ -3502,9 +3501,6 @@ export function REPL({
     setMessages(prev.slice(0, messageIndex));
     // Careful, this has to happen after setMessages
     setConversationId(randomUUID());
-    // Reset cached microcompact state so stale pinned cache edits
-    // don't reference tool_use_ids from truncated messages
-    resetMicrocompactState();
     if (feature('CONTEXT_COLLAPSE')) {
       // Rewind truncates the REPL array. Commits whose archived span
       // was past the rewind point can't be projected anymore

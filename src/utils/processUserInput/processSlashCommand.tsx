@@ -12,7 +12,6 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../../services/analytics/index.js';
 import { getDumpPromptsPath } from '../../services/api/dumpPrompts.js';
 import { buildPostCompactMessages } from '../../services/compact/compact.js';
-import { resetMicrocompactState } from '../../services/compact/microCompact.js';
 import type { Progress as AgentProgress } from '../../tools/AgentTool/AgentTool.js';
 import { runAgent } from '../../tools/AgentTool/runAgent.js';
 import { renderToolUseProgressMessage } from '../../tools/AgentTool/UI.js';
@@ -620,7 +619,6 @@ async function getMessagesForSlashCommand(commandName: string, args: string, set
               // messages — old tool IDs are no longer relevant. Budget state
               // (on toolUseContext) needs no reset: stale entries are inert
               // (UUIDs never repeat, so they're never looked up).
-              resetMicrocompactState();
               return {
                 messages: buildPostCompactMessages(compactionResultWithSlashMessages),
                 shouldQuery: false,
