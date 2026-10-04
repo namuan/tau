@@ -226,7 +226,6 @@ import { useClaudeCodeHintRecommendation } from 'src/hooks/useClaudeCodeHintReco
 import { DesktopUpsellStartup, shouldShowDesktopUpsellStartup } from 'src/components/DesktopUpsell/DesktopUpsellStartup.js';
 import { useNpmUpdateNotification } from 'src/hooks/notifs/useNpmUpdateNotification.js';
 import { UserTextMessage } from 'src/components/messages/UserTextMessage.js';
-import { AwsAuthStatusBox } from '../components/AwsAuthStatusBox.js';
 import { useRateLimitWarningNotification } from 'src/hooks/notifs/useRateLimitWarningNotification.js';
 import { useDeprecationWarningNotification } from 'src/hooks/notifs/useDeprecationWarningNotification.js';
 import { useModelMigrationNotifications } from 'src/hooks/notifs/useModelMigrationNotifications.js';
@@ -4396,7 +4395,6 @@ export function REPL({
       }} scrollable={<>
               <TeammateViewHeader />
               <Messages messages={displayedMessages} tools={tools} commands={commands} verbose={verbose} toolJSX={toolJSX} toolUseConfirmQueue={toolUseConfirmQueue} inProgressToolUseIDs={viewedTeammateTask ? viewedTeammateTask.inProgressToolUseIDs ?? new Set() : inProgressToolUseIDs} isMessageSelectorVisible={isMessageSelectorVisible} conversationId={conversationId} screen={screen} streamingToolUses={streamingToolUses} showAllInTranscript={showAllInTranscript} agentDefinitions={agentDefinitions} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} streamingText={isLoading && !viewedAgentTask ? visibleStreamingText : null} isBriefOnly={viewedAgentTask ? false : isBriefOnly} unseenDivider={viewedAgentTask ? undefined : unseenDivider} scrollRef={isFullscreenEnvEnabled() ? scrollRef : undefined} trackStickyPrompt={isFullscreenEnvEnabled() ? true : undefined} cursor={cursor} setCursor={setCursor} cursorNavRef={cursorNavRef} />
-              <AwsAuthStatusBox />
               {/* Hide the processing placeholder while a modal is showing —
                   it would sit at the last visible transcript row right above
                   the ▔ divider, showing "❯ /config" as redundant clutter
