@@ -38,5 +38,5 @@ test('legacy Claude provider selections are rejected by routing and model select
   assert.doesNotMatch(settingsSchema, /awsAuthRefresh|awsCredentialExport|gcpAuthRefresh/)
   assert.doesNotMatch(auth, /awsAuthRefresh|awsCredentialExport|gcpAuthRefresh|isUsing3PServices/)
   assert.doesNotMatch(oauthFlow, /platform_setup|Amazon Bedrock|Vertex AI|Microsoft Foundry/)
-  assert.doesNotMatch(modelOptions, /isClaudeAISubscriber|isMaxSubscriber|isTeamPremiumSubscriber|PAYG 1P/)
+  assert.doesNotMatch(modelOptions, /isClaudeAISubscriber|isMaxSubscriber|isTeamPremiumSubscriber|PAYG 1P|firstParty|formatModelPricing/)
 })
