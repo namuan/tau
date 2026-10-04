@@ -772,8 +772,7 @@ export async function runHeadless(
 
   headlessProfilerCheckpoint('after_loadInitialMessages')
 
-  // Ensure model strings are initialized before generating model options.
-  // For Bedrock users, this waits for the profile fetch to get correct region strings.
+  // Ensure canonical model strings are initialized before generating model options.
   await ensureModelStringsInitialized()
   headlessProfilerCheckpoint('after_modelStrings')
 

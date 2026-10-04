@@ -3,7 +3,6 @@ import * as React from 'react';
 import { getAccountInformation, isClaudeAISubscriber } from './auth.js';
 import { getLargeMemoryFiles, getMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from './claudemd.js';
 import { getDoctorDiagnostic } from './doctorDiagnostic.js';
-import { getAWSRegion, getDefaultVertexRegion, isEnvTruthy } from './envUtils.js';
 import { getDisplayPath } from './file.js';
 import { formatNumber } from './format.js';
 import { getClaudeAiUserDefaultModelDescription } from './model/model.js';
@@ -163,76 +162,6 @@ export function buildAPIProviderProperties(): Property[] {
       label: 'API provider',
       value: PROVIDER_DISPLAY_NAMES[apiProvider]
     });
-  }
-  if (apiProvider === 'firstParty') {
-    const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL;
-    if (anthropicBaseUrl) {
-      properties.push({
-        label: 'Anthropic base URL',
-        value: anthropicBaseUrl
-      });
-    }
-  } else if (apiProvider === 'bedrock') {
-    const bedrockBaseUrl = process.env.BEDROCK_BASE_URL;
-    if (bedrockBaseUrl) {
-      properties.push({
-        label: 'Bedrock base URL',
-        value: bedrockBaseUrl
-      });
-    }
-    properties.push({
-      label: 'AWS region',
-      value: getAWSRegion()
-    });
-    if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH)) {
-      properties.push({
-        value: 'AWS auth skipped'
-      });
-    }
-  } else if (apiProvider === 'vertex') {
-    const vertexBaseUrl = process.env.VERTEX_BASE_URL;
-    if (vertexBaseUrl) {
-      properties.push({
-        label: 'Vertex base URL',
-        value: vertexBaseUrl
-      });
-    }
-    const gcpProject = process.env.ANTHROPIC_VERTEX_PROJECT_ID;
-    if (gcpProject) {
-      properties.push({
-        label: 'GCP project',
-        value: gcpProject
-      });
-    }
-    properties.push({
-      label: 'Default region',
-      value: getDefaultVertexRegion()
-    });
-    if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_VERTEX_AUTH)) {
-      properties.push({
-        value: 'GCP auth skipped'
-      });
-    }
-  } else if (apiProvider === 'foundry') {
-    const foundryBaseUrl = process.env.ANTHROPIC_FOUNDRY_BASE_URL;
-    if (foundryBaseUrl) {
-      properties.push({
-        label: 'Microsoft Foundry base URL',
-        value: foundryBaseUrl
-      });
-    }
-    const foundryResource = process.env.ANTHROPIC_FOUNDRY_RESOURCE;
-    if (foundryResource) {
-      properties.push({
-        label: 'Microsoft Foundry resource',
-        value: foundryResource
-      });
-    }
-    if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_FOUNDRY_AUTH)) {
-      properties.push({
-        value: 'Microsoft Foundry auth skipped'
-      });
-    }
   }
   const proxyUrl = getProxyUrl();
   if (proxyUrl) {
