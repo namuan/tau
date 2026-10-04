@@ -64,7 +64,6 @@ import { getOrCreateUserID } from '../../utils/config.js'
 import {
   CAPPED_DEFAULT_MAX_TOKENS,
   getModelMaxOutputTokens,
-  getSonnet1mExpTreatmentEnabled,
 } from '../../utils/context.js'
 import {
   createRepetitionGuard,
@@ -138,7 +137,6 @@ import {
 } from 'src/bootstrap/state.js'
 import {
   AFK_MODE_BETA_HEADER,
-  CONTEXT_1M_BETA_HEADER,
   CONTEXT_MANAGEMENT_BETA_HEADER,
   EFFORT_BETA_HEADER,
   FAST_MODE_BETA_HEADER,
@@ -1978,14 +1976,6 @@ async function* queryModel(
 
   const paramsFromContext = (retryContext: RetryContext) => {
     const betasParams = [...betas]
-
-    // Append 1M beta dynamically for the Sonnet 1M experiment.
-    if (
-      !betasParams.includes(CONTEXT_1M_BETA_HEADER) &&
-      getSonnet1mExpTreatmentEnabled(retryContext.model)
-    ) {
-      betasParams.push(CONTEXT_1M_BETA_HEADER)
-    }
 
     const extraBodyParams = getExtraBodyParams()
 

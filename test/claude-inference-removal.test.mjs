@@ -47,5 +47,5 @@ test('legacy Claude provider selections are rejected by routing and model select
   assert.doesNotMatch(status, /getClaudeAiUserDefaultModelDescription|isClaudeAISubscriber/)
   assert.doesNotMatch(repl, /AwsAuthStatusBox/)
   assert.doesNotMatch(main, /3P providers \(Bedrock\/Vertex\/Foundry\) use their own credentials/)
-  assert.doesNotMatch(main, /migrateLegacyOpusToCurrent|migrateSonnet45ToSonnet46|resetProToOpusDefault|migrateOpusToOpus1m/)
+  assert.doesNotMatch(main, /migrateLegacyOpusToCurrent|migrateSonnet45ToSonnet46|resetProToOpusDefault|migrateOpusToOpus1m|fetchBootstrapData/)
 })
