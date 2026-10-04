@@ -11,7 +11,6 @@ import {
   CONTEXT_1M_BETA_HEADER,
   CONTEXT_MANAGEMENT_BETA_HEADER,
   INTERLEAVED_THINKING_BETA_HEADER,
-  PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   STRUCTURED_OUTPUTS_BETA_HEADER,
   SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER,
@@ -202,24 +201,12 @@ export function shouldIncludeFirstPartyOnlyBetas(): boolean {
 }
 
 /**
- * Global-scope prompt caching is firstParty only. Foundry is excluded because
- * GrowthBook never bucketed Foundry users into the rollout experiment — the
- * treatment data is firstParty-only.
- */
-export function shouldUseGlobalCacheScope(): boolean {
-  return (
-    getAPIProvider() === 'firstParty' &&
-    !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)
-  )
-}
-
-/**
  * Whether to insert the SYSTEM_PROMPT_DYNAMIC_BOUNDARY marker into the system
  * prompt. The marker is inert — it never reaches the wire; consumers slice on
  * it and drop it.
  *
- * First-party emits it to anchor global-scope prompt caching. The native lanes
- * (see {@link providerSplitsSystemBoundary}) need it for an EXACT stable/volatile
+ * The native lanes (see {@link providerSplitsSystemBoundary}) need it for an
+ * EXACT stable/volatile
  * split: without the marker their split falls back to regex (OpenRouter — leaks
  * memory/MCP/session sections into the cached prefix) or treats the WHOLE prompt
  * as stable (Gemini — the per-turn git/env/memory ride in `systemInstruction`,
@@ -227,7 +214,6 @@ export function shouldUseGlobalCacheScope(): boolean {
  * is what lets those providers hold a byte-stable cached prefix.
  */
 export function shouldEmitSystemPromptBoundary(): boolean {
-  if (shouldUseGlobalCacheScope()) return true
   return providerSplitsSystemBoundary(getAPIProvider())
 }
 
@@ -340,11 +326,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     tokenEfficientToolsEnabled
   ) {
     betaHeaders.push(TOKEN_EFFICIENT_TOOLS_BETA_HEADER)
-  }
-
-  // Always send the beta header for 1P. The header is a no-op without a scope field.
-  if (includeFirstPartyOnlyBetas) {
-    betaHeaders.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
   }
 
   // If ANTHROPIC_BETAS is set, split it by commas and add to betaHeaders.

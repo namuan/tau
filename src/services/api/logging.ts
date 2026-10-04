@@ -42,9 +42,6 @@ import { extractConnectionErrorDetails } from './errorUtils.js'
 export type { NonNullableUsage }
 export { EMPTY_USAGE }
 
-// Strategy used for global prompt caching
-export type GlobalCacheStrategy = 'tool_based' | 'system_prompt' | 'none'
-
 function getErrorMessage(error: unknown): string {
   if (error instanceof APIError) {
     const body = error.error as { error?: { message?: string } } | undefined
@@ -413,7 +410,6 @@ function logAPISuccess({
   gateway,
   queryTracking,
   permissionMode,
-  globalCacheStrategy,
   textContentLength,
   thinkingContentLength,
   toolUseContentLengths,
@@ -439,7 +435,6 @@ function logAPISuccess({
   gateway?: KnownGateway
   queryTracking?: QueryChainTracking
   permissionMode?: PermissionMode
-  globalCacheStrategy?: GlobalCacheStrategy
   textContentLength?: number
   thinkingContentLength?: number
   toolUseContentLengths?: Record<string, number>
@@ -523,12 +518,6 @@ function logAPISuccess({
       : {}),
     permissionMode:
       permissionMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    ...(globalCacheStrategy
-      ? {
-          globalCacheStrategy:
-            globalCacheStrategy as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }
-      : {}),
     ...(textContentLength !== undefined
       ? ({
           textContentLength,
@@ -586,7 +575,6 @@ export function logAPISuccessAndDuration({
   permissionMode,
   newMessages,
   llmSpan,
-  globalCacheStrategy,
   requestSetupMs,
   attemptStartTimes,
   fastMode,
@@ -615,8 +603,6 @@ export function logAPISuccessAndDuration({
   newMessages?: AssistantMessage[]
   /** The span from startLLMRequestSpan - pass this to correctly match responses to requests */
   llmSpan?: Span
-  /** Strategy used for global prompt caching: 'tool_based', 'system_prompt', or 'none' */
-  globalCacheStrategy?: GlobalCacheStrategy
   /** Time spent in pre-request setup before the successful attempt */
   requestSetupMs?: number
   /** Timestamps (Date.now()) of each attempt start — used for retry sub-spans in Perfetto */
@@ -692,7 +678,6 @@ export function logAPISuccessAndDuration({
     gateway,
     queryTracking,
     permissionMode,
-    globalCacheStrategy,
     textContentLength,
     thinkingContentLength,
     toolUseContentLengths,

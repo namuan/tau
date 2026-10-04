@@ -138,7 +138,6 @@ import {
   CONTEXT_MANAGEMENT_BETA_HEADER,
   EFFORT_BETA_HEADER,
   FAST_MODE_BETA_HEADER,
-  PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   STRUCTURED_OUTPUTS_BETA_HEADER,
   TASK_BUDGETS_BETA_HEADER,
@@ -161,7 +160,6 @@ import {
   getToolSearchBetaHeader,
   modelSupportsStructuredOutputs,
   shouldIncludeFirstPartyOnlyBetas,
-  shouldUseGlobalCacheScope,
 } from 'src/utils/betas.js'
 import { getMaxThinkingTokensForModel } from 'src/utils/context.js'
 import { logForDebugging } from 'src/utils/debug.js'
@@ -233,7 +231,6 @@ import {
 } from './errors.js'
 import {
   EMPTY_USAGE,
-  type GlobalCacheStrategy,
   logAPIError,
   logAPIQuery,
   logAPISuccessAndDuration,
@@ -1618,30 +1615,7 @@ async function* queryModel(
     betas.push(toolSearchHeader)
   }
 
-  const useGlobalCacheFeature = shouldUseGlobalCacheScope()
   const willDefer = (t: Tool) => useToolSearch && deferredToolNames.has(t.name)
-  // Tool definitions render before system blocks. If any tool is emitted, a
-  // globally scoped system block is no longer a true prefix and the Anthropic
-  // API rejects it unless every preceding tool block is also global-scoped.
-  const needsToolBasedCacheMarker =
-    useGlobalCacheFeature &&
-    filteredTools.some(t => !willDefer(t))
-
-  // Ensure prompt_caching_scope beta header is present when global cache is enabled.
-  if (
-    useGlobalCacheFeature &&
-    !betas.includes(PROMPT_CACHING_SCOPE_BETA_HEADER)
-  ) {
-    betas.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
-  }
-
-  // Determine global cache strategy for logging
-  const globalCacheStrategy: GlobalCacheStrategy = useGlobalCacheFeature
-    ? needsToolBasedCacheMarker
-      ? 'none'
-      : 'system_prompt'
-    : 'none'
-
   // Build tool schemas, including deferred tools when tool search is enabled.
   const toolSchemas = await Promise.all(
     filteredTools.map(tool =>
@@ -1779,7 +1753,6 @@ async function* queryModel(
   const enablePromptCaching =
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
   const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching, {
-    skipGlobalCacheForSystemPrompt: needsToolBasedCacheMarker,
     querySource: options.querySource,
   })
   const useBetas = betas.length > 0
@@ -1867,7 +1840,6 @@ async function* queryModel(
       model: options.model,
       agentId: options.agentId,
       fastMode: fastModeHeaderLatched,
-      globalCacheStrategy,
       betas,
       autoModeActive: afkHeaderLatched,
       isUsingOverage: currentLimits.isUsingOverage ?? false,
@@ -3501,7 +3473,6 @@ async function* queryModel(
       // only when beta tracing is enabled
       newMessages,
       llmSpan,
-      globalCacheStrategy,
       requestSetupMs: start - startIncludingRetries,
       attemptStartTimes,
       fastMode: isFastModeRequest,
@@ -3677,14 +3648,11 @@ export function buildSystemPromptBlocks(
   systemPrompt: SystemPrompt,
   enablePromptCaching: boolean,
   options?: {
-    skipGlobalCacheForSystemPrompt?: boolean
     querySource?: QuerySource
   },
 ): TextBlockParam[] {
   // IMPORTANT: Do not add any more blocks for caching or you will get a 400
-  return splitSysPromptPrefix(systemPrompt, {
-    skipGlobalCacheForSystemPrompt: options?.skipGlobalCacheForSystemPrompt,
-  }).map(block => {
+  return splitSysPromptPrefix(systemPrompt).map(block => {
     return {
       type: 'text' as const,
       text: block.text,

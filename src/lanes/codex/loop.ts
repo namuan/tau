@@ -117,9 +117,7 @@ export class CodexLane implements Lane {
     // "cache hits but unstable" pattern under heavy tool-call sessions).
     //
     // We mirror the same primary-marker / regex-fallback strategy
-    // gemini_provider.ts ships, since claudex doesn't emit the
-    // `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__` marker for non-firstParty
-    // providers (`shouldUseGlobalCacheScope()` is firstParty-only).
+    // gemini_provider.ts ships because Codex does not consume the marker.
     const fullSystemText = typeof system === 'string'
       ? system
       : (system ?? []).map(b => b.text).join('\n\n')
@@ -1342,10 +1340,9 @@ export function _resetCodexToolRejectionsForTest(): void {
 // turn-to-turn, which is the dominant cause of "cache hits but is
 // unstable" with heavy tool-call sessions or model swaps.
 //
-// claude.ts only inserts the explicit `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__`
-// marker when `shouldUseGlobalCacheScope()` is true (firstParty only),
-// so the codex lane has to handle the no-marker case too. The fallback
-// regex set is the same one battle-tested in
+// claude.ts inserts the explicit `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__`
+// marker for native lanes that split on it, so the codex lane handles the
+// no-marker case with the regex set battle-tested in
 // `src/services/api/providers/gemini_provider.ts:splitSystemInstruction`
 // — it keys off the env block, current date, git status, and recent
 // commits/branch sections that claudex's prompt builder always emits at
