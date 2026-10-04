@@ -17,7 +17,6 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf8'))
 const bundledRuntimePackages = new Set(['e2b', 'google-auth-library'])
 const optionalExternalPackages = new Set([
   '@anthropic-ai/mcpb',
-  '@aws-sdk/client-bedrock',
   '@aws-sdk/client-sts',
   '@opentelemetry/exporter-logs-otlp-grpc',
   '@opentelemetry/exporter-logs-otlp-http',
