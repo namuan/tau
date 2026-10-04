@@ -193,11 +193,9 @@ export type GlobalConfig = {
     rejected?: string[]
   }
   /**
-   * One-time bash setup acknowledgement. Recorded after the user responds
-   * to the first-launch BashSetupDialog (whether they approved an install,
-   * declined, or already had a usable bash). We never re-prompt once this
-   * is set; users who want to re-trigger can clear the field manually or
-   * via env var (CLAUDEX_BASH_SETUP_RESET=1).
+   * One-time Bash setup acknowledgement. Recorded after the user responds
+   * to the first-launch setup prompt. We do not prompt again once this is
+   * set; users can clear it manually or set TAU_BASH_SETUP_RESET=1.
    */
   bashSetupResponse?: {
     decision: 'satisfied' | 'installed' | 'declined' | 'manual'

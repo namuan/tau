@@ -161,7 +161,7 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
     const { shouldShowBashSetup, BashSetupDialog } = await import('./components/BashSetupDialog.js');
     const bashStatus = shouldShowBashSetup({
       alreadyAcknowledged: !!getGlobalConfig().bashSetupResponse,
-      resetRequested: isEnvTruthy(process.env.CLAUDEX_BASH_SETUP_RESET),
+      resetRequested: isEnvTruthy(process.env.TAU_BASH_SETUP_RESET),
     });
     if (bashStatus) {
       trace('showing BashSetupDialog');

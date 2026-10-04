@@ -6,6 +6,7 @@ import {
   resetBashAvailabilityCache,
   type BashStatus,
 } from '../utils/shell/bashAvailability.js'
+import { shouldPromptForBashSetup } from '../utils/shell/bashSetupPolicy.js'
 import {
   planBashInstall,
   runBashInstall,
@@ -22,18 +23,11 @@ type Props = {
 type Decision = 'satisfied' | 'installed' | 'declined' | 'manual'
 
 /**
- * First-launch prompt offering to install (or upgrade) bash. Only shown
- * when:
- *   - bash is missing entirely (Windows without Git Bash, exotic Linux), or
- *   - Windows has only WSL/generic bash, which the native shell provider does not use, or
- *   - the detected bash is too old for Tau's bash features.
- *
- * The result (approved/declined/manual) is stored in GlobalConfig for
- * diagnostics. Detection remains authoritative, so we keep prompting until
- * a usable bash is present.
+ * First-launch prompt offering to install Bash when it is missing or when
+ * Windows lacks Git Bash for native shell commands.
  */
 export function BashSetupDialog({ initialStatus, onDone }: Props): React.ReactNode {
-  const [plan] = useState<InstallPlan>(() => planBashInstall(initialStatus))
+  const [plan] = useState<InstallPlan>(() => planBashInstall())
   const [phase, setPhase] = useState<'ask' | 'installing' | 'done'>('ask')
   const [resultMessage, setResultMessage] = useState<string | null>(null)
   const [resultOk, setResultOk] = useState<boolean | null>(null)
@@ -139,7 +133,7 @@ export function BashSetupDialog({ initialStatus, onDone }: Props): React.ReactNo
       <Box flexDirection="column" gap={1}>
         <Text>{why}</Text>
         <Text>
-          Tau requires a current bash for shell commands. I can {plan.action} it for you using{' '}
+          Tau needs Bash for native shell commands. I can install it using{' '}
           <Text bold>{plan.canInstall ? plan.label : 'a manual download'}</Text>.
           <Newline />
           Command:{' '}
@@ -155,7 +149,7 @@ export function BashSetupDialog({ initialStatus, onDone }: Props): React.ReactNo
         options={[
           {
             label: plan.canInstall
-              ? `Yes, ${plan.action} bash`
+              ? 'Yes, install Bash'
               : 'Show me the manual steps',
             value: 'install',
           },
@@ -177,15 +171,7 @@ export function shouldShowBashSetup(opts: {
   resetRequested: boolean
 }): BashStatus | null {
   const status = detectBash()
-  return needsBashSetup(status) ? status : null
-}
-
-function needsBashSetup(status: BashStatus): boolean {
-  if (!status.ok) return true
-  // The runtime shell provider requires Git Bash on Windows. WSL or another
-  // generic bash on PATH is not enough for native shell-command support.
-  if (process.platform === 'win32' && status.source !== 'git-for-windows') return true
-  return status.isAppleStock || status.isOutdated
+  return shouldPromptForBashSetup(status, opts) ? status : null
 }
 
 function describeReason(status: BashStatus): string {
@@ -204,11 +190,5 @@ function describeReason(status: BashStatus): string {
   if (process.platform === 'win32' && status.source !== 'git-for-windows') {
     return 'No Git Bash detected on this machine.'
   }
-  if (status.isAppleStock) {
-    return `macOS only ships bash ${status.versionLine ?? '3.2'} at /bin/bash. Tau still works, but a current bash via Homebrew is recommended for full feature support.`
-  }
-  if (status.isOutdated) {
-    return `Detected ${status.versionLine ?? 'an old bash'}, which is too old for Tau shell support.`
-  }
-  return 'bash is available, but an upgrade is recommended.'
+  return 'A supported Bash shell is unavailable.'
 }
