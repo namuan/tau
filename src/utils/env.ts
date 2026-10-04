@@ -3,7 +3,6 @@ import { join } from 'path'
 import { fileSuffixForOauthConfig } from '../constants/oauth.js'
 import { isRunningWithBun } from './bundledMode.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
-import { findExecutable } from './findExecutable.js'
 import { getFsImplementation } from './fsOperations.js'
 import { which } from './which.js'
 
@@ -60,44 +59,6 @@ const detectRuntimes = memoize(async (): Promise<string[]> => {
 })
 
 /**
- * Checks if we're running in a WSL environment
- * @returns true if running in WSL, false otherwise
- */
-const isWslEnvironment = memoize((): boolean => {
-  try {
-    // Check for WSLInterop file which is a reliable indicator of WSL
-    return getFsImplementation().existsSync(
-      '/proc/sys/fs/binfmt_misc/WSLInterop',
-    )
-  } catch (_error) {
-    // If there's an error checking, assume not WSL
-    return false
-  }
-})
-
-/**
- * Checks if the npm executable is located in the Windows filesystem within WSL
- * @returns true if npm is from Windows (starts with /mnt/c/), false otherwise
- */
-const isNpmFromWindowsPath = memoize((): boolean => {
-  try {
-    // Only relevant in WSL environment
-    if (!isWslEnvironment()) {
-      return false
-    }
-
-    // Find the actual npm executable path
-    const { cmd } = findExecutable('npm', [])
-
-    // If npm is in Windows path, it will start with /mnt/c/
-    return cmd.startsWith('/mnt/c/')
-  } catch (_error) {
-    // If there's an error, assume it's not from Windows
-    return false
-  }
-})
-
-/**
  * Checks if we're running via Conductor
  * @returns true if running via Conductor, false otherwise
  */
@@ -108,7 +69,6 @@ function isConductor(): boolean {
 // Detect terminal type with fallbacks for all platforms
 function detectTerminal(): string | null {
   if (process.env.CURSOR_TRACE_ID) return 'cursor'
-  // Cursor and Windsurf under WSL have TERM_PROGRAM=vscode
   if (process.env.VSCODE_GIT_ASKPASS_MAIN?.includes('cursor')) {
     return 'cursor'
   }
@@ -165,9 +125,6 @@ function detectTerminal(): string | null {
   ) {
     return 'conemu'
   }
-
-  // WSL detection
-  if (process.env.WSL_DISTRO_NAME) return `wsl-${process.env.WSL_DISTRO_NAME}`
 
   // SSH session detection
   if (isSSHSession()) {
@@ -283,8 +240,6 @@ export const env = {
   getPackageManagers: detectPackageManagers,
   getRuntimes: detectRuntimes,
   isRunningWithBun: memoize(isRunningWithBun),
-  isWslEnvironment,
-  isNpmFromWindowsPath,
   isConductor,
   detectDeploymentEnvironment,
 }
