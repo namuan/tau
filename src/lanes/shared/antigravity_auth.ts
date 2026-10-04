@@ -20,7 +20,7 @@
  *      through v1internal:streamGenerateContent.
  *   6. Multi-account rotation on 429/503 with per-family quota tracking.
  *
- * Storage: ~/.claudex/antigravity-accounts.json, 0600 perms, atomic write
+ * Storage: the Tau config directory's antigravity-accounts.json, 0600 perms, atomic write
  * via temp + rename.
  */
 
@@ -28,7 +28,7 @@ import { createHash, randomBytes } from 'crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'http'
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, chmodSync } from 'fs'
 import { join } from 'path'
-import { homedir } from 'os'
+import { getTauConfigHomeDir } from '../../utils/envUtils.js'
 import { URL } from 'url'
 import {
   ANTIGRAVITY_ENDPOINT_AUTOPUSH,
@@ -68,7 +68,7 @@ export const ENDPOINT_AUTOPUSH = ANTIGRAVITY_ENDPOINT_AUTOPUSH
 export const ENDPOINT_PROD = ANTIGRAVITY_ENDPOINT_PROD
 
 // Storage layout.
-const STORAGE_DIR = join(homedir(), '.claudex')
+const STORAGE_DIR = getTauConfigHomeDir()
 const STORAGE_FILE = join(STORAGE_DIR, 'antigravity-accounts.json')
 const LOCK_FILE = STORAGE_FILE + '.lock'
 

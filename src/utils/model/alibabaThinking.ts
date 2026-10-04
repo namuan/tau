@@ -32,11 +32,11 @@
  * ("parameter.enable_thinking only support …"), so silence is the only safe
  * default for a model the catalogue has not described.
  *
- * The pick persists to ~/.claude/alibaba-thinking.json keyed by model id.
+ * The pick persists to Tau config's alibaba-thinking.json keyed by model id.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 import { getAlibabaModelMeta } from './alibabaCatalog.js'
 
@@ -98,7 +98,7 @@ export function supportsAlibabaEffortSelection(model: string): boolean {
 function storePath(): string {
   return (
     process.env.TAU_ALIBABA_THINKING_STORE
-    || join(homedir(), '.claude', 'alibaba-thinking.json')
+    || join(getTauConfigHomeDir(), 'alibaba-thinking.json')
   )
 }
 

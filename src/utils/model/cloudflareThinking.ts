@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 
 export type CloudflareEffort = 'default' | 'low' | 'medium' | 'high' | 'max'
@@ -36,7 +36,7 @@ function storeKey(model: string): string {
 
 function storePath(): string {
   return process.env.TAU_CLOUDFLARE_THINKING_STORE
-    || join(homedir(), '.claude', 'cloudflare-thinking.json')
+    || join(getTauConfigHomeDir(), 'cloudflare-thinking.json')
 }
 
 let _loadedPath: string | null = null

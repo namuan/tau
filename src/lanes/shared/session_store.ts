@@ -18,7 +18,7 @@
  * lets the UI filter parts by session without joining through messages.
  */
 
-import { homedir } from 'os'
+import { getTauConfigHomeDir } from '../../utils/envUtils.js'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
@@ -321,9 +321,9 @@ let _default: SessionStore | null = null
 
 export function getDefaultSessionStore(): SessionStore {
   if (_default) return _default
-  const dir = join(homedir(), '.claudex')
+  const dir = getTauConfigHomeDir()
   if (!existsSync(dir)) {
-    try { mkdirSync(dir, { recursive: true }) } catch { /* continue */ }
+    try { mkdirSync(dir, { recursive: true, mode: 0o700 }) } catch { /* continue */ }
   }
   _default = new SessionStore(join(dir, 'sessions.db'))
   return _default

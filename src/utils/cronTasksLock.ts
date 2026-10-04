@@ -1,4 +1,4 @@
-// Scheduler lease lock for .claude/scheduled_tasks.json.
+// Scheduler lease lock for the Tau project task file.
 //
 // When multiple Claude sessions run in the same project directory, only one
 // should drive the cron scheduler. The first session to acquire this lock

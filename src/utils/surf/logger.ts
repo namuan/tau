@@ -3,7 +3,7 @@
  *
  * Goal: let you verify which model actually served each turn, whether the
  * prompt cache is warming (reading tokens), or whether every phase switch
- * is cold. File location: ~/.claudex/logs/surf-YYYY-MM-DD.jsonl, append
+ * is cold. File location: Tau's config directory/logs/surf-YYYY-MM-DD.jsonl, append
  * only, one JSON object per line — tail with `tail -f`, grep by phase or
  * provider, pipe into jq.
  *
@@ -15,7 +15,7 @@
  */
 
 import { appendFile, mkdir } from 'fs/promises'
-import { homedir } from 'os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { join } from 'path'
 
 import { isSurfEnabled } from './state.js'
@@ -42,7 +42,7 @@ let _logDirEnsured: string | null = null
  *  stat on every turn. */
 async function ensureLogDir(): Promise<string> {
   if (_logDirEnsured) return _logDirEnsured
-  const dir = join(homedir(), '.claudex', 'logs')
+  const dir = join(getTauConfigHomeDir(), 'logs')
   await mkdir(dir, { recursive: true })
   _logDirEnsured = dir
   return dir

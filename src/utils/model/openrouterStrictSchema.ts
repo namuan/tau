@@ -24,7 +24,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 import { isValidAgainstContract } from '../toolContractValidation.js'
 
@@ -103,7 +103,7 @@ function normalizeStrictModelKey(model: string): string {
 function strictStorePath(): string {
   return (
     process.env.TAU_OPENROUTER_STRICT_TOOLS_STORE
-    || join(homedir(), '.claude', 'openrouter-strict-tools.json')
+    || join(getTauConfigHomeDir(), 'openrouter-strict-tools.json')
   )
 }
 

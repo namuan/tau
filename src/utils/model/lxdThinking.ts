@@ -15,14 +15,14 @@
  *   nemotron-3-ultra        Default / High
  *   llama-4-scout           (no chip -- reasoning_efforts is empty)
  *
- * The pick persists to ~/.claude/lxd-thinking.json keyed by model id, so it
+ * The pick persists to Tau config's lxd-thinking.json keyed by model id, so it
  * survives across sessions. A stored value that is not on the model's current
  * ladder is ignored (the ladder can change under us when LXD re-publishes),
  * which keeps a stale 'medium' from silently riding along on a high-only row.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 import {
   getLxdModelMeta,
@@ -51,7 +51,7 @@ export function supportsLxdEffortSelection(model: string): boolean {
 function storePath(): string {
   return (
     process.env.TAU_LXD_THINKING_STORE
-    || join(homedir(), '.claude', 'lxd-thinking.json')
+    || join(getTauConfigHomeDir(), 'lxd-thinking.json')
   )
 }
 

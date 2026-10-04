@@ -24,12 +24,12 @@
  *   - Anything else (e.g. minimax, big-pickle): no effort knob — server-side
  *     defaults pick the thinking mode and we don't inject anything.
  *
- * The store persists to ~/.claude/opencode-thinking.json so the chosen
+ * The store persists to Tau config's opencode-thinking.json so the chosen
  * effort survives across sessions per model id.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 import { getOpencodeModelMeta } from './opencodeModelsDevCatalog.js'
 import {
@@ -251,7 +251,7 @@ export function supportsOpencodeThinkingSelection(
 function storePath(): string {
   return (
     process.env.TAU_OPENCODE_THINKING_STORE
-    || join(homedir(), '.claude', 'opencode-thinking.json')
+    || join(getTauConfigHomeDir(), 'opencode-thinking.json')
   )
 }
 

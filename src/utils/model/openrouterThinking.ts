@@ -27,11 +27,11 @@
  * `mandatory: true` row (the whole Muse Spark family) `enabled: false` is a
  * 400, so the stop is not offered and never sent.
  *
- * The pick persists to ~/.claude/openrouter-thinking.json keyed by model id.
+ * The pick persists to Tau config's openrouter-thinking.json keyed by model id.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 import { getOpenRouterReasoningMeta } from './openrouterReasoningCatalog.js'
 
@@ -94,7 +94,7 @@ export function supportsOpenRouterEffortSelection(model: string): boolean {
 function storePath(): string {
   return (
     process.env.TAU_OPENROUTER_THINKING_STORE
-    || join(homedir(), '.claude', 'openrouter-thinking.json')
+    || join(getTauConfigHomeDir(), 'openrouter-thinking.json')
   )
 }
 

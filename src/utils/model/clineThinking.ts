@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 import { getClineModelMeta, type ClineModelMeta } from './clineModelsDevCatalog.js'
 
@@ -52,7 +52,7 @@ const CLINE_EFFORT_VARIANT_SEPARATOR = '::cline-effort='
 
 function storePath(): string {
   return process.env.TAU_CLINE_THINKING_STORE
-    || join(homedir(), '.claude', 'cline-thinking.json')
+    || join(getTauConfigHomeDir(), 'cline-thinking.json')
 }
 
 let _loadedPath: string | null = null

@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 
 export type CommandCodeEffort =
@@ -54,7 +54,7 @@ const GPT_54_MINI_EFFORTS: readonly CommandCodeEffort[] = [
   'high',
 ]
 
-const STORE_PATH = join(homedir(), '.claude', 'commandcode-thinking.json')
+const STORE_PATH = join(getTauConfigHomeDir(), 'commandcode-thinking.json')
 
 let _loaded = false
 let _cache: Record<string, CommandCodeEffort> = {}

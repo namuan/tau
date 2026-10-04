@@ -4,7 +4,7 @@
  * Non-negotiable per the Tau spec: before the first Antigravity
  * OAuth flow on any machine, the user sees the six-line TOS risk
  * banner and has to explicitly acknowledge it. The ack is persisted
- * at ~/.claudex/antigravity-acknowledged.json with the SHA-256 of
+ * in Tau's config directory's antigravity-acknowledged.json with the SHA-256 of
  * the banner text; if the text changes (TOS update, scope expansion,
  * etc.) the SHA shifts and the user re-acks.
  *
@@ -23,7 +23,7 @@
 import { createHash } from 'crypto'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
-import { homedir } from 'os'
+import { getTauConfigHomeDir } from '../../utils/envUtils.js'
 
 // ─── Banner text ────────────────────────────────────────────────
 //
@@ -76,7 +76,7 @@ interface AckStore {
   records: AckRecord[]
 }
 
-const ACK_DIR = join(homedir(), '.claudex')
+const ACK_DIR = getTauConfigHomeDir()
 const ACK_FILE = join(ACK_DIR, 'antigravity-acknowledged.json')
 
 let _sessionAck: AckRecord | null = null

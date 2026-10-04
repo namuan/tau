@@ -23,11 +23,11 @@
  * DEEPSEEK_BASE_URL keeps the old behavior -- driven by the caller's thinking
  * budget, with no effort field on the wire.
  *
- * The pick persists to ~/.claude/deepseek-thinking.json keyed by model id.
+ * The pick persists to Tau config's deepseek-thinking.json keyed by model id.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 
 export const DEEPSEEK_EFFORT_LEVELS = ['none', 'low', 'high', 'max'] as const
@@ -59,7 +59,7 @@ export function supportsDeepSeekEffortSelection(model: string): boolean {
 function storePath(): string {
   return (
     process.env.TAU_DEEPSEEK_THINKING_STORE
-    || join(homedir(), '.claude', 'deepseek-thinking.json')
+    || join(getTauConfigHomeDir(), 'deepseek-thinking.json')
   )
 }
 

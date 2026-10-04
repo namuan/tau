@@ -7,7 +7,7 @@
  * event until the user waits out the daily reset. This module:
  *
  *   1. Maintains a disk-backed account store at
- *      `~/.claudex/antigravity-accounts.json` (shape from
+ *      Tau's antigravity-accounts.json (shape from
  *      `src/lanes/shared/antigravity_auth.ts:AntigravityStore`).
  *   2. Per model-family (`gemini-pro`, `gemini-flash`, `claude`), tracks
  *      which account is currently active and rotates on rate-limit or
@@ -32,13 +32,13 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync, renameSync } from 'fs'
 import { join } from 'path'
-import { homedir } from 'os'
+import { getTauConfigHomeDir } from '../../utils/envUtils.js'
 import type { AntigravityAccount, AntigravityStore } from '../shared/antigravity_auth.js'
 import { HealthScoreTracker, type HealthSnapshot } from '../shared/health_score.js'
 
 // ─── Storage ─────────────────────────────────────────────────────
 
-const STORAGE_DIR = join(homedir(), '.claudex')
+const STORAGE_DIR = getTauConfigHomeDir()
 const STORAGE_FILE = join(STORAGE_DIR, 'antigravity-accounts.json')
 const STORAGE_VERSION = 1
 

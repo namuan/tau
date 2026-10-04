@@ -25,6 +25,8 @@
  *   codex-rs/core/src/client.rs                 (store/include flags)
  */
 
+import { getTauConfigHomeDir } from '../../utils/envUtils.js'
+
 // ─── Types ───────────────────────────────────────────────────────
 
 export type CodexInputItem =
@@ -265,7 +267,7 @@ function resolveInstallationId(): string {
 
   const home = process.env.CODEX_HOME
     ?? process.env.CLAUDEX_HOME
-    ?? path.join(os.homedir(), '.claudex')
+    ?? getTauConfigHomeDir()
   const file = path.join(home, 'installation_id')
   try {
     if (fs.existsSync(file)) {
@@ -493,7 +495,7 @@ export class CodexApiClient {
 
   /**
    * Persistent installation UUID — disk-backed under `$CODEX_HOME` (or
-   * `~/.claudex`). codex-rs ships this on every call as
+   * Tau's config directory. codex-rs ships this on every call as
    * `x-codex-installation-id` in `client_metadata`; backends aggregate
    * cache + quota against it. Regenerating per-process defeats both.
    * Ref: codex-rs/core/src/installation_id.rs

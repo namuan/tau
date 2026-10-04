@@ -6,11 +6,11 @@
  * per-model ladders there is no "Default / send nothing" stop here: the level
  * always rides the wire.
  *
- * The pick persists to ~/.claude/mimo-thinking.json keyed by model id.
+ * The pick persists to Tau config's mimo-thinking.json keyed by model id.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 import {
   isMimoReasoningModel,
@@ -34,7 +34,7 @@ export function supportsMimoEffortSelection(model: string): boolean {
 function storePath(): string {
   return (
     process.env.TAU_MIMO_THINKING_STORE
-    || join(homedir(), '.claude', 'mimo-thinking.json')
+    || join(getTauConfigHomeDir(), 'mimo-thinking.json')
   )
 }
 

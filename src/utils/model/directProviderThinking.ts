@@ -1,6 +1,6 @@
 /** Per-model controls, scoped to GLM, Moonshot and MiniMax's native APIs. */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { getTauConfigHomeDir } from '../envUtils.js'
 import { dirname, join } from 'node:path'
 import { getDirectModelMeta, type DirectThinkingProvider } from './directProviderCatalog.js'
 import { getGlmThinking } from './glmThinking.js'
@@ -10,7 +10,7 @@ import { deepseekEffortLevelsFor, supportsDeepSeekEffortSelection } from './deep
 let loadedPath = ''
 let selections: Record<string, string> = {}
 function path(): string {
-  return process.env.TAU_DIRECT_THINKING_STORE || join(homedir(), '.claude', 'direct-provider-thinking.json')
+  return process.env.TAU_DIRECT_THINKING_STORE || join(getTauConfigHomeDir(), 'direct-provider-thinking.json')
 }
 function load(): void {
   if (loadedPath === path()) return
