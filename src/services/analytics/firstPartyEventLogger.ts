@@ -13,7 +13,6 @@ import { isEqual } from 'lodash-es'
 import { getOrCreateUserID } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
-import { getPlatform, getWslVersion } from '../../utils/platform.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { profileCheckpoint } from '../../utils/startupProfiler.js'
 import { getCoreUserData } from '../../utils/user.js'
@@ -339,18 +338,9 @@ export function initialize1PEventLogging(): void {
   const maxQueueSize = batchConfig.maxQueueSize || DEFAULT_MAX_QUEUE_SIZE
 
   // Build our own resource for 1P event logging with minimal attributes
-  const platform = getPlatform()
   const attributes: Record<string, string> = {
     [ATTR_SERVICE_NAME]: 'claude-code',
     [ATTR_SERVICE_VERSION]: MACRO.VERSION,
-  }
-
-  // Add WSL-specific attributes if running on WSL
-  if (platform === 'wsl') {
-    const wslVersion = getWslVersion()
-    if (wslVersion) {
-      attributes['wsl.version'] = wslVersion
-    }
   }
 
   const resource = resourceFromAttributes(attributes)

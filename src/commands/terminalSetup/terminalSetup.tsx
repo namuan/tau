@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { randomBytes } from 'crypto';
 import { copyFile, mkdir, readFile, writeFile } from 'fs/promises';
-import { homedir, platform } from 'os';
+import { homedir } from 'os';
 import { dirname, join } from 'path';
 import type { ThemeName } from 'src/utils/theme.js';
 import { pathToFileURL } from 'url';
@@ -18,7 +18,6 @@ import { isFsInaccessible } from '../../utils/errors.js';
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js';
 import { addItemToJSONCArray, safeParseJSONC } from '../../utils/json.js';
 import { logError } from '../../utils/log.js';
-import { getPlatform } from '../../utils/platform.js';
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js';
 const EOL = '\n';
 
@@ -74,7 +73,7 @@ export function shouldOfferTerminalSetup(): boolean {
   // iTerm2, WezTerm, Ghostty, Kitty, and Warp natively support CSI u / Kitty
   // keyboard protocol, which Tau already parses. No setup needed for
   // these terminals.
-  return platform() === 'darwin' && env.terminal === 'Apple_Terminal' || env.terminal === 'vscode' || env.terminal === 'cursor' || env.terminal === 'windsurf' || env.terminal === 'alacritty' || env.terminal === 'zed';
+  return env.terminal === 'Apple_Terminal' || env.terminal === 'vscode' || env.terminal === 'cursor' || env.terminal === 'windsurf' || env.terminal === 'alacritty' || env.terminal === 'zed';
 }
 export async function setupTerminal(theme: ThemeName): Promise<string> {
   let result = '';
@@ -151,17 +150,7 @@ No configuration needed. Just use Shift+Enter to add newlines.`;
   // Check if terminal is supported
   if (!shouldOfferTerminalSetup()) {
     const terminalName = env.terminal || 'your current terminal';
-    const currentPlatform = getPlatform();
-
-    // Build platform-specific terminal suggestions
-    let platformTerminals = '';
-    if (currentPlatform === 'macos') {
-      platformTerminals = '   • macOS: Apple Terminal\n';
-    } else if (currentPlatform === 'windows') {
-      platformTerminals = '   • Windows: Windows Terminal\n';
-    }
-    // For Linux and other platforms, we don't show native terminal options
-    // since they're not currently supported
+    const platformTerminals = '   • macOS: Apple Terminal\n';
 
     const message = `Terminal setup cannot be run from ${terminalName}.
 
@@ -205,7 +194,7 @@ async function installBindingsForVSCodeTerminal(editor: 'VSCode' | 'Cursor' | 'W
 ]`)}${EOL}`;
   }
   const editorDir = editor === 'VSCode' ? 'Code' : editor;
-  const userDirPath = join(homedir(), platform() === 'win32' ? join('AppData', 'Roaming', editorDir, 'User') : platform() === 'darwin' ? join('Library', 'Application Support', editorDir, 'User') : join('.config', editorDir, 'User'));
+  const userDirPath = join(homedir(), 'Library', 'Application Support', editorDir, 'User');
   const keybindingsPath = join(userDirPath, 'keybindings.json');
   try {
     // Ensure user directory exists (idempotent with recursive)
@@ -379,20 +368,12 @@ chars = "\\u001B\\r"`;
   // Get Alacritty config file paths in order of preference
   const configPaths: string[] = [];
 
-  // XDG config path (Linux and macOS)
+  // XDG config path
   const xdgConfigHome = process.env.XDG_CONFIG_HOME;
   if (xdgConfigHome) {
     configPaths.push(join(xdgConfigHome, 'alacritty', 'alacritty.toml'));
   } else {
     configPaths.push(join(homedir(), '.config', 'alacritty', 'alacritty.toml'));
-  }
-
-  // Windows-specific path
-  if (platform() === 'win32') {
-    const appData = process.env.APPDATA;
-    if (appData) {
-      configPaths.push(join(appData, 'alacritty', 'alacritty.toml'));
-    }
   }
 
   // Find existing config file by attempting to read it, or use first preferred path

@@ -45,7 +45,6 @@ import {
   is1PApiCustomer,
   isClaudeAISubscriber,
 } from 'src/utils/auth.js'
-import { getPlatform, getWslVersion } from 'src/utils/platform.js'
 
 import { getCACertificates } from '../caCerts.js'
 import { registerCleanup } from '../cleanupRegistry.js'
@@ -469,18 +468,9 @@ export async function initializeTelemetry() {
   }
 
   // Create base resource with service attributes
-  const platform = getPlatform()
   const baseAttributes: Record<string, string> = {
     [ATTR_SERVICE_NAME]: 'claude-code',
     [ATTR_SERVICE_VERSION]: MACRO.VERSION,
-  }
-
-  // Add WSL-specific attributes if running on WSL
-  if (platform === 'wsl') {
-    const wslVersion = getWslVersion()
-    if (wslVersion) {
-      baseAttributes['wsl.version'] = wslVersion
-    }
   }
 
   const baseResource = resourceFromAttributes(baseAttributes)

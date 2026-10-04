@@ -33,9 +33,7 @@ let cachedRunnerPath: string | undefined
 /**
  * Does this candidate start, and is it a Python new enough to run the kernel?
  *
- * The version gate is not cosmetic. It rejects Python 2, and it rejects the
- * Windows Store `python3` alias stub, which exists on a default Windows install
- * and would otherwise be picked ahead of a real interpreter. The kernel uses
+ * The version gate rejects Python 2 and older interpreters. The kernel uses
  * 3.10 syntax, so anything older would fail at import time with a confusing
  * SyntaxError instead of a clean "no interpreter" message.
  */
@@ -44,10 +42,6 @@ function probe(candidate: string): boolean {
     const result = spawnSync(candidate, ['-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'], {
       timeout: PROBE_TIMEOUT_MS,
       stdio: 'ignore',
-      // Never inherit the host console handle here: an inherited stdin handle
-      // has been observed keeping a probe subprocess alive indefinitely on
-      // native Windows, even though the script never reads stdin.
-      windowsHide: true,
     })
     return result.status === 0
   } catch {
@@ -56,9 +50,7 @@ function probe(candidate: string): boolean {
 }
 
 function venvInterpreter(root: string): string | null {
-  const binDir = process.platform === 'win32' ? 'Scripts' : 'bin'
-  const exe = process.platform === 'win32' ? 'python.exe' : 'python'
-  const candidate = join(root, binDir, exe)
+  const candidate = join(root, 'bin', 'python')
   return existsSync(candidate) ? candidate : null
 }
 
@@ -160,8 +152,7 @@ export function ensureRunnerOnDisk(): string {
 /**
  * Names that must never reach the kernel even if they pass the allowlist.
  * The kernel runs model-authored code; Tau holds credentials for more than
- * twenty providers, and there is no working filesystem sandbox on Windows to
- * fall back on (`lanes/shared/sandbox.ts` degrades to an env-scoped spawn).
+ * twenty providers, and filesystem sandboxing is not used by the kernel.
  * Keeping secrets out of `os.environ` is the control that actually holds.
  */
 const SECRET_NAME = /API[_-]?KEY|APIKEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|SESSION[_-]?KEY|AUTH/i
@@ -169,7 +160,6 @@ const SECRET_NAME = /API[_-]?KEY|APIKEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL|
 const ENV_ALLOW = new Set([
   'PATH',
   'HOME',
-  'USERPROFILE',
   'USERNAME',
   'USER',
   'LOGNAME',

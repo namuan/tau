@@ -58,8 +58,6 @@ import {
 import { maybeAppendCommandHelp } from './commandHelp.js';
 import { appendPythonModuleHelp } from '../../utils/pythonModuleHelp.js';
 import { recordBashFailure, recordBashSuccess } from './bashRetryGuard.js';
-import { getPlatform } from '../../utils/platform.js';
-import { findGitBashPath } from '../../utils/windowsPaths.js';
 import { interpretCommandResult } from './commandSemantics.js';
 import { getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js';
 import { checkReadOnlyConstraints } from './readOnlyValidation.js';
@@ -507,16 +505,6 @@ export const BashTool = buildTool({
   // Neither changes what runs: the command string is authoritative for
   // execution, permissions and sandboxing.
   advisoryInputFields: ['command_parts', 'description'],
-  // Hide BashTool on Windows when neither git-bash nor any other bash is
-  // available. The shell layer would route bash commands to PowerShell,
-  // but the model's bash syntax (globs, pipes, heredocs) wouldn't parse —
-  // better to offer only PowerShellTool so syntax and tool agree.
-  isEnabled() {
-    if (getPlatform() === 'windows' && !findGitBashPath() && !process.env.SHELL) {
-      return false;
-    }
-    return true;
-  },
   async description({
     description
   }) {

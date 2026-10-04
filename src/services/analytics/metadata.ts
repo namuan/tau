@@ -21,11 +21,7 @@ import {
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isClaudeAISubscriber, getSubscriptionType } from '../../utils/auth.js'
 import { getRepoRemoteHash } from '../../utils/git.js'
-import {
-  getWslVersion,
-  getLinuxDistroInfo,
-  detectVcs,
-} from '../../utils/platform.js'
+import { detectVcs } from '../../utils/platform.js'
 import type { CoreUserData } from 'src/utils/user.js'
 import { getAgentContext } from '../../utils/agentContext.js'
 import type { EnvironmentMetadata } from '../../types/generated/events_mono/claude_code/v1/claude_code_internal_event.js'
@@ -303,10 +299,6 @@ export type EnvContext = {
   githubActionsRunnerEnvironment?: string
   githubActionsRunnerOs?: string
   githubActionRef?: string
-  wslVersion?: string
-  linuxDistroId?: string
-  linuxDistroVersion?: string
-  linuxKernel?: string
   vcs?: string
 }
 
@@ -431,10 +423,9 @@ const getVersionBase = memoize((): string | undefined => {
  * Builds the environment context object
  */
 const buildEnvContext = memoize(async (): Promise<EnvContext> => {
-  const [packageManagers, runtimes, linuxDistroInfo, vcs] = await Promise.all([
+  const [packageManagers, runtimes, vcs] = await Promise.all([
     env.getPackageManagers(),
     env.getRuntimes(),
-    getLinuxDistroInfo(),
     detectVcs(),
   ])
 
@@ -490,8 +481,6 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
         ? process.env.GITHUB_ACTION_PATH.split('claude-code-action/')[1]
         : undefined,
     }),
-    ...(getWslVersion() && { wslVersion: getWslVersion() }),
-    ...(linuxDistroInfo ?? {}),
     ...(vcs.length > 0 ? { vcs: vcs.join(',') } : {}),
   }
 })
@@ -729,18 +718,6 @@ export function to1PEventFormat(
   }
   if (envContext.githubActionRef) {
     env.github_action_ref = envContext.githubActionRef
-  }
-  if (envContext.wslVersion) {
-    env.wsl_version = envContext.wslVersion
-  }
-  if (envContext.linuxDistroId) {
-    env.linux_distro_id = envContext.linuxDistroId
-  }
-  if (envContext.linuxDistroVersion) {
-    env.linux_distro_version = envContext.linuxDistroVersion
-  }
-  if (envContext.linuxKernel) {
-    env.linux_kernel = envContext.linuxKernel
   }
   if (envContext.vcs) {
     env.vcs = envContext.vcs

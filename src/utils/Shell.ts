@@ -27,14 +27,12 @@ import {
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
 import { which } from './which.js'
-import { normalizePythonCommand } from './shell/pythonInterpreter.js'
 
 export type { ExecResult } from './ShellCommand.js'
 
 import { accessSync } from 'fs'
 import { onCwdChangedForHooks } from './hooks/fileChangedWatcher.js'
 import { getClaudeTempDirName } from './permissions/filesystem.js'
-import { getPlatform } from './platform.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { type AgentModelEnv, withAgentEnv } from './shell/agentEnv.js'
@@ -43,7 +41,6 @@ import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { findGitBashPath, posixPathToWindowsPath } from './windowsPaths.js'
 
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 minutes
 
@@ -74,9 +71,8 @@ function isExecutable(shellPath: string): boolean {
 /**
  * Determines the best available shell to use.
  *
- * Returns null when no POSIX shell is available. The first-run bash setup
- * flow is responsible for installing Git Bash on Windows; command execution
- * must not silently fall back to PowerShell because Bash syntax is different.
+ * Returns null when no POSIX shell is available. Command execution must not
+ * silently fall back to PowerShell because Bash syntax is different.
  */
 export async function findSuitableShell(): Promise<string | null> {
   // Check for explicit shell override first
@@ -94,19 +90,6 @@ export async function findSuitableShell(): Promise<string | null> {
         `CLAUDE_CODE_SHELL="${shellOverride}" is not a valid bash/zsh path, falling back to detection`,
       )
     }
-  }
-
-  // On Windows, only Git Bash is supported for bash-typed commands. Other
-  // `bash.exe` binaries on PATH may be WSL/MSYS/Cygwin and do not provide the
-  // native command behavior claudex expects.
-  if (getPlatform() === 'windows') {
-    const gitBash = findGitBashPath()
-    if (gitBash) {
-      logForDebugging(`Using git-bash path: "${gitBash}"`)
-      return gitBash
-    }
-    logForDebugging('No git-bash found on Windows')
-    return null
   }
 
   // Check user's preferred shell from environment
@@ -146,15 +129,8 @@ export async function findSuitableShell(): Promise<string | null> {
   const shellPath = supportedShells.find(shell => shell && isExecutable(shell))
 
   if (!shellPath) {
-    if (getPlatform() === 'windows') {
-      logForDebugging(
-        'No bash/zsh found on Windows',
-      )
-      return null
-    }
     const errorMsg =
-      'No suitable shell found. Claude CLI requires a Posix shell environment. ' +
-      'Please ensure you have a valid shell installed and the SHELL environment variable set.'
+      'No suitable Bash or Zsh shell found. Ensure Bash or Zsh is installed and SHELL points to it.'
     logError(new Error(errorMsg))
     throw new Error(errorMsg)
   }
@@ -182,19 +158,13 @@ export const getPsProvider = memoize(async (): Promise<ShellProvider> => {
 
 /**
  * Resolves the active shell provider for a requested shell type.
- * If bash is requested but unavailable, fail with a setup-oriented error.
- * The first-run setup prompt handles install/upgrade; this layer should
- * never reinterpret Bash commands as PowerShell commands.
+ * The shell layer should never reinterpret Bash commands as PowerShell commands.
  */
 const resolveProvider: Record<ShellType, () => Promise<ShellProvider>> = {
   bash: async () => {
     const config = await getShellConfig()
     if (config) return config.provider
-    throw new Error(
-      getPlatform() === 'windows'
-        ? 'Git Bash is required for Bash commands. Install Git for Windows and restart Tau.'
-        : 'No suitable shell found. Install bash and restart Tau.',
-    )
+    throw new Error('No suitable shell found. Install Bash or Zsh and restart Tau.')
   },
   powershell: getPsProvider,
 }
@@ -237,12 +207,6 @@ export async function exec(
   shellType: ShellType,
   options?: ExecOptions,
 ): Promise<ShellCommand> {
-  // Windows: make the POSIX-conventional `python3` / `pip3` names work when
-  // they only resolve to the Microsoft Store stub (exits 9009 / 49 without
-  // running). No-op on other platforms, when the command references no
-  // python3/pip3, or when a real python3 already exists. See
-  // ./shell/pythonInterpreter.ts.
-  command = normalizePythonCommand(command)
   const {
     timeout,
     onProgress,
@@ -370,26 +334,16 @@ export async function exec(
   // In file mode, both stdout and stderr go to the same file fd.
   // On POSIX, O_APPEND makes each write atomic (seek-to-end + write), so
   // stdout and stderr are interleaved chronologically without tearing.
-  // On Windows, 'a' mode strips FILE_WRITE_DATA (only grants FILE_APPEND_DATA)
-  // via libuv's fs__open. MSYS2/Cygwin probes inherited handles with
-  // NtQueryInformationFile(FileAccessInformation) and treats handles without
-  // FILE_WRITE_DATA as read-only, silently discarding all output. Using 'w'
-  // grants FILE_GENERIC_WRITE. Atomicity is preserved because duplicated
-  // handles share the same FILE_OBJECT with FILE_SYNCHRONOUS_IO_NONALERT,
-  // which serializes all I/O through a single kernel lock.
   // SECURITY: O_NOFOLLOW prevents symlink-following attacks from the sandbox.
-  // On Windows, use string flags — numeric flags can produce EINVAL through libuv.
   let outputHandle: FileHandle | undefined
   if (!usePipeMode) {
     const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0
     outputHandle = await open(
       taskOutput.path,
-      process.platform === 'win32'
-        ? 'w'
-        : fsConstants.O_WRONLY |
-            fsConstants.O_CREAT |
-            fsConstants.O_APPEND |
-            O_NOFOLLOW,
+      fsConstants.O_WRONLY |
+        fsConstants.O_CREAT |
+        fsConstants.O_APPEND |
+        O_NOFOLLOW,
     )
   }
   const baseEnv = subprocessEnv()
@@ -401,9 +355,6 @@ export async function exec(
       // inherited copies, such as a parent Tau's.
       env: withAgentEnv({
         ...baseEnv,
-        // Shell tools redirect stdout/stderr to files. On Windows, native
-        // Python otherwise often defaults redirected stdio to the ANSI code
-        // page, so printing Unicode can fail with UnicodeEncodeError.
         PYTHONIOENCODING: baseEnv.PYTHONIOENCODING || 'utf-8',
         // Unbuffered Python stdio so output isn't lost when the process is
         // killed (timeout) or crashes before a buffered flush — bytes are
@@ -425,8 +376,6 @@ export async function exec(
         : ['pipe', outputHandle?.fd, outputHandle?.fd],
       // Don't pass the signal - we'll handle termination ourselves with tree-kill
       detached: provider.detached,
-      // Prevent visible console window on Windows (no-op on other platforms)
-      windowsHide: true,
     })
 
     const shellCommand = wrapSpawn(
@@ -467,13 +416,7 @@ export async function exec(
     // Using async readFile would introduce a microtask boundary, causing
     // a race where cwd hasn't been updated yet when the caller continues.
 
-    // On Windows, cwdFilePath is a POSIX path (for bash's `pwd -P >| $path`),
-    // but Node.js needs a native Windows path for readFileSync/unlinkSync.
-    // Similarly, `pwd -P` outputs a POSIX path that must be converted before setCwd.
-    const nativeCwdFilePath =
-      getPlatform() === 'windows'
-        ? posixPathToWindowsPath(cwdFilePath)
-        : cwdFilePath
+    const nativeCwdFilePath = cwdFilePath
 
     void shellCommand.result.then(async result => {
       // On Linux, bwrap creates 0-byte mount-point files on the host to deny
@@ -490,9 +433,6 @@ export async function exec(
           let newCwd = readFileSync(nativeCwdFilePath, {
             encoding: 'utf8',
           }).trim()
-          if (getPlatform() === 'windows') {
-            newCwd = posixPathToWindowsPath(newCwd)
-          }
           // cwd is NFC-normalized (setCwdState); newCwd from `pwd -P` may be
           // NFD on macOS APFS. Normalize before comparing so Unicode paths
           // don't false-positive as "changed" on every command.

@@ -1,9 +1,7 @@
 import { execFile, execFileSync } from 'child_process'
 import { accessSync, constants as fsConstants } from 'fs'
 import { errorMessage } from '../../utils/errors.js'
-import { getPlatform } from '../../utils/platform.js'
 import { which } from '../../utils/which.js'
-import { findGitBashPath } from '../../utils/windowsPaths.js'
 import { analyzeNativeShellCommand, type NativeShellAnalysis } from './nativeShellParser.js'
 
 const SYNTAX_CHECK_TIMEOUT_MS = 2_000
@@ -54,7 +52,7 @@ function formatNativeDiagnostic(analysis: NativeShellAnalysis | null): string | 
 }
 
 function isSupportedShellPath(shellPath: string | undefined): shellPath is string {
-  return !!shellPath && /(?:^|[\\/])(bash|zsh)(?:\.exe)?$/i.test(shellPath)
+  return !!shellPath && /(?:^|\/)(bash|zsh)$/i.test(shellPath)
 }
 
 function isExecutable(shellPath: string): boolean {
@@ -66,7 +64,6 @@ function isExecutable(shellPath: string): boolean {
       execFileSync(shellPath, ['--version'], {
         timeout: 1_000,
         stdio: 'ignore',
-        windowsHide: true,
       })
       return true
     } catch {
@@ -79,10 +76,6 @@ async function findSyntaxCheckShell(): Promise<string | null> {
   const shellOverride = process.env.CLAUDE_CODE_SHELL
   if (isSupportedShellPath(shellOverride) && isExecutable(shellOverride)) {
     return shellOverride
-  }
-
-  if (getPlatform() === 'windows') {
-    return findGitBashPath()
   }
 
   const envShell = process.env.SHELL
@@ -199,7 +192,6 @@ async function runNoExecSyntaxCheck(
       ['-n', '-c', command],
       {
         timeout: SYNTAX_CHECK_TIMEOUT_MS,
-        windowsHide: true,
         maxBuffer: 128 * 1024,
       },
       (error, stdout, stderr) => {

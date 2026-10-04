@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn, spawnSync } from 'child_process'
+import { type ChildProcess, spawn } from 'child_process'
 import { randomUUID } from 'crypto'
 import { connect } from 'net'
 
@@ -14,7 +14,6 @@ import {
   ensureRunnerOnDisk,
   resolvePythonInterpreter,
 } from './pythonRuntime.js'
-import { bashToolPathEntries, withAppendedPath } from './shellPath.js'
 import type { DeadlineBudget } from './toolBridge.js'
 
 export type KernelDisplay = { mime: string; data: string }
@@ -52,9 +51,6 @@ function trace(message: string): void {
 
 /**
  * One persistent Python subprocess speaking NDJSON.
- *
- * Spawn flags are load-bearing on Windows and are explained inline; do not
- * "tidy" them without reading those comments.
  */
 export class PythonKernel {
   #proc: ChildProcess | null = null
@@ -110,31 +106,17 @@ export class PythonKernel {
     const interpreter = resolvePythonInterpreter()
     if (!interpreter) throw new Error('No Python interpreter available.')
     const runner = ensureRunnerOnDisk()
-    // A program the Bash tool finds must be findable from a cell as well.
-    const bashPath = await bashToolPathEntries()
-
     const proc = spawn(interpreter, ['-u', runner], {
       cwd: this.options.cwd,
-      env: withAppendedPath(
-        buildKernelEnv({
-          TAU_EVAL_CWD: this.options.cwd,
-          TAU_EVAL_CANCEL_TOKEN: this.#cancelToken,
-          TAU_EVAL_BRIDGE_URL: this.options.bridgeUrl,
-          TAU_EVAL_BRIDGE_TOKEN: this.options.bridgeToken,
-          TAU_EVAL_BRIDGE_SESSION: this.options.bridgeSession,
-        }),
-        bashPath,
-      ),
+      env: buildKernelEnv({
+        TAU_EVAL_CWD: this.options.cwd,
+        TAU_EVAL_CANCEL_TOKEN: this.#cancelToken,
+        TAU_EVAL_BRIDGE_URL: this.options.bridgeUrl,
+        TAU_EVAL_BRIDGE_TOKEN: this.options.bridgeToken,
+        TAU_EVAL_BRIDGE_SESSION: this.options.bridgeSession,
+      }),
       stdio: ['pipe', 'pipe', 'pipe'],
-      // NOT windowsHide. CREATE_NO_WINDOW detaches the child from the console,
-      // and NumPy's native extensions (OpenBLAS thread-pool init inside
-      // LoadLibraryExW) can deadlock on Windows with no console attached. Node
-      // defaults this to false; it is spelled out so nobody "optimizes" the
-      // console flash away and reintroduces a hang that looks like a timeout.
-      windowsHide: false,
-      // POSIX: own process group, so a shutdown kills anything the cell
-      // spawned. Windows has no process groups; killTree() uses taskkill /T.
-      detached: process.platform !== 'win32',
+      detached: true,
     })
 
     this.#proc = proc
@@ -207,9 +189,7 @@ export class PythonKernel {
    *
    * Connects to the kernel's loopback cancel socket and presents the shared
    * token; the kernel's listener thread calls `_thread.interrupt_main()`.
-   * Signals are not used: on Windows, Node's documented behavior is to ignore
-   * the signal argument and terminate the process, so a SIGINT-based design
-   * would destroy the namespace on every Ctrl+C.
+   * Signals are not used so cancelling a cell does not destroy the namespace.
    */
   cancel(): void {
     if (!this.#cancelPort || !this.isAlive()) return
@@ -444,8 +424,7 @@ export class PythonKernel {
   /**
    * Close the control pipe without killing anything. Test-only: this is what a
    * hard-killed parent looks like from the kernel's side, and the kernel must
-   * exit on its own when it happens — otherwise every crashed session leaks a
-   * python.exe on Windows, where there are no process groups to clean up.
+   * exit on its own when it happens.
    */
   closeStdinForTests(): void {
     this.#proc?.stdin?.end()
@@ -467,20 +446,6 @@ export class PythonKernel {
   killTree(): void {
     const proc = this.#proc
     if (!proc?.pid) return
-    if (process.platform === 'win32') {
-      // Windows has no process groups, so signalling the direct pid leaves
-      // grandchildren (a `%pip install`, a subprocess.run) holding the pipes
-      // open for the rest of the host's life. taskkill /T walks the tree.
-      try {
-        spawnSync('taskkill', ['/PID', String(proc.pid), '/T', '/F'], {
-          stdio: 'ignore',
-          windowsHide: true,
-        })
-      } catch {
-        /* the process is already gone, which is the outcome we wanted */
-      }
-      return
-    }
     try {
       process.kill(-proc.pid, 'SIGKILL')
     } catch {

@@ -12,7 +12,6 @@ import {
   shouldAddStdinRedirect,
 } from '../bash/shellQuoting.js'
 import { logForDebugging } from '../debug.js'
-import { getPlatform } from '../platform.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import {
@@ -20,7 +19,6 @@ import {
   getClaudeTmuxEnv,
   hasTmuxToolBeenUsed,
 } from '../tmuxSocket.js'
-import { windowsPathToPosixPath } from '../windowsPaths.js'
 import type { ShellProvider } from './shellProvider.js'
 
 /**
@@ -105,16 +103,9 @@ export async function createBashShellProvider(
       currentSandboxTmpDir = opts.sandboxTmpDir
 
       const tmpdir = osTmpdir()
-      const isWindows = getPlatform() === 'windows'
-      const shellTmpdir = isWindows ? windowsPathToPosixPath(tmpdir) : tmpdir
-
-      // shellCwdFilePath: POSIX path used inside the bash command (pwd -P >| ...)
-      // cwdFilePath: native OS path used by Node.js for readFileSync/unlinkSync
-      // On non-Windows these are identical; on Windows, Git Bash needs POSIX paths
-      // but Node.js needs native Windows paths for file operations.
       const shellCwdFilePath = opts.useSandbox
         ? posixJoin(opts.sandboxTmpDir!, `cwd-${opts.id}`)
-        : posixJoin(shellTmpdir, `claude-${opts.id}-cwd`)
+        : posixJoin(tmpdir, `claude-${opts.id}-cwd`)
       const cwdFilePath = opts.useSandbox
         ? posixJoin(opts.sandboxTmpDir!, `cwd-${opts.id}`)
         : nativeJoin(tmpdir, `claude-${opts.id}-cwd`)
@@ -149,11 +140,7 @@ export async function createBashShellProvider(
       // access() check above and the spawned shell's `source` — if the file
       // vanishes in that window, the `&&` chain still continues.
       if (snapshotFilePath) {
-        const finalPath =
-          getPlatform() === 'windows'
-            ? windowsPathToPosixPath(snapshotFilePath)
-            : snapshotFilePath
-        commandParts.push(`source ${quote([finalPath])} 2>/dev/null || true`)
+        commandParts.push(`source ${quote([snapshotFilePath])} 2>/dev/null || true`)
       }
 
       // Source session environment variables captured from session start hooks
@@ -219,28 +206,6 @@ export async function createBashShellProvider(
       }
       const claudeTmuxEnv = getClaudeTmuxEnv()
       const env: Record<string, string> = {}
-      // Keep Bash `$TMPDIR` aligned with Node/File tools on Windows even when
-      // sandboxing is off. Git Bash maps `/tmp` to this same per-user host
-      // directory; exposing the explicit POSIX spelling prevents a script
-      // created by one tool from being looked up under a different filesystem.
-      if (getPlatform() === 'windows' && !currentSandboxTmpDir) {
-        const winTmpDir = osTmpdir()
-        const posixTmpDir = windowsPathToPosixPath(winTmpDir)
-        // $TMPDIR is the POSIX convention read by bash scripts; the POSIX spelling
-        // keeps it aligned with Git Bash's own `/tmp` view and the File tools.
-        env.TMPDIR = posixTmpDir
-        env.CLAUDE_CODE_TMPDIR = posixTmpDir
-        // TMP/TEMP are WINDOWS-convention vars, read by native Windows programs AND
-        // by Git Bash's `usertemp` `/tmp` mount. They must NOT be the MSYS POSIX
-        // spelling (`/c/Users/...`): native tools can't resolve a `/c/...` path, and
-        // `usertemp` resolves it against the current drive -> a bogus `C:\c\Users\...`
-        // so Git Bash prints "could not find /tmp, please create!" on every command.
-        // Use a forward-slash DRIVE path (`C:/Users/...`): valid for native Windows
-        // APIs and safe to use as `$TMP` in bash (no backslash-escape pitfalls).
-        const driveTmpDir = winTmpDir.replace(/\\/g, '/')
-        env.TMP = driveTmpDir
-        env.TEMP = driveTmpDir
-      }
       // CRITICAL: Override TMUX to isolate ALL tmux commands to Claude's socket.
       // This is NOT the user's TMUX value - it points to Claude's isolated socket.
       // When null (before socket initializes), user's TMUX is preserved.
@@ -248,10 +213,7 @@ export async function createBashShellProvider(
         env.TMUX = claudeTmuxEnv
       }
       if (currentSandboxTmpDir) {
-        let posixTmpDir = currentSandboxTmpDir
-        if (getPlatform() === 'windows') {
-          posixTmpDir = windowsPathToPosixPath(posixTmpDir)
-        }
+        const posixTmpDir = currentSandboxTmpDir
         env.TMPDIR = posixTmpDir
         env.CLAUDE_CODE_TMPDIR = posixTmpDir
         // Zsh uses TMPPREFIX (default /tmp/zsh) for heredoc temp files,

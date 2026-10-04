@@ -16,8 +16,6 @@ import {
   invalidateSessionEnvCache,
 } from './sessionEnvironment.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { getPlatform } from './platform.js'
-import { findGitBashPath, windowsPathToPosixPath } from './windowsPaths.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { DEFAULT_HOOK_SHELL } from './shell/shellProvider.js'
 import { buildPowerShellArgs } from './shell/powershellProvider.js'
@@ -715,55 +713,21 @@ async function execCommandHook(
   let diagExitCode: number | undefined
   let diagAborted = false
 
-  const isWindows = getPlatform() === 'windows'
-
   // --
   // Per-hook shell selection (phase 1 of docs/design/ps-shell-selection.md).
   // Resolution order: hook.shell → DEFAULT_HOOK_SHELL. The defaultShell
   // fallback (settings.defaultShell) is phase 2 — not wired yet.
   //
-  // The bash path is the historical default and stays unchanged. The
-  // PowerShell path deliberately skips the Windows-specific bash
-  // accommodations (cygpath conversion, .sh auto-prepend, POSIX-quoted
-  // SHELL_PREFIX).
   const shellType = hook.shell ?? DEFAULT_HOOK_SHELL
 
   const isPowerShell = shellType === 'powershell'
-
-  // --
-  // Windows bash path: hooks run via Git Bash (Cygwin), NOT cmd.exe.
-  //
-  // This means every path we put into env vars or substitute into the command
-  // string MUST be a POSIX path (/c/Users/foo), not a Windows path
-  // (C:\Users\foo or C:/Users/foo). Git Bash cannot resolve Windows paths.
-  //
-  // windowsPathToPosixPath() is pure-JS regex conversion (no cygpath shell-out):
-  // C:\Users\foo -> /c/Users/foo, UNC preserved, slashes flipped. Memoized
-  // (LRU-500) so repeated calls are cheap.
-  //
-  // PowerShell path: use native paths — skip the conversion entirely.
-  // PowerShell expects Windows paths on Windows (and native paths on
-  // Unix where pwsh is also available).
-  const toHookPath =
-    isWindows && !isPowerShell
-      ? (p: string) => windowsPathToPosixPath(p)
-      : (p: string) => p
 
   // Set CLAUDE_PROJECT_DIR to the stable project root (not the worktree path).
   // getProjectRoot() is never updated when entering a worktree, so hooks that
   // reference $CLAUDE_PROJECT_DIR always resolve relative to the real repo root.
   const projectDir = getProjectRoot()
 
-  let command = hook.command
-
-  // On Windows (bash only), auto-prepend `bash` for .sh scripts so they
-  // execute instead of opening in the default file handler. PowerShell
-  // runs .ps1 files natively — no prepend needed.
-  if (isWindows && !isPowerShell && command.trim().match(/\.sh(\s|$|")/)) {
-    if (!command.trim().startsWith('bash ')) {
-      command = `bash ${command}`
-    }
-  }
+  const command = hook.command
 
   // CLAUDE_CODE_SHELL_PREFIX wraps the command via POSIX quoting
   // (formatShellPrefixCommand uses shell-quote). This makes no sense for
@@ -778,14 +742,13 @@ async function execCommandHook(
     ? hook.timeout * 1000
     : TOOL_HOOK_EXECUTION_TIMEOUT_MS
 
-  // Build env vars — all paths go through toHookPath for Windows POSIX conversion
   const envVars: NodeJS.ProcessEnv = {
     ...subprocessEnv(),
-    CLAUDE_PROJECT_DIR: toHookPath(projectDir),
+    CLAUDE_PROJECT_DIR: projectDir,
   }
 
   if (skillRoot) {
-    envVars.CLAUDE_PLUGIN_ROOT = toHookPath(skillRoot)
+    envVars.CLAUDE_PLUGIN_ROOT = skillRoot
   }
 
   // CLAUDE_ENV_FILE points to a .sh file that the hook writes env var
@@ -834,32 +797,19 @@ async function execCommandHook(
     const pwshPath = await getCachedPowerShellPath()
     if (!pwshPath) {
       throw new Error(
-        `Hook "${hook.command}" needs a shell, but neither bash nor PowerShell ` +
-          `is available on this system. Install Git Bash (Windows) or PowerShell 7+.`,
+        `Hook "${hook.command}" needs a shell, but neither Bash nor PowerShell ` +
+          `is available on this system. Install Bash or PowerShell 7+.`,
       )
     }
     child = spawn(pwshPath, buildPowerShellArgs(finalCommand), {
       env: envVars,
       cwd: safeCwd,
-      // Prevent visible console window on Windows (no-op on other platforms)
-      windowsHide: true,
     }) as ChildProcessWithoutNullStreams
   } else {
-    // On Windows, use Git Bash explicitly (cmd.exe can't run bash syntax).
-    // On other platforms, shell: true uses /bin/sh.
-    const gitBashPath = isWindows ? findGitBashPath() : null
-    if (isWindows && !gitBashPath) {
-      throw new Error(
-        `Hook "${hook.command}" needs Git Bash. Install Git for Windows and restart Tau.`,
-      )
-    }
-    const shell = isWindows ? gitBashPath! : true
     child = spawn(finalCommand, [], {
       env: envVars,
       cwd: safeCwd,
-      shell,
-      // Prevent visible console window on Windows (no-op on other platforms)
-      windowsHide: true,
+      shell: true,
     }) as ChildProcessWithoutNullStreams
   }
 
