@@ -25,7 +25,6 @@ import { onChangeAppState } from './state/onChangeAppState.js';
 import { normalizeApiKeyForConfig } from './utils/authPortable.js';
 import { getExternalInstructionIncludes, getMemoryFiles, shouldShowExternalInstructionWarning } from './utils/claudemd.js';
 import { checkHasTrustDialogAccepted, getCustomApiKeyStatus, getGlobalConfig, saveGlobalConfig } from './utils/config.js';
-import { updateDeepLinkTerminalPreference } from './utils/deepLink/terminalPreference.js';
 import { isEnvTruthy, isRunningOnHomespace } from './utils/envUtils.js';
 import { type FpsMetrics, FpsTracker } from './utils/fpsTracker.js';
 import { updateGithubRepoPathMapping } from './utils/githubRepoPathMapping.js';
@@ -233,9 +232,6 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
   // Track current repo path for teleport directory switching (fire-and-forget)
   // This must happen AFTER trust to prevent untrusted directories from poisoning the mapping
   void updateGithubRepoPathMapping();
-  if (feature('LODESTONE')) {
-    updateDeepLinkTerminalPreference();
-  }
 
   // Apply full environment variables after trust dialog is accepted OR in bypass mode
   // In bypass mode (CI/CD, automation), we trust the environment so apply all variables

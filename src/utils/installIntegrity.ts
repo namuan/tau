@@ -4,7 +4,7 @@
  * Interrupted global updates (Windows EPERM cleanup failures, Ctrl-C,
  * antivirus locks) leave two kinds of damage behind:
  *
- *  1. Orphaned `tau` / `claudex` bin shims npm no longer tracks — the next
+ *  1. Orphaned `tau` bin shims npm no longer tracks — the next
  *     `npm install -g` aborts with EEXIST on those files.
  *  2. Holes in the installed package's node_modules — the CLI later crashes
  *     with "Cannot find module '<dep>'".
@@ -25,7 +25,7 @@ import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { writeToStdout } from './process.js'
 
-const BIN_NAMES = ['tau', 'claudex']
+const BIN_NAMES = ['tau']
 const WIN_EXTS = ['', '.cmd', '.ps1']
 
 /** Package root corresponding to the JavaScript entry that is actually running. */
@@ -151,7 +151,7 @@ async function classifyShim(
 }
 
 /**
- * Remove only dangling `tau`/`claudex` launcher shims in the global bin dir.
+ * Remove only dangling `tau` launcher shims in the global bin dir.
  * A healthy Tau-owned launcher is intentionally preserved until npm succeeds;
  * removing it here would turn a network or install failure into a broken
  * existing command. A later, confirmed EEXIST failure has its own narrowly
@@ -196,7 +196,7 @@ export async function cleanStaleBinShims(
 /**
  * Pull the conflicting file path out of an npm EEXIST failure, e.g.
  *   npm error code EEXIST
- *   npm error File exists: C:\Users\me\AppData\Roaming\npm\claudex
+ *   npm error File exists: C:\Users\me\AppData\Roaming\npm\tau
  * Returns null when the failure isn't an EEXIST bin conflict.
  */
 export function extractEexistPath(npmOutput: string): string | null {

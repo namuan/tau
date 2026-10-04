@@ -1050,7 +1050,7 @@ async function* queryLoop(
             // through the adapter layer, which transforms/drops these blocks
             // anyway — stripping there would just invalidate the prompt cache
             // without fixing anything. Upstream's original gate was
-            // `USER_TYPE === 'ant'` (always false for claudex), leaving
+            // `USER_TYPE === 'ant'` (always false for Tau), leaving
             // external users crashing on every fallback; provider-scoped is
             // the right guard.
             if (getAPIProvider() === 'firstParty') {

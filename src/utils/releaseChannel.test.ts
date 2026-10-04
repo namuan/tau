@@ -54,16 +54,10 @@ test('no npm tag resolves to "stable"', () => {
   // The regression this whole file exists for. If someone reintroduces the
   // ternary without publishing the tag, updates break silently again.
   //
-  // Scoped to the npm tag/version resolvers by variable name. The GCS helpers
-  // in autoUpdater.ts (getLatestVersionFromGcs / getGcsDistTags) also take a
-  // channel and legitimately mention 'stable', but they are a different
-  // mechanism -- an object path in a release bucket, used by native and
-  // package-manager installs, with its own null handling. They are not the npm
-  // dist-tag lookup this guards.
+  // Scoped to the npm tag/version resolvers by variable name.
   for (const rel of [
     'utils/autoUpdater.ts',
     'utils/localInstaller.ts',
-    'utils/nativeInstaller/download.ts',
     'cli/update.ts',
   ]) {
     const offending = src(rel)

@@ -22,7 +22,7 @@ import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { djb2Hash } from '../../utils/hash.js'
 import { logError } from '../../utils/log.js'
 
-const paths = envPaths('claude-cli')
+const paths = envPaths('tau')
 
 const MAX_SANITIZED_LENGTH = 200
 const LARGE_FILE_LIMIT = 2 * 1024 * 1024

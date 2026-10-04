@@ -20,10 +20,6 @@ import {
   verifyInstalledPackage,
 } from 'src/utils/installIntegrity.js'
 import { installOrUpdateTauPackage } from 'src/utils/localInstaller.js'
-import {
-  installLatest as installLatestNative,
-  removeInstalledSymlink,
-} from 'src/utils/nativeInstaller/index.js'
 import { getPackageManager } from 'src/utils/nativeInstaller/packageManagers.js'
 import { writeToStdout } from 'src/utils/process.js'
 import { gte } from 'src/utils/semver.js'
@@ -83,7 +79,7 @@ export async function update() {
       logForDebugging(`update: Warning detected: ${warning.issue}`)
 
       // Don't skip PATH warnings - they're always relevant
-      // The user needs to know that 'which claude' points elsewhere
+      // The user needs to know that 'which tau' points elsewhere
       logForDebugging(`update: Showing warning: ${warning.issue}`)
 
       writeToStdout(chalk.yellow(`Warning: ${warning.issue}\n`))
@@ -144,14 +140,9 @@ export async function update() {
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
-        if (MACRO.PACKAGE_URL === '@abdoknbgit/tau') {
-          writeToStdout(
-            'Use Homebrew to update the Tau package from the source that installed it.\n',
-          )
-        } else {
-          writeToStdout('To update, run:\n')
-          writeToStdout(chalk.bold('  brew upgrade claude-code') + '\n')
-        }
+        writeToStdout(
+          'Use Homebrew to update the Tau package from the source that installed it.\n',
+        )
       } else {
         writeToStdout('Tau is up to date!\n')
       }
@@ -161,16 +152,9 @@ export async function update() {
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
-        if (MACRO.PACKAGE_URL === '@abdoknbgit/tau') {
-          writeToStdout(
-            'Use winget to update the Tau package from the source that installed it.\n',
-          )
-        } else {
-          writeToStdout('To update, run:\n')
-          writeToStdout(
-            chalk.bold('  winget upgrade Anthropic.ClaudeCode') + '\n',
-          )
-        }
+        writeToStdout(
+          'Use winget to update the Tau package from the source that installed it.\n',
+        )
       } else {
         writeToStdout('Tau is up to date!\n')
       }
@@ -180,14 +164,9 @@ export async function update() {
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
-        if (MACRO.PACKAGE_URL === '@abdoknbgit/tau') {
-          writeToStdout(
-            'Use apk to update the Tau package from the repository that installed it.\n',
-          )
-        } else {
-          writeToStdout('To update, run:\n')
-          writeToStdout(chalk.bold('  apk upgrade claude-code') + '\n')
-        }
+        writeToStdout(
+          'Use apk to update the Tau package from the repository that installed it.\n',
+        )
       } else {
         writeToStdout('Tau is up to date!\n')
       }
@@ -247,53 +226,6 @@ export async function update() {
     }
   }
 
-  // Handle native installation updates first
-  if (diagnostic.installationType === 'native') {
-    logForDebugging(
-      'update: Detected native installation, using native updater',
-    )
-    try {
-      const result = await installLatestNative(channel, true)
-
-      // Handle lock contention gracefully
-      if (result.lockFailed) {
-        const pidInfo = result.lockHolderPid
-          ? ` (PID ${result.lockHolderPid})`
-          : ''
-        writeToStdout(
-          chalk.yellow(
-            `Another Tau process${pidInfo} is currently running. Please try again in a moment.`,
-          ) + '\n',
-        )
-        await gracefulShutdown(0)
-      }
-
-      if (!result.latestVersion) {
-        process.stderr.write('Failed to check for updates\n')
-        await gracefulShutdown(1)
-      }
-
-      if (result.latestVersion === MACRO.VERSION) {
-        writeToStdout(
-          chalk.green(`Tau is up to date (${MACRO.VERSION})`) + '\n',
-        )
-      } else {
-        writeToStdout(
-          chalk.green(
-            `Successfully updated from ${MACRO.VERSION} to version ${result.latestVersion}`,
-          ) + '\n',
-        )
-        await regenerateCompletionCache()
-      }
-      await gracefulShutdown(0)
-    } catch (error) {
-      process.stderr.write('Error: Failed to install native update\n')
-      process.stderr.write(String(error) + '\n')
-      process.stderr.write('Try running "tau doctor" for diagnostics\n')
-      await gracefulShutdown(1)
-    }
-  }
-
   // Fallback to existing JS/npm-based update logic
   logForDebugging('update: Checking npm registry for latest version')
   logForDebugging(`update: Package URL: ${MACRO.PACKAGE_URL}`)
@@ -314,20 +246,11 @@ export async function update() {
     process.stderr.write('  • Network connectivity issues\n')
     process.stderr.write('  • npm registry is unreachable\n')
     process.stderr.write('  • Corporate proxy/firewall blocking npm\n')
-    if (MACRO.PACKAGE_URL && !MACRO.PACKAGE_URL.startsWith('@anthropic')) {
-      process.stderr.write(
-        '  • Internal/development build not published to npm\n',
-      )
-    }
     process.stderr.write('\n')
     process.stderr.write('Try:\n')
     process.stderr.write('  • Check your internet connection\n')
     process.stderr.write('  • Run with --debug flag for more details\n')
-    const packageName =
-      MACRO.PACKAGE_URL ||
-      (process.env.USER_TYPE === 'ant'
-        ? '@anthropic-ai/claude-cli'
-        : '@anthropic-ai/claude-code')
+    const packageName = MACRO.PACKAGE_URL || '@abdoknbgit/tau'
     process.stderr.write(
       `  • Manually check: npm view ${packageName} version\n`,
     )
@@ -398,6 +321,12 @@ export async function update() {
       await gracefulShutdown(1)
       return
     }
+    case 'native':
+      process.stderr.write(
+        'Error: This bundled Tau executable cannot update itself. Use the package manager or installer that provided it.\n',
+      )
+      await gracefulShutdown(1)
+      return
     default:
       process.stderr.write(
         `Error: Cannot update ${diagnostic.installationType} installation\n`,
@@ -429,11 +358,6 @@ export async function update() {
 
   switch (status) {
     case 'success':
-      // Only retire a native launcher after a recognized JS update actually
-      // succeeded. Unknown or mismatched-prefix routes must not mutate it.
-      if (config.installMethod !== 'native') {
-        await removeInstalledSymlink()
-      }
       writeToStdout(
         chalk.green(
           `Successfully updated from ${MACRO.VERSION} to version ${latestVersion}`,

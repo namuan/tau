@@ -5,12 +5,11 @@ import { useInterval } from 'usehooks-ts';
 import { useUpdateNotification } from '../hooks/useUpdateNotification.js';
 import { Box, Text } from '../ink.js';
 import { type AutoUpdaterResult, getLatestVersion, getMaxVersion, type InstallStatus, installGlobalPackage, shouldSkipVersion } from '../utils/autoUpdater.js';
-import { getGlobalConfig, isAutoUpdaterDisabled } from '../utils/config.js';
+import { isAutoUpdaterDisabled } from '../utils/config.js';
 import { logForDebugging } from '../utils/debug.js';
 import { getCurrentInstallationType } from '../utils/doctorDiagnostic.js';
 import { getRunningPackageRoot } from '../utils/installIntegrity.js';
 import { installOrUpdateTauPackage, localInstallationExists } from '../utils/localInstaller.js';
-import { removeInstalledSymlink } from '../utils/nativeInstaller/index.js';
 import { gt, gte } from '../utils/semver.js';
 import { getInitialSettings } from '../utils/settings/settings.js';
 type Props = {
@@ -83,7 +82,6 @@ export function AutoUpdater({
       const startTime = Date.now();
       onChangeIsUpdating(true);
 
-      const config = getGlobalConfig();
       // Detect actual running installation type
       const installationType = await getCurrentInstallationType();
       logForDebugging(`AutoUpdater: Detected installation type: ${installationType}`);
@@ -114,8 +112,7 @@ export function AutoUpdater({
           expectedPackageRoot: getRunningPackageRoot()
         });
       } else if (installationType === 'native') {
-        // This shouldn't happen - native should use NativeAutoUpdater
-        logForDebugging('AutoUpdater: Unexpected native installation in non-native updater');
+        logForDebugging('AutoUpdater: Skipping unsupported bundled installation');
         onChangeIsUpdating(false);
         return;
       } else {
@@ -128,11 +125,6 @@ export function AutoUpdater({
       }
       onChangeIsUpdating(false);
       if (installStatus === 'success') {
-        // Unknown, failed, or mismatched-prefix routes must leave any working
-        // native launcher untouched.
-        if (config.installMethod !== 'native') {
-          await removeInstalledSymlink();
-        }
         logEvent('tengu_auto_updater_success', {
           fromVersion: currentVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           toVersion: latestVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,

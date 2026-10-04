@@ -351,8 +351,8 @@ function inspectHandoff({ env, envPrefix, platform, isProcessAliveImpl }) {
 }
 
 export function getGlobalUpdateLockPath(env = process.env, homeDirectory = homedir()) {
-  const configured = env.CLAUDE_CONFIG_DIR?.trim();
-  const configHome = configured ? resolve(configured) : join(homeDirectory, '.claude');
+  const configured = env.TAU_CONFIG_DIR?.trim();
+  const configHome = configured ? resolve(configured) : join(homeDirectory, '.config', 'tau');
   return join(configHome, '.update.lock');
 }
 

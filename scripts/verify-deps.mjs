@@ -353,8 +353,9 @@ export function classifyInstallation(packageRoot = defaultPackageRoot, opts = {}
 
   const env = opts.env ?? process.env;
   const home = opts.homeDirectory ?? homedir();
-  const configHomes = [join(home, '.claude')];
-  if (env.CLAUDE_CONFIG_DIR) configHomes.push(resolve(env.CLAUDE_CONFIG_DIR));
+  const configHomes = [
+    resolve(env.TAU_CONFIG_DIR ?? join(home, '.config', 'tau')),
+  ];
   for (const configHome of configHomes) {
     const expectedLocalRoot = join(
       configHome,
@@ -538,7 +539,7 @@ function replaceFileAtomically(filePath, contents, opts = {}) {
 }
 
 /**
- * Repair an npm-managed ~/.claude/local installation without creating or
+ * Repair a Tau-managed local installation without creating or
  * changing a global installation. Old Tau versions did not seed npm 12's
  * project policy, so migrate the reviewed policy before the exact reinstall.
  */
@@ -792,7 +793,7 @@ export function repairDeps(packageRoot = defaultPackageRoot, opts = {}) {
 export function manualFixInstructions(packageName) {
   return [
     `Tau's installation is incomplete and automatic repair did not finish.`,
-    `For a managed local install (~/.claude/local), retry in place with:`,
+    `For a managed local install, retry in place with:`,
     ``,
     `  tau update`,
     ``,
@@ -800,9 +801,9 @@ export function manualFixInstructions(packageName) {
     ``,
     `  npx -y @abdoknbgit/tau-installer@latest`,
     ``,
-    `If npm reports EEXIST on a 'tau' or 'claudex' file, delete that file`,
+    `If npm reports EEXIST on the 'tau' command, delete only a dangling shim`,
     `and re-run the install. If it reports EPERM on Windows, close every`,
-    `running tau/claudex session first, then retry.`,
+    `running Tau session first, then retry.`,
   ].join('\n');
 }
 

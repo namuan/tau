@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { constants as fsConstants } from 'fs'
 import { access } from 'fs/promises'
 import { homedir } from 'os'
@@ -11,7 +10,7 @@ import {
 import { type ReleaseChannel, saveGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
 import { env } from './env.js'
-import { getClaudeConfigHomeDir } from './envUtils.js'
+import { getTauConfigHomeDir } from './envUtils.js'
 import { ClaudeError } from './errors.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
@@ -26,20 +25,11 @@ import {
 import { logError } from './log.js'
 import { gte, lt } from './semver.js'
 import { getInitialSettings } from './settings/settings.js'
-import {
-  filterClaudeAliases,
-  getShellConfigPaths,
-  readFileLines,
-  writeFileLines,
-} from './shellConfig.js'
 import { jsonParse } from './slowOperations.js'
 import {
   createUpdateLockHandoffEnvironment,
   UpdateLock,
 } from './updateLock.js'
-
-const GCS_BUCKET_URL =
-  'https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases'
 
 const TAU_NPM_PACKAGE = '@abdoknbgit/tau'
 const TAU_INSTALLER_PACKAGE = '@abdoknbgit/tau-installer@latest'
@@ -185,7 +175,7 @@ const LOCK_HEARTBEAT_MS = 60 * 1000
  * This is a function to ensure it's evaluated at runtime after test setup
  */
 export function getLockFilePath(): string {
-  return resolve(getClaudeConfigHomeDir(), '.update.lock')
+  return resolve(getTauConfigHomeDir(), '.update.lock')
 }
 
 const updateLock = new UpdateLock({
@@ -342,38 +332,6 @@ export async function getNpmDistTags(): Promise<NpmDistTags> {
 }
 
 /**
- * Get the latest version from GCS bucket for a given release channel.
- * This is used by installations that don't have npm (e.g. package manager installs).
- */
-export async function getLatestVersionFromGcs(
-  channel: ReleaseChannel,
-): Promise<string | null> {
-  try {
-    const response = await axios.get(`${GCS_BUCKET_URL}/${channel}`, {
-      timeout: 5000,
-      responseType: 'text',
-    })
-    return response.data.trim()
-  } catch (error) {
-    logForDebugging(`Failed to fetch ${channel} from GCS: ${error}`)
-    return null
-  }
-}
-
-/**
- * Get available versions from GCS bucket (for native installations).
- * Fetches both latest and stable channel pointers.
- */
-export async function getGcsDistTags(): Promise<NpmDistTags> {
-  const [latest, stable] = await Promise.all([
-    getLatestVersionFromGcs('latest'),
-    getLatestVersionFromGcs('stable'),
-  ])
-
-  return { latest, stable }
-}
-
-/**
  * Get version history from npm registry (ant-only feature)
  * Returns versions sorted newest-first, limited to the specified count
  *
@@ -424,8 +382,7 @@ export async function installGlobalPackage(
     expectedPackageRoot?: string | null
   } = {},
 ): Promise<InstallStatus> {
-  const isAnthropicPackage = MACRO.PACKAGE_URL.startsWith('@anthropic-ai/')
-  const productName = isAnthropicPackage ? 'Tau' : 'Tau'
+  const productName = 'Tau'
 
   if (!(await acquireLock())) {
     logError(
@@ -498,16 +455,12 @@ To fix this issue:
       }
     }
 
-    if (isAnthropicPackage) {
-      await removeClaudeAliasesFromShellConfigs()
-    }
-
     const { hasPermissions, npmPrefix } = await checkGlobalInstallPermissions()
     if (!hasPermissions) {
       return 'no_permissions'
     }
 
-    // Interrupted updates can orphan tau/claudex bin shims. Remove only
+    // Interrupted updates can orphan Tau bin shims. Remove only
     // dangling launchers here so a network or registry failure cannot delete
     // the currently working Tau command. Proven EEXIST conflicts are handled
     // by the targeted retry below.
@@ -628,33 +581,5 @@ To fix this issue:
     // Ensure we always release the lock
     await stopLockHeartbeat()
     await releaseLock()
-  }
-}
-
-/**
- * Remove claude aliases from shell configuration files
- * This helps clean up old installation methods when switching to native or npm global
- */
-async function removeClaudeAliasesFromShellConfigs(): Promise<void> {
-  const configMap = getShellConfigPaths()
-
-  // Process each shell config file
-  for (const [, configFile] of Object.entries(configMap)) {
-    try {
-      const lines = await readFileLines(configFile)
-      if (!lines) continue
-
-      const { filtered, hadAlias } = filterClaudeAliases(lines)
-
-      if (hadAlias) {
-        await writeFileLines(configFile, filtered)
-        logForDebugging(`Removed claude alias from ${configFile}`)
-      }
-    } catch (error) {
-      // Don't fail the whole operation if one file can't be processed
-      logForDebugging(`Failed to remove alias from ${configFile}: ${error}`, {
-        level: 'error',
-      })
-    }
   }
 }

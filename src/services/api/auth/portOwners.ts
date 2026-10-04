@@ -20,7 +20,7 @@ export interface PortOwner { pid: string; image: string }
  * is reported to the user rather than killed: it is not ours to terminate. */
 const RECLAIMABLE_IMAGES = new Set([
   'node', 'node.exe', 'bun', 'bun.exe',
-  'codex', 'codex.exe', 'tau', 'tau.exe', 'claudex', 'claudex.exe',
+  'codex', 'codex.exe', 'tau', 'tau.exe',
 ])
 
 export function isReclaimableImage(image: string | undefined): boolean {

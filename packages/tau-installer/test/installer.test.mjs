@@ -255,21 +255,21 @@ test("preflight removes only definitely dangling tau launchers", (t) => {
   writeFileSync(foreignTarget, "// healthy foreign target\n");
 
   const healthyTau = join(binDirectory, "tau.cmd");
-  const healthyForeign = join(binDirectory, "tau.ps1");
-  const dangling = join(binDirectory, "claudex.cmd");
-  const unknown = join(binDirectory, "claudex.ps1");
+  const danglingTau = join(binDirectory, "tau.ps1");
+  const danglingClaude = join(binDirectory, "claudex.cmd");
+  const foreignClaude = join(binDirectory, "claudex.ps1");
   writeFileSync(healthyTau, `node "${tauTarget}"\n`);
-  writeFileSync(healthyForeign, `node "${foreignTarget}"\n`);
-  writeFileSync(dangling, `node "${missingTarget}"\n`);
-  writeFileSync(unknown, "echo @abdoknbgit/tau documentation only\n");
+  writeFileSync(danglingTau, `node "${missingTarget}"\n`);
+  writeFileSync(danglingClaude, `node "${missingTarget}"\n`);
+  writeFileSync(foreignClaude, `node "${foreignTarget}"\n`);
 
   assert.deepEqual(cleanDanglingLaunchers(binDirectory, { platform: "win32" }), [
-    dangling,
+    danglingTau,
   ]);
   assert.equal(existsSync(healthyTau), true);
-  assert.equal(existsSync(healthyForeign), true);
-  assert.equal(existsSync(dangling), false);
-  assert.equal(existsSync(unknown), true);
+  assert.equal(existsSync(danglingTau), false);
+  assert.equal(existsSync(danglingClaude), true);
+  assert.equal(existsSync(foreignClaude), true);
 });
 
 test("Windows tree termination uses only a validated System32 executable", () => {

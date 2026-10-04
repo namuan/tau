@@ -31,7 +31,7 @@ for (const id of models) {
     model.supported_parameters?.includes('tools'), `${id} is not a catalog-verified free tool model`)
 }
 const isolated = mkdtempSync(join(tmpdir(), 'tau-openrouter-roundtrip-'))
-process.env.CLAUDE_CONFIG_DIR = isolated
+process.env.TAU_CONFIG_DIR = isolated
 process.env.TAU_OPENROUTER_STRICT_TOOLS_STORE = join(isolated, 'strict.json')
 process.env.TAU_OPENROUTER_REASONING_CATALOG = '0'
 const runtime = await loadMcpRuntime({ paths: ['src/utils/forcedProvider.ts'],

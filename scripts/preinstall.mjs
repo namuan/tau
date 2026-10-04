@@ -3,17 +3,17 @@
  * Tau preinstall — clears dangling global bin shims before npm links bins.
  *
  * When a previous global update was interrupted (EPERM cleanup on Windows,
- * Ctrl-C, antivirus locks), npm can lose track of the `tau` / `claudex`
+ * Ctrl-C, antivirus locks), npm can lose track of the `tau`
  * shims it created earlier. The next `npm install -g` then aborts with:
  *
  *   npm error code EEXIST
- *   npm error File exists: C:\Users\...\npm\claudex
+ *   npm error File exists: C:\Users\...\npm\tau
  *
  * npm runs this script after extracting the package but BEFORE linking bin
  * shims. Only launchers whose embedded target no longer exists are removed.
  * In particular, a healthy launcher owned by the previous Tau installation
  * stays in place until npm successfully replaces it, so a failed update does
- * not needlessly remove the user's working `tau` / `claudex` command. A shim
+ * not needlessly remove the user's working `tau` command. A shim
  * owned by another package is preserved and gets a warning instead.
  *
  * Never fails the install: every path is wrapped and the script exits 0.
@@ -29,7 +29,7 @@ import {
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BIN_NAMES = ['tau', 'claudex'];
+const BIN_NAMES = ['tau'];
 const WIN_EXTS = ['', '.cmd', '.ps1'];
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');

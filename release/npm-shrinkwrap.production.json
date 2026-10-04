@@ -4,7 +4,6 @@
   "packages": {
     "": {
       "bin": {
-        "claudex": "dist/cli.mjs",
         "tau": "dist/cli.mjs"
       },
       "dependencies": {

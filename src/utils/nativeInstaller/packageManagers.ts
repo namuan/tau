@@ -1,5 +1,5 @@
 /**
- * Package manager detection for Claude CLI
+ * Package manager detection for Tau
  */
 
 import { readFile } from 'fs/promises'
@@ -97,8 +97,8 @@ export function detectAsdf(): boolean {
  * Note: We specifically check for Caskroom because npm can also be installed via
  * Homebrew, which would place npm global packages under the same Homebrew prefix
  * (e.g., /opt/homebrew/lib/node_modules). We need to distinguish between:
- * - Homebrew cask: /opt/homebrew/Caskroom/claude-code/...
- * - npm-global (via Homebrew's npm): /opt/homebrew/lib/node_modules/@anthropic-ai/...
+ * - Homebrew cask: /opt/homebrew/Caskroom/tau/...
+ * - npm-global (via Homebrew's npm): /opt/homebrew/lib/node_modules/@abdoknbgit/tau/...
  */
 export function detectHomebrew(): boolean {
   const platform = getPlatform()

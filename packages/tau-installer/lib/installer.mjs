@@ -32,7 +32,7 @@ export const ALLOWED_SCRIPTS = Object.freeze([
 
 export const MINIMUM_ALLOW_SCRIPTS_NPM_VERSION = "11.16.0";
 
-const BIN_NAMES = Object.freeze(["tau", "claudex"]);
+const BIN_NAMES = Object.freeze(["tau"]);
 const WINDOWS_BIN_EXTENSIONS = Object.freeze(["", ".cmd", ".ps1"]);
 const TERMINATION_GRACE_MS = 5_000;
 const UPDATE_LOCK_STALE_MS = 15 * 60 * 1000;
@@ -497,10 +497,10 @@ function readBorrowedLease(env, platform, isProcessAliveImpl) {
 
 export function getInstallerUpdateLockPath(
   env = process.env,
-  workingDirectory = homedir(),
+  homeDirectory = homedir(),
 ) {
-  const configured = env.CLAUDE_CONFIG_DIR?.trim();
-  const configHome = configured ? resolve(configured) : join(resolve(workingDirectory), ".claude");
+  const configured = env.TAU_CONFIG_DIR?.trim();
+  const configHome = configured ? resolve(configured) : join(homeDirectory, ".config", "tau");
   return join(configHome, ".update.lock");
 }
 
@@ -610,7 +610,7 @@ function isDefinitelyDanglingLauncher(launcherPath) {
   }
 }
 
-/** Remove only tau/claudex launchers whose target can be proven missing. */
+/** Remove only Tau launchers whose target can be proven missing. */
 export function cleanDanglingLaunchers(
   binDirectory,
   { platform = process.platform } = {},
@@ -1183,7 +1183,7 @@ export async function runInstaller(
     return 0;
   }
 
-  const expectedLockPath = lockPath ?? getInstallerUpdateLockPath(env, workingDirectory);
+  const expectedLockPath = lockPath ?? getInstallerUpdateLockPath(env);
   let lockResult;
   try {
     lockResult = acquireInstallerUpdateLease({

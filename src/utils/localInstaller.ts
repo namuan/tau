@@ -6,7 +6,7 @@ import { access, chmod, readFile, writeFile } from 'fs/promises'
 import { join, resolve } from 'path'
 import { atomicReplaceTextFile } from './atomicFile.js'
 import { type ReleaseChannel, saveGlobalConfig } from './config.js'
-import { getClaudeConfigHomeDir } from './envUtils.js'
+import { getTauConfigHomeDir } from './envUtils.js'
 import { getErrnoCode } from './errors.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -70,12 +70,12 @@ function createNpmInstallEnvironment(): NodeJS.ProcessEnv {
   return env
 }
 
-// Lazy getters: getClaudeConfigHomeDir() is memoized and reads process.env.
+// Lazy getters: getTauConfigHomeDir() reads process.env.
 // Evaluating at module scope would capture the value before entrypoints like
-// hfi.tsx get a chance to set CLAUDE_CONFIG_DIR in main(), and would also
+// hfi.tsx get a chance to set TAU_CONFIG_DIR in main(), and would also
 // populate the memoize cache with that stale value for all 150+ other callers.
 function getLocalInstallDir(): string {
-  return join(getClaudeConfigHomeDir(), 'local')
+  return join(getTauConfigHomeDir(), 'local')
 }
 
 const LOCAL_UPDATE_LOCK_STALE_MS = 15 * 60 * 1000
@@ -83,7 +83,7 @@ const LOCAL_UPDATE_LOCK_HEARTBEAT_MS = 60 * 1000
 
 /** A separate lease because managed-local and npm-global trees do not overlap. */
 export function getManagedLocalUpdateLockPath(): string {
-  return resolve(getClaudeConfigHomeDir(), '.local-update.lock')
+  return resolve(getTauConfigHomeDir(), '.local-update.lock')
 }
 
 const managedLocalUpdateLock = new UpdateLock({
@@ -99,9 +99,6 @@ const managedLocalUpdateLock = new UpdateLock({
   },
 })
 
-export function getLocalClaudePath(): string {
-  return join(getLocalInstallDir(), 'claude')
-}
 export function getLocalTauPath(): string {
   return join(getLocalInstallDir(), 'tau')
 }
@@ -112,7 +109,8 @@ export function getLocalTauPath(): string {
 export function isRunningFromLocalInstallation(): boolean {
   const execPath = process.argv[1] || ''
   const normalized = execPath.replace(/\\/g, '/')
-  return normalized.includes('/.claude/local/node_modules/')
+  const localInstallPath = getLocalInstallDir().replace(/\\/g, '/')
+  return normalized.startsWith(`${localInstallPath}/node_modules/`)
 }
 
 /**
@@ -181,9 +179,8 @@ export async function ensureLocalPackageEnvironment(): Promise<boolean> {
       }
     }
 
-    // Keep both wrappers so old local aliases still land on the Tau binary.
     const wrapperContents = buildManagedLocalWrapper(localInstallDir)
-    for (const wrapperName of ['tau', 'claude']) {
+    for (const wrapperName of ['tau']) {
       const wrapperPath = join(localInstallDir, wrapperName)
       await writeFile(
         wrapperPath,
@@ -315,7 +312,7 @@ export async function localInstallationExists(): Promise<boolean> {
       await access(join(getLocalInstallDir(), 'node_modules', '.bin', 'tau'))
       return true
     } catch {
-      await access(join(getLocalInstallDir(), 'node_modules', '.bin', 'claude'))
+      return false
     }
     return true
   } catch {

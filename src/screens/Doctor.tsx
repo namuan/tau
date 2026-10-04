@@ -17,7 +17,7 @@ import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeyb
 import { Box, Text } from '../ink.js';
 import { useKeybindings } from '../keybindings/useKeybinding.js';
 import { useAppState } from '../state/AppState.js';
-import { getGcsDistTags, getNpmDistTags, type NpmDistTags } from '../utils/autoUpdater.js';
+import { getNpmDistTags, type NpmDistTags } from '../utils/autoUpdater.js';
 import { type ContextWarnings, checkContextWarnings } from '../utils/doctorContextWarnings.js';
 import { type DiagnosticInfo, getDoctorDiagnostic } from '../utils/doctorDiagnostic.js';
 import { validateBoundedIntEnvVar } from '../utils/envValidation.js';
@@ -110,7 +110,7 @@ export function Doctor(t0) {
   const validationErrors = useSettingsErrors();
   let t2;
   if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
-    t2 = getDoctorDiagnostic().then(_temp6);
+    t2 = getNpmDistTags().catch(_temp5);
     $[2] = t2;
   } else {
     t2 = $[2];
@@ -516,10 +516,6 @@ function _temp8(v) {
     name: v.name,
     ...result
   };
-}
-function _temp6(diag) {
-  const fetchDistTags = diag.installationType === "native" ? getGcsDistTags : getNpmDistTags;
-  return fetchDistTags().catch(_temp5);
 }
 function _temp5() {
   return {

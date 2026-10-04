@@ -8,7 +8,6 @@ import { formatNumber } from './format.js';
 import { modelDisplayStringForProvider } from './model/display.js';
 import { getAPIProvider, PROVIDER_DISPLAY_NAMES } from './model/providers.js';
 import { getMTLSConfig } from './mtls.js';
-import { checkInstall } from './nativeInstaller/index.js';
 import { getProxyUrl } from './proxy.js';
 import { SandboxManager } from './sandbox/sandbox-adapter.js';
 import { getSettingsWithAllErrors } from './settings/allErrors.js';
@@ -87,10 +86,6 @@ export function buildSettingSourcesProperties(): Property[] {
     label: 'Setting sources',
     value: sourceNames
   }];
-}
-export async function buildInstallationDiagnostics(): Promise<Diagnostic[]> {
-  const installWarnings = await checkInstall();
-  return installWarnings.map(warning => warning.message);
 }
 export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]> {
   const diagnostic = await getDoctorDiagnostic();

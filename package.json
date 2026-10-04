@@ -16,8 +16,7 @@
   },
   "type": "module",
   "bin": {
-    "tau": "dist/cli.mjs",
-    "claudex": "dist/cli.mjs"
+    "tau": "dist/cli.mjs"
   },
   "files": [
     "dist/cli.mjs",

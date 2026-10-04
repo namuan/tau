@@ -84,7 +84,7 @@ function getStorePath(): string {
   )
 }
 
-// Keyed on the store path so tests that set CLAUDE_CONFIG_DIR get a fresh read.
+// Keyed on the store path so tests that set TAU_CONFIG_DIR get a fresh read.
 const loadStore = memoize(
   (path: string): StoreData | null => {
     try {

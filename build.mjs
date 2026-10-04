@@ -372,7 +372,7 @@ if (!React.useEffectEvent) {
 
 // ─── Launcher (bin entry) ──────────────────────────────────────────
 //
-// `tau` / `claudex` point at dist/cli.mjs, which is now a tiny
+// `tau` points at dist/cli.mjs, which is now a tiny
 // dependency-free launcher: it verifies both runtime dependencies and the
 // postinstall completion marker (npm 12 can block scripts while still exiting
 // successfully), self-heals via scripts/verify-deps.mjs, then loads the real

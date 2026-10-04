@@ -9,7 +9,7 @@ import { Box, Text, useTheme } from '../../ink.js';
 import { type AppState, useAppState } from '../../state/AppState.js';
 import { getCwd } from '../../utils/cwd.js';
 import { getCurrentSessionTitle } from '../../utils/sessionStorage.js';
-import { buildAccountProperties, buildAPIProviderProperties, buildInstallationDiagnostics, buildInstallationHealthDiagnostics, buildMemoryDiagnostics, buildSandboxProperties, buildSettingSourcesProperties, type Diagnostic, getModelDisplayLabel, type Property } from '../../utils/status.js';
+import { buildAccountProperties, buildAPIProviderProperties, buildInstallationHealthDiagnostics, buildMemoryDiagnostics, buildSandboxProperties, buildSettingSourcesProperties, type Diagnostic, getModelDisplayLabel, type Property } from '../../utils/status.js';
 import { getSurfBannerLabel } from '../../utils/surf/label.js';
 import type { ThemeName } from '../../utils/theme.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
@@ -52,7 +52,7 @@ function buildSecondarySection({
   }, ...buildSandboxProperties(), ...buildSettingSourcesProperties()];
 }
 export async function buildDiagnostics(): Promise<Diagnostic[]> {
-  return [...(await buildInstallationDiagnostics()), ...(await buildInstallationHealthDiagnostics()), ...(await buildMemoryDiagnostics())];
+  return [...(await buildInstallationHealthDiagnostics()), ...(await buildMemoryDiagnostics())];
 }
 function PropertyValue(t0) {
   const $ = _c(8);
