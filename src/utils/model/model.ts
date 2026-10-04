@@ -9,9 +9,7 @@ import { getMainLoopModelOverride } from '../../bootstrap/state.js'
 import {
   getSubscriptionType,
   isClaudeAISubscriber,
-  isMaxSubscriber,
   isProSubscriber,
-  isTeamPremiumSubscriber,
 } from '../auth.js'
 import {
   has1mContext,
@@ -20,14 +18,12 @@ import {
 } from '../context.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
-import { formatModelPricing, getOpus46CostTier } from '../modelCost.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
 import { claude5SupportApplies, getAPIProvider, isThirdPartyProvider } from './providers.js'
 import { getForcedProvider } from '../forcedProvider.js'
 import { getProviderModelSet, isAgentRouterModelId } from './configs.js'
 import { resolveAgentAliasPolicy } from './agentAliasFallback.js'
-import { LIGHTNING_BOLT } from '../../constants/figures.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { type ModelAlias, isModelAlias } from './aliases.js'
 import { shouldHonorSkillModelOverride } from './skillModel.js'
@@ -349,19 +345,6 @@ function isClaude5CanonicalName(name: string): boolean {
   return name === 'claude-opus-5-5' || name === 'claude-opus-5' || name === 'claude-sonnet-5'
 }
 
-// @[MODEL LAUNCH]: Update the default model description strings shown to users.
-export function getClaudeAiUserDefaultModelDescription(
-  fastMode = false,
-): string {
-  if (isMaxSubscriber() || isTeamPremiumSubscriber()) {
-    if (isOpus1mMergeEnabled()) {
-      return `Opus 4.8 with 1M context · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`
-    }
-    return `Opus 4.8 · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`
-  }
-  return 'Sonnet 4.6 · Best for everyday tasks'
-}
-
 export function renderDefaultModelSetting(
   setting: ModelName | ModelAlias,
 ): string {
@@ -369,13 +352,6 @@ export function renderDefaultModelSetting(
     return 'Opus 4.8 in plan mode, else Sonnet 4.6'
   }
   return renderModelName(parseUserSpecifiedModel(setting))
-}
-
-export function getOpus46PricingSuffix(fastMode: boolean): string {
-  if (getAPIProvider() !== 'firstParty') return ''
-  const pricing = formatModelPricing(getOpus46CostTier(fastMode))
-  const fastModeIndicator = fastMode ? ` (${LIGHTNING_BOLT})` : ''
-  return ` ·${fastModeIndicator} ${pricing}`
 }
 
 export function isOpus1mMergeEnabled(): boolean {
@@ -617,8 +593,6 @@ export function modelDisplayString(model: ModelSetting): string {
   if (model === null) {
     if (process.env.USER_TYPE === 'ant') {
       return `Default for Ants (${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})`
-    } else if (isClaudeAISubscriber()) {
-      return `Default (${getClaudeAiUserDefaultModelDescription()})`
     }
     return `Default (${getDefaultMainLoopModel()})`
   }
