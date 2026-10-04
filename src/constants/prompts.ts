@@ -736,7 +736,7 @@ ${CYBER_RISK_INSTRUCTION}`,
       getAntModelOverrideSection(),
     ),
     systemPromptSection(
-      isCheapMode ? 'env_info_cheap' : 'env_info_simple',
+      isCheapMode ? `env_info_cheap:${model}` : `env_info_simple:${model}`,
       () =>
         isCheapMode
           ? computeCheapEnvInfo(model, additionalWorkingDirectories)
