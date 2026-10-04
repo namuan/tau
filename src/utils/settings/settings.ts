@@ -12,11 +12,11 @@ import { uniq } from '../array.js'
 import { logForDebugging } from '../debug.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
 import { getClaudeConfigHomeDir } from '../envUtils.js'
+import { getProjectDir } from '../sessionStoragePortable.js'
 import { getErrnoCode, isENOENT } from '../errors.js'
 import { writeFileSyncAndFlush_DEPRECATED } from '../file.js'
 import { readFileSync } from '../fileRead.js'
 import { getFsImplementation, safeResolvePath } from '../fsOperations.js'
-import { addFileGlobRuleToGitignore } from '../git/gitignore.js'
 import { safeParseJSON } from '../json.js'
 import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
@@ -229,10 +229,9 @@ function parseSettingsFileUncached(path: string): {
 }
 
 /**
- * Get the absolute path to the associated file root for a given settings source
- * (e.g. for $PROJ_DIR/.claude/settings.json, returns $PROJ_DIR)
+ * Get the absolute path to the associated file root for a given settings source.
  * @param source The source of the settings
- * @returns The root path of the settings file
+ * @returns The root path associated with the settings source
  */
 export function getSettingsRootPathForSource(source: SettingSource): string {
   switch (source) {
@@ -262,8 +261,9 @@ export function getSettingsFilePathForSource(
     case 'projectSettings':
     case 'localSettings': {
       return join(
-        getSettingsRootPathForSource(source),
-        getRelativeSettingsFilePathForSource(source),
+        getProjectDir(getOriginalCwd()),
+        'settings',
+        source === 'projectSettings' ? 'settings.json' : 'settings.local.json',
       )
     }
     case 'policySettings':
@@ -271,17 +271,6 @@ export function getSettingsFilePathForSource(
     case 'flagSettings': {
       return getFlagSettingsPath()
     }
-  }
-}
-
-export function getRelativeSettingsFilePathForSource(
-  source: 'projectSettings' | 'localSettings',
-): string {
-  switch (source) {
-    case 'projectSettings':
-      return join('.claude', 'settings.json')
-    case 'localSettings':
-      return join('.claude', 'settings.local.json')
   }
 }
 
@@ -410,7 +399,10 @@ export function updateSettingsForSource(
   }
 
   try {
-    getFsImplementation().mkdirSync(dirname(filePath))
+    getFsImplementation().mkdirSync(dirname(filePath), {
+      recursive: true,
+      mode: 0o700,
+    })
 
     // Try to get existing settings with validation. Bypass the per-source
     // cache — mergeWith below mutates its target (including nested refs),
@@ -479,18 +471,12 @@ export function updateSettingsForSource(
     writeFileSyncAndFlush_DEPRECATED(
       filePath,
       jsonStringify(updatedSettings, null, 2) + '\n',
+      { encoding: 'utf-8', mode: 0o600 },
     )
 
     // Invalidate the session cache since settings have been updated
     resetSettingsCache()
 
-    if (source === 'localSettings') {
-      // Okay to add to gitignore async without awaiting
-      void addFileGlobRuleToGitignore(
-        getRelativeSettingsFilePathForSource('localSettings'),
-        getOriginalCwd(),
-      )
-    }
   } catch (e) {
     const error = new Error(
       `Failed to read raw settings from ${filePath}: ${e}`,

@@ -158,10 +158,10 @@ How to use the statusLine command:
    To display both 5-hour and 7-day limits when available:
    - input=$(cat); five=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty'); week=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty'); out=""; [ -n "$five" ] && out="5h:$(printf '%.0f' "$five")%"; [ -n "$week" ] && out="$out 7d:$(printf '%.0f' "$week")%"; echo "$out"
 
-2. For longer commands, you can save a new file in the user's ~/.claude directory, e.g.:
-   - ~/.claude/statusline-command.sh and reference that file in the settings.
+2. For longer commands, you can save a new file in the user's Tau config directory, e.g.:
+   - ~/.config/tau/statusline-command.sh and reference that file in the settings.
 
-3. Update the user's ~/.claude/settings.json with:
+3. Update the user's ~/.config/tau/settings.json with:
    {
      "statusLine": {
        "type": "command", 
@@ -169,7 +169,7 @@ How to use the statusLine command:
      }
    }
 
-4. If ~/.claude/settings.json is a symlink, update the target file instead.
+4. If ~/.config/tau/settings.json is a symlink, update the target file instead.
 
 5. Tau also draws a built-in session status bar in the same row, with no
    configuration required. It renders:
@@ -197,8 +197,8 @@ How to use the statusLine command:
 
 6. To rebuild the built-in bar as a custom command - when the user has replaced
    their statusLine and asks for "the default one back", but wants to keep
-   customizing it - save this to ~/.claude/statusline.mjs and set
-   "command": "node \"$HOME/.claude/statusline.mjs\"".
+   customizing it - save this to ~/.config/tau/statusline.mjs and set
+   "command": "node \"$HOME/.config/tau/statusline.mjs\"".
 
    import { readFileSync } from 'fs'
    const j = JSON.parse(readFileSync(0, 'utf8'))
@@ -240,15 +240,14 @@ How to use the statusLine command:
    and the quota as the terminal narrows; the recipe above always prints every
    field. Add truncation only if the user asks for it.
    Never invent a new value for "statusLine".type. It accepts only "command",
-   and ~/.claude/settings.json is shared with other tools that discard the
-   entire file when it fails validation.
+   and ~/.config/tau/settings.json is Tau-owned configuration.
 
 Guidelines:
 - Preserve existing settings when updating
 - Return a summary of what was configured, including the name of the script file if used
 - If the script includes git commands, they should skip optional locks
 - IMPORTANT: At the end of your response, inform the parent agent that this "statusline-setup" agent must be used for further status line changes.
-  Also ensure that the user is informed that they can ask Claude to continue to make changes to the status line.
+  Also ensure that the user is informed that they can ask Tau to continue to make changes to the status line.
 `
 
 export const STATUSLINE_SETUP_AGENT: BuiltInAgentDefinition = {

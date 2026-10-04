@@ -8,7 +8,7 @@ import { loadBuiltRuntime, fixtureTool, executeBlock } from './helpers/built-run
 // Exercise the built CLI's real schema builder, both request paths, stream
 // assembler, executor, and task storage. Only the external API is simulated.
 const testDirectory = mkdtempSync(join(tmpdir(), 'tau-openrouter-tools-'))
-process.env.CLAUDE_CONFIG_DIR = testDirectory
+process.env.TAU_CONFIG_DIR = testDirectory
 process.env.CLAUDE_CODE_TASK_LIST_ID = 'openrouter-contract-regression'
 process.env.TAU_OPENROUTER_REASONING_CATALOG = '0'
 process.env.ENABLE_TOOL_SEARCH = 'true'

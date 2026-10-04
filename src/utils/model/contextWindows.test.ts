@@ -12,8 +12,8 @@ import { join } from 'path'
 // at an empty directory so a developer's own observations cannot decide these
 // results; set before the modules below first resolve the path.
 const configDir = mkdtempSync(join(tmpdir(), 'tau-context-windows-'))
-const previousConfigDir = process.env.CLAUDE_CONFIG_DIR
-process.env.CLAUDE_CONFIG_DIR = configDir
+const previousConfigDir = process.env.TAU_CONFIG_DIR
+process.env.TAU_CONFIG_DIR = configDir
 const previousOpencodeCache = process.env.TAU_OPENCODE_MODELS_DEV_CACHE
 process.env.TAU_OPENCODE_MODELS_DEV_CACHE = join(configDir, 'opencode-models-dev.json')
 
@@ -160,9 +160,9 @@ test('with no catalogue entry an unknown model stays unknown', () => {
 })
 
 if (previousConfigDir === undefined) {
-  delete process.env.CLAUDE_CONFIG_DIR
+  delete process.env.TAU_CONFIG_DIR
 } else {
-  process.env.CLAUDE_CONFIG_DIR = previousConfigDir
+  process.env.TAU_CONFIG_DIR = previousConfigDir
 }
 if (previousOpencodeCache === undefined) {
   delete process.env.TAU_OPENCODE_MODELS_DEV_CACHE

@@ -44,7 +44,7 @@ writeFileSync(harnessPath, source)
  */
 function loadMemory(repoDir) {
   const script = `
-    process.env.CLAUDE_CONFIG_DIR = ${JSON.stringify(join(repoDir, '.cfg'))};
+    process.env.TAU_CONFIG_DIR = ${JSON.stringify(join(repoDir, '.cfg'))};
     process.chdir(${JSON.stringify(repoDir)});
     const m = await import(${JSON.stringify(new URL(`file:///${harnessPath.replaceAll('\\', '/')}`).href)});
     const files = await m.__memory().getMemoryFiles();

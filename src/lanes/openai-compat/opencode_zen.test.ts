@@ -6,7 +6,7 @@ import type { LaneProviderCallParams, NormalizedUsage } from '../types.js'
 import type { AnthropicStreamEvent, ProviderTool } from '../../services/api/providers/base_provider.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'tau-zen-compat-'))
-process.env.CLAUDE_CONFIG_DIR = dir
+process.env.TAU_CONFIG_DIR = dir
 process.env.TAU_OPENCODE_THINKING_STORE = join(dir, 'thinking.json')
 process.env.TAU_OPENCODE_MODELS_DEV_CACHE = join(dir, 'catalog.json')
 process.env.OPENCODE_CLIENT = 'opencode-tau/test'

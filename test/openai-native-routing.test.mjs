@@ -9,7 +9,7 @@ import { loadBuiltRuntime } from './helpers/built-runtime.mjs'
 // credentials. All network traffic is intercepted below.
 const tempRoot = realpathSync(tmpdir())
 const fixtureDirectory = mkdtempSync(join(tempRoot, 'tau-openai-native-'))
-process.env.CLAUDE_CONFIG_DIR = fixtureDirectory
+process.env.TAU_CONFIG_DIR = fixtureDirectory
 process.env.DISABLE_TELEMETRY = '1'
 const openaiEnv = ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_CHATGPT_ACCESS_TOKEN',
   'OPENAI_CHATGPT_ACCOUNT_ID', 'OPENAI_CHATGPT_ID_TOKEN', 'CLAUDEX_NATIVE_LANES']

@@ -7,7 +7,7 @@ import { loadBuiltRuntime } from './helpers/built-runtime.mjs'
 
 const tempRoot = realpathSync(tmpdir())
 const directory = mkdtempSync(join(tempRoot, 'tau-opencode-context-'))
-process.env.CLAUDE_CONFIG_DIR = directory
+process.env.TAU_CONFIG_DIR = directory
 process.env.TAU_OPENCODE_MODELS_DEV_CACHE = join(directory, 'initial.json')
 process.env.DISABLE_TELEMETRY = '1'
 delete process.env.CLAUDEX_DISABLE_MODEL_PRICING

@@ -13,7 +13,7 @@ const tempRoot = await mkdtemp(join(tmpdir(), 'tau-recent-persistence-'))
 const originalCwd = process.cwd()
 const environment = {
   NODE_ENV: 'test', USER_TYPE: 'external',
-  CLAUDE_CONFIG_DIR: join(tempRoot, 'config'),
+  TAU_CONFIG_DIR: join(tempRoot, 'config'),
   TEST_ENABLE_SESSION_PERSISTENCE: 'true',
   ENABLE_SESSION_PERSISTENCE: '',
   CLAUDE_CODE_SKIP_PROMPT_HISTORY: '',

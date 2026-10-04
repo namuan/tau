@@ -46,7 +46,6 @@ import { containsPathTraversal } from './path.js'
 import { getPlatform } from './platform.js'
 import {
   getInitialSettings,
-  getRelativeSettingsFilePathForSource,
 } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2 } from './swarm/backends/detection.js'
@@ -90,11 +89,6 @@ export function validateWorktreeSlug(slug: string): void {
       )
     }
   }
-}
-
-// Helper function to create directories recursively
-async function mkdirRecursive(dirPath: string): Promise<void> {
-  await mkdir(dirPath, { recursive: true })
 }
 
 /**
@@ -660,27 +654,6 @@ async function performPostCreationSetup(
   repoRoot: string,
   worktreePath: string,
 ): Promise<void> {
-  // Copy settings.local.json to the worktree's .claude directory
-  // This propagates local settings (which may contain secrets) to the worktree
-  const localSettingsRelativePath =
-    getRelativeSettingsFilePathForSource('localSettings')
-  const sourceSettingsLocal = join(repoRoot, localSettingsRelativePath)
-  try {
-    const destSettingsLocal = join(worktreePath, localSettingsRelativePath)
-    await mkdirRecursive(dirname(destSettingsLocal))
-    await copyFile(sourceSettingsLocal, destSettingsLocal)
-    logForDebugging(
-      `Copied settings.local.json to worktree: ${destSettingsLocal}`,
-    )
-  } catch (e: unknown) {
-    const code = getErrnoCode(e)
-    if (code !== 'ENOENT') {
-      logForDebugging(
-        `Failed to copy settings.local.json: ${(e as Error).message}`,
-        { level: 'warn' },
-      )
-    }
-  }
 
   // Configure the worktree to use hooks from the main repository
   // This solves issues with .husky and other git hooks that use relative paths

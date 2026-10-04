@@ -13,7 +13,7 @@ import { join } from 'node:path'
 
 // Keep the vision cache, thinking store and catalogue off the real config.
 const dir = mkdtempSync(join(tmpdir(), 'tau-opencode-routes-'))
-process.env.CLAUDE_CONFIG_DIR = dir
+process.env.TAU_CONFIG_DIR = dir
 process.env.TAU_OPENCODE_THINKING_STORE = join(dir, 'thinking.json')
 process.env.TAU_OPENCODE_MODELS_DEV_CACHE = join(dir, 'catalog.json')
 // The client header otherwise reads a constant only the bundler defines.

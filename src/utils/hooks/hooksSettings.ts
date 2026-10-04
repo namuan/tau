@@ -105,8 +105,6 @@ export function getAllHooks(appState: AppState): IndividualHookConfig[] {
     ] as EditableSettingSource[]
 
     // Track which settings files we've already processed to avoid duplicates
-    // (e.g., when running from home directory, userSettings and projectSettings
-    // both resolve to ~/.claude/settings.json)
     const seenFiles = new Set<string>()
 
     for (const source of sources) {
@@ -168,11 +166,11 @@ export function getHooksForEvent(
 export function hookSourceDescriptionDisplayString(source: HookSource): string {
   switch (source) {
     case 'userSettings':
-      return 'User settings (~/.claude/settings.json)'
+      return 'User settings (~/.config/tau/settings.json)'
     case 'projectSettings':
-      return 'Project settings (.claude/settings.json)'
+      return 'Tau project settings'
     case 'localSettings':
-      return 'Local settings (.claude/settings.local.json)'
+      return 'Tau project-local settings'
     case 'sessionHook':
       return 'Session hooks (in-memory, temporary)'
     case 'builtinHook':

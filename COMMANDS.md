@@ -171,7 +171,7 @@ always:date+time+model   27 Aug 2026 10:00 AM   claude-opus-5
 Leave `/config` with **Enter** to save - Escape reverts every change you made in the panel (that applies to every row in `/config`, not just this one). The setting is stored in the global config (`~/.claude.json`) as `messageHeaderMode`, so you can also set it by hand. It applies to the next reply: lines already printed in the scrollback keep the look they were drawn with, while the Ctrl+O transcript redraws in full and always reflects the current setting.
 
 **`/statusline` - Configure the status row under the prompt**
-Tau draws one status row beneath the prompt. By default it is the built-in session bar: current directory, provider/model, and a context-usage meter. `/statusline` hands the job to the `statusline-setup` agent, which writes a `statusLine` command into `~/.claude/settings.json` for you.
+Tau draws one status row beneath the prompt. By default it is the built-in session bar: current directory, provider/model, and a context-usage meter. `/statusline` hands the job to the `statusline-setup` agent, which writes a `statusLine` command into `~/.config/tau/settings.json` for you.
 
 ```
 /statusline                              import your shell PS1 (bash/zsh only)

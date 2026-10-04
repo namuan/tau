@@ -1,6 +1,4 @@
-import { relative } from 'path';
 import React from 'react';
-import { getCwdState } from '../../bootstrap/state.js';
 import { SandboxSettings } from '../../components/sandbox/SandboxSettings.js';
 import { color } from '../../ink.js';
 import { getPlatform } from '../../utils/platform.js';
@@ -65,7 +63,7 @@ export async function call(onDone: (result?: string) => void, _context: unknown,
 
       // Get the local settings path and make it relative to cwd
       const localSettingsPath = getSettingsFilePathForSource('localSettings');
-      const relativePath = localSettingsPath ? relative(getCwdState(), localSettingsPath) : '.claude/settings.local.json';
+      const relativePath = localSettingsPath ?? 'Tau project-local settings';
       const message = color('success', themeName)(`Added "${cleanPattern}" to excluded commands in ${relativePath}`);
       onDone(message);
       return null;

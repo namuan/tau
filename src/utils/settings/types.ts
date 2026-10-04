@@ -336,12 +336,6 @@ export const SettingsSchema = lazySchema(() =>
         })
         .optional()
         .describe('Custom status line display configuration'),
-      // Built-in session status bar (cwd, provider/model, context usage).
-      // Deliberately a separate key rather than another statusLine.type value:
-      // ~/.claude/settings.json is shared with upstream Claude Code, whose
-      // schema pins statusLine.type to "command" and returns null for the WHOLE
-      // file on a validation error. An unknown key is stripped harmlessly over
-      // there; a new type value would silently drop every other setting.
       sessionStatusBar: z
         .boolean()
         .optional()
@@ -622,7 +616,7 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe(
-          'Custom directory path for auto-memory storage. Supports ~/ prefix for home directory expansion. Ignored if set in projectSettings (checked-in .claude/settings.json) for security. When unset, defaults to ~/.claude/projects/<sanitized-cwd>/memory/.',
+          'Custom directory path for auto-memory storage. Supports ~/ prefix for home directory expansion. Ignored when configured in project settings for security. When unset, defaults to ~/.config/tau/projects/<sanitized-cwd>/memory/.',
         ),
       autoDreamEnabled: z
         .boolean()

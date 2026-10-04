@@ -11,7 +11,7 @@ import { LegacyRoot } from 'react-reconciler/constants.js'
 // no renderer mocks. Run `npm run build` before this test, as for the other
 // built-runtime integration tests. Keep configuration out of the user's home.
 const configDir = mkdtempSync(join(tmpdir(), 'tau-mermaid-rendering-'))
-process.env.CLAUDE_CONFIG_DIR = configDir
+process.env.TAU_CONFIG_DIR = configDir
 process.env.CLAUDE_CODE_TMPDIR = configDir
 after(() => rmSync(configDir, { recursive: true, force: true }))
 

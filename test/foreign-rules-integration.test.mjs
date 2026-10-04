@@ -44,7 +44,7 @@ const harnessUrl = new URL(
 
 function runInRepo(repoDir, body) {
   const script = `
-    process.env.CLAUDE_CONFIG_DIR = ${JSON.stringify(join(repoDir, '.cfg'))};
+    process.env.TAU_CONFIG_DIR = ${JSON.stringify(join(repoDir, '.cfg'))};
     process.chdir(${JSON.stringify(repoDir)});
     const api = (await import(${JSON.stringify(harnessUrl)})).__memory();
     const base = ${JSON.stringify(repoDir)};

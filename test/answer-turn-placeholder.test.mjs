@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url'
 // the one already sent as the last message of a request changed in the next
 // request, and a resumed session rebuilt a different history.
 
-process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tau-answer-turns-'))
+process.env.TAU_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tau-answer-turns-'))
 
 const distPath = resolve('dist/tau.mjs')
 let bundle = readFileSync(distPath, 'utf8').replace(/\nvoid main\d*\(\);\r?\n/, '\n')

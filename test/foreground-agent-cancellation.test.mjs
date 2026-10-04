@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url'
 // iterator is replaced, with a pending request that observes its actual signal.
 const tempRoot = mkdtempSync(join(tmpdir(), 'tau-agent-cancellation-'))
 process.env.CLAUDE_CODE_TMPDIR = tempRoot
-process.env.CLAUDE_CONFIG_DIR = tempRoot
+process.env.TAU_CONFIG_DIR = tempRoot
 delete process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS
 delete process.env.CLAUDE_AUTO_BACKGROUND_TASKS
 
