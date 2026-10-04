@@ -56,7 +56,7 @@ This document groups Tau's source tree by purpose to support a gradual move towa
 | Paths | Responsibility | Cleanup priority |
 |---|---|---|
 | `build.mjs`, `build.ts`, `scripts`, `native/shell-parser`, `native/tau-tools` | Bundle generation and optional native helper builds | The current `npm run build` also attempts local native helper builds when Go is available. These are host-local helpers, not a cross-platform package matrix. |
-| `packages/tau-installer`, `release`, `platform-packages` | Installer, release automation, and platform-specific voice packages | Keep only if distributing through the current installer/release model; voice platform packages can go with voice. |
+| `packages/tau-installer`, `release`, platform-package publishing | Removed local-only distribution machinery | The local workflow is `npm ci`, `npm run build`, then `npm link`; the `tau` bin mapping remains. |
 | `.github/workflows` | CI automation | Currently reduced to one Node build job; it does not pack or upload platform artifacts. |
 | `test`, `*.test.*` | Automated tests | Retain tests for kept functionality and remove/update tests only alongside a feature removal. |
 | `docs`, `README.md`, `COMMANDS.md`, `PROVIDERS.md`, `CHANGELOG.md` | User/developer documentation | Update when capabilities are removed so docs match the reduced product. |

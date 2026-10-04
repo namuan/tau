@@ -372,15 +372,9 @@ if (!React.useEffectEvent) {
 
 // ─── Launcher (bin entry) ──────────────────────────────────────────
 //
-// `tau` points at dist/cli.mjs, which is now a tiny
-// dependency-free launcher: it verifies both runtime dependencies and the
-// postinstall completion marker (npm 12 can block scripts while still exiting
-// successfully), self-heals via scripts/verify-deps.mjs, then loads the real
-// bundle (dist/tau.mjs).
+// `tau` points at dist/cli.mjs, which loads the built agent bundle.
 
 const launcher = `#!/usr/bin/env node
-// Tau launcher - verifies dependency and lifecycle integrity, repairs
-// incomplete installs, then starts the CLI. Set TAU_SKIP_PREFLIGHT=1 to bypass.
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -406,95 +400,18 @@ const packageRoot = dirname(distDir)
 // Preserve the canonical package location even when npm's POSIX bin symlink
 // leaves process.argv[1] pointing at <prefix>/bin/tau.
 globalThis.__TAU_PACKAGE_ROOT__ = packageRoot
-const isSourceCheckout = existsSync(join(packageRoot, 'src'))
 const agentBundlePath = join(distDir, 'tau.mjs')
-const integrityLoadErrorCodes = new Set([
-  'MODULE_NOT_FOUND',
-  'ERR_MODULE_NOT_FOUND',
-  'ERR_DLOPEN_FAILED',
-  'ERR_PACKAGE_PATH_NOT_EXPORTED',
-  'ERR_PACKAGE_IMPORT_NOT_DEFINED',
-])
-
-function isIntegrityLoadFailure(error) {
-  const seen = new Set()
-  let current = error
-  while (current && typeof current === 'object' && !seen.has(current)) {
-    if (integrityLoadErrorCodes.has(current.code)) return true
-    seen.add(current)
-    current = current.cause
-  }
-  return false
-}
-
-function stopForIntegrityFailure(reason, verifier) {
-  process.stderr.write('[tau] Installation integrity check failed: ' + reason + '.\\n')
-  if (isSourceCheckout) {
-    process.stderr.write('Rebuild this source checkout with:\\n\\n  npm run build\\n')
-  } else if (verifier?.manualFixInstructions) {
-    process.stderr.write('\\n' + verifier.manualFixInstructions(${JSON.stringify(pkg.name)}) + '\\n')
-  } else {
-    process.stderr.write(
-      'Retry the installation with:\\n\\n' +
-      '  npx -y @namuan/tau-installer@latest\\n'
-    )
-  }
+function stopForMissingBuild(reason) {
+  process.stderr.write('[tau] Local build artifact missing: ' + reason + '.\\n')
+  process.stderr.write('Rebuild this checkout with:\\n\\n  npm run build\\n')
   process.exit(1)
 }
 
-// This file cannot be repaired after startup has entered the agent bundle.
-// Check it even when the optional dependency preflight was explicitly skipped.
 if (!existsSync(agentBundlePath)) {
-  stopForIntegrityFailure('the agent bundle is missing')
+  stopForMissingBuild('dist/tau.mjs')
 }
 
-if (process.env.TAU_SKIP_PREFLIGHT !== '1') {
-  let verifier
-  try {
-    const verifierPath = join(packageRoot, 'scripts', 'verify-deps.mjs')
-    if (!existsSync(verifierPath)) {
-      // Published packages always contain this dependency-free verifier.
-      // A source checkout may intentionally run a hand-built bundle without it.
-      if (!isSourceCheckout) {
-        stopForIntegrityFailure('the installation verifier is missing')
-      }
-    } else {
-      verifier = await import(pathToFileURL(verifierPath).href)
-      // Package directories alone are not proof that npm ran lifecycle
-      // scripts: npm 12 can block them and still finish the reification. The
-      // marker is written only at the end of Tau's successful postinstall.
-      // Source checkouts intentionally have no generated marker.
-      const lifecycleComplete = isSourceCheckout ||
-        verifier.getLifecycleMarkerStatus(packageRoot).ok
-      // Fast silent check first (<10ms); only show output when broken.
-      if (verifier.findMissingDeps(packageRoot).length > 0 || !lifecycleComplete) {
-        process.stderr.write('[tau] Incomplete installation detected - repairing...\\n')
-        const ok = verifier.ensureDeps(packageRoot, { repair: true })
-        if (!ok) {
-          process.stderr.write('\\n' + verifier.manualFixInstructions(${JSON.stringify(pkg.name)}) + '\\n')
-          process.exit(1)
-        }
-      }
-    }
-  } catch (error) {
-    // An integrity-check exception is itself an unverified installation.
-    // Fail closed instead of importing the bundle and surfacing a later raw
-    // module/native crash from the incomplete tree.
-    stopForIntegrityFailure('the integrity verifier could not run', verifier)
-  }
-}
-
-try {
-  await import(pathToFileURL(agentBundlePath).href)
-} catch (error) {
-  // Only installation-shaped load failures belong to the recovery bridge.
-  // Unrelated agent initialization/programming errors retain their original
-  // stack and behavior instead of being mislabeled as package corruption.
-  if (isIntegrityLoadFailure(error)) {
-    stopForIntegrityFailure('the agent bundle could not load a required module')
-  }
-  throw error
-}
+await import(pathToFileURL(agentBundlePath).href)
 `
 writeFileSync('./dist/cli.mjs', launcher)
 // Stale artifact from builds that bundled directly to cli.mjs.

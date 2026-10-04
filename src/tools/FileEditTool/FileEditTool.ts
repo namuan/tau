@@ -726,7 +726,7 @@ export const FileEditTool = buildTool({
     )
     if (syntaxWarning) {
       // Breadcrumb so the check is observable in a real session via --debug
-      // (writes to ~/.claude/debug/<session>.txt; use -d2e for stderr).
+      // (writes to ~/.config/tau/debug/<session>.txt; use -d2e for stderr).
       logForDebugging(`[tree-sitter] ${absoluteFilePath}: ${syntaxWarning}`)
     }
 

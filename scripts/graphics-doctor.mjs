@@ -346,7 +346,7 @@ if (replies === null) {
   OUT.write(`  ${ok(`${protocol} available, cell ${Math.floor(cell.width)}x${Math.floor(cell.height)} px.`)}\n`)
   OUT.write(`  Inline images should render as real pixels. If they do not, run\n`)
   OUT.write(`  ${bold('tau --debug')}, ask Tau to read an image file (a pasted image is not\n`)
-  OUT.write(`  drawn inline), and look in ${bold('~/.claude/debug/latest')} for the lines\n`)
+  OUT.write(`  drawn inline), and look in ${bold('~/.config/tau/debug/latest')} for the lines\n`)
   OUT.write(`  starting ${bold('terminalGraphics:')} — each names the gate that closed.\n`)
 }
 

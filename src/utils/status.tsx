@@ -99,13 +99,10 @@ export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]
     items.push(`Found invalid settings files: ${fileList}. They will be ignored.`);
   }
 
-  // Add warnings from doctor diagnostic (includes leftover installations, config mismatches, etc.)
+  // Add warnings from doctor diagnostic.
   diagnostic.warnings.forEach(warning => {
     items.push(warning.issue);
   });
-  if (diagnostic.hasUpdatePermissions === false) {
-    items.push('No write permissions for auto-updates (requires sudo)');
-  }
   return items;
 }
 export function buildAccountProperties(): Property[] {

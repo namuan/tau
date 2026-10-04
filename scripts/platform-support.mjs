@@ -31,9 +31,7 @@ export function resolveWindowsSystemExecutable(
 }
 
 /**
- * Detect the libc reported by Node so postinstall selects the upstream musl
- * artifact on Alpine ARM64. Unknown report implementations return false;
- * runtime still probes the binary before selecting it.
+ * Detect whether a Linux ARM64 host uses musl. Unknown report implementations return false.
  */
 export function isLinuxArm64Musl(
   {

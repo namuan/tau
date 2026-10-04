@@ -4,25 +4,23 @@
 
 # Tau - Your Adaptive Coding Agent
 
-[![npm version](https://img.shields.io/npm/v/%40namuan%2Ftau.svg)](https://www.npmjs.com/package/@namuan/tau)
-[![npm downloads](https://img.shields.io/npm/dt/%40namuan%2Ftau.svg)](https://www.npmjs.com/package/@namuan/tau)
-[![License](https://img.shields.io/npm/l/%40namuan%2Ftau.svg)](https://www.npmjs.com/package/@namuan/tau)
-
----
-
 ## What is Tau?
 
-Tau is a lightweight coding assistant with a transparent agent loop, guarded shell execution, file and search tools, and support for 28 provider APIs. Install it, type `/login`, choose a provider, and start working. Tau also supports user- and project-authored skills and hooks. The full provider list is in [PROVIDERS.md](PROVIDERS.md).
+Tau is a lightweight coding assistant with a transparent agent loop, guarded shell execution, file and search tools, and support for 28 provider APIs. Build the local checkout, run `tau`, then type `/login` to choose a provider and start working. Tau also supports user- and project-authored skills and hooks. The full provider list is in [PROVIDERS.md](PROVIDERS.md).
 
 ---
 
-## Install
+## Local setup
 
 ```bash
-npx -y @namuan/tau-installer@latest
+npm ci
+npm run build
+npm link
 ```
 
-**Requirements:** Node.js 20.19+ or 22.12+ (require(esm) support), Git, Bash, `gh` for GitHub automation, and Go 1.25.8+ to build the optional native Tau helpers from source.
+`npm link` creates a machine-local symlink to this checkout, exposing the `tau` command from any directory. It does not publish or install Tau from a registry. To remove the link, run `npm unlink -g tau-local`.
+
+**Requirements:** Node.js 20.19+ or 22.12+ (require(esm) support), Git, Bash, ripgrep (`rg`) on `PATH`, `gh` for GitHub automation, and Go 1.25.8+ to build the optional native Tau helpers from source.
 
 ---
 
@@ -40,13 +38,17 @@ tau --dangerously-skip-permissions
 
 ---
 
-## Update
+## Updating
+
+Update Tau from its Git checkout, then rebuild:
 
 ```bash
-tau update
+git pull
+npm ci
+npm run build
 ```
 
-See what changed in each version in **[CHANGELOG.md](CHANGELOG.md)**.
+The existing `npm link` continues to point to this checkout. See **[CHANGELOG.md](CHANGELOG.md)** for project history.
 
 <p align="center">
   <img src="tau_docs.PNG" alt="Tau start screen" width="720">

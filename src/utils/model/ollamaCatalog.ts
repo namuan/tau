@@ -44,12 +44,11 @@ function debugLog(message: string): void {
 
 // ─── Approved cloud model list ─────────────────────────────────────
 //
-// These are the cloud aliases we pre-pull on install / first launch and
+// These are the approved cloud aliases pulled on first launch and
 // always show in the /models picker under "Cloud". Only `:cloud` aliases
 // that actually resolve against the Ollama registry are listed — each
 // entry must return success for `ollama pull <id>`.
 //
-// KEEP IN SYNC with scripts/postinstall.mjs (OLLAMA_CLOUD_MODELS).
 export const CLOUD_MODELS_LIST: readonly string[] = [
   'glm-5.1:cloud',
   'glm-5:cloud',

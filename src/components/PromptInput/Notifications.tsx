@@ -12,14 +12,12 @@ import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js';
 import { calculateTokenWarningState } from '../../services/compact/autoCompact.js';
 import type { Message } from '../../types/message.js';
 import { getApiKeyHelperElapsedMs, getConfiguredApiKeyHelper, getSubscriptionType } from '../../utils/auth.js';
-import type { AutoUpdaterResult } from '../../utils/autoUpdater.js';
 import { getExternalEditor } from '../../utils/editor.js';
 import { isEnvTruthy } from '../../utils/envUtils.js';
 import { formatDuration } from '../../utils/format.js';
 import { setEnvHookNotifier } from '../../utils/hooks/fileChangedWatcher.js';
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js';
 import { tokenCountFromLastAPIResponse } from '../../utils/tokens.js';
-import { AutoUpdaterWrapper } from '../AutoUpdaterWrapper.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
 import { MemoryUsageIndicator } from '../MemoryUsageIndicator.js';
 import { SentryErrorBoundary } from '../SentryErrorBoundary.js';
@@ -32,13 +30,9 @@ import { SandboxPromptFooterHint } from './SandboxPromptFooterHint.js';
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000;
 type Props = {
   apiKeyStatus: VerificationStatus;
-  autoUpdaterResult: AutoUpdaterResult | null;
-  isAutoUpdating: boolean;
   debug: boolean;
   verbose: boolean;
   messages: Message[];
-  onAutoUpdaterResult: (result: AutoUpdaterResult) => void;
-  onChangeIsUpdating: (isUpdating: boolean) => void;
   isInputWrapped?: boolean;
   isNarrow?: boolean;
 };
@@ -46,13 +40,9 @@ export function Notifications(t0) {
   const $ = _c(34);
   const {
     apiKeyStatus,
-    autoUpdaterResult,
     debug,
-    isAutoUpdating,
     verbose,
     messages,
-    onAutoUpdaterResult,
-    onChangeIsUpdating,
     isInputWrapped: t1,
     isNarrow: t2
   } = t0;
@@ -109,7 +99,6 @@ export function Notifications(t0) {
     t6 = $[7];
   }
   useEffect(t5, t6);
-  const shouldShowAutoUpdater = false;
   const isInOverageMode = claudeAiLimits.isUsingOverage;
   let t7;
   if ($[8] === Symbol.for("react.memo_cache_sentinel")) {
@@ -159,18 +148,13 @@ export function Notifications(t0) {
   const t11 = isNarrow ? "flex-start" : "flex-end";
   const t12 = isInOverageMode ?? false;
   let t13;
-  if ($[15] !== apiKeyStatus || $[16] !== autoUpdaterResult || $[17] !== debug || $[19] !== isAutoUpdating || $[20] !== isShowingCompactMessage || $[21] !== mainLoopModel || $[23] !== notifications || $[24] !== onAutoUpdaterResult || $[25] !== onChangeIsUpdating || $[26] !== shouldShowAutoUpdater || $[27] !== t12 || $[28] !== tokenUsage || $[29] !== verbose) {
-    t13 = <NotificationContent notifications={notifications} isInOverageMode={t12} isTeamOrEnterprise={isTeamOrEnterprise} apiKeyStatus={apiKeyStatus} debug={debug} verbose={verbose} tokenUsage={tokenUsage} mainLoopModel={mainLoopModel} shouldShowAutoUpdater={shouldShowAutoUpdater} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} isShowingCompactMessage={isShowingCompactMessage} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={onChangeIsUpdating} />;
+  if ($[15] !== apiKeyStatus || $[17] !== debug || $[20] !== isShowingCompactMessage || $[21] !== mainLoopModel || $[23] !== notifications || $[27] !== t12 || $[28] !== tokenUsage || $[29] !== verbose) {
+    t13 = <NotificationContent notifications={notifications} isInOverageMode={t12} isTeamOrEnterprise={isTeamOrEnterprise} apiKeyStatus={apiKeyStatus} debug={debug} verbose={verbose} tokenUsage={tokenUsage} mainLoopModel={mainLoopModel} isShowingCompactMessage={isShowingCompactMessage} />;
     $[15] = apiKeyStatus;
-    $[16] = autoUpdaterResult;
     $[17] = debug;
-    $[19] = isAutoUpdating;
     $[20] = isShowingCompactMessage;
     $[21] = mainLoopModel;
     $[23] = notifications;
-    $[24] = onAutoUpdaterResult;
-    $[25] = onChangeIsUpdating;
-    $[26] = shouldShowAutoUpdater;
     $[27] = t12;
     $[28] = tokenUsage;
     $[29] = verbose;
@@ -204,12 +188,7 @@ function NotificationContent({
   verbose,
   tokenUsage,
   mainLoopModel,
-  shouldShowAutoUpdater,
-  autoUpdaterResult,
-  isAutoUpdating,
-  isShowingCompactMessage,
-  onAutoUpdaterResult,
-  onChangeIsUpdating
+  isShowingCompactMessage
 }: {
   notifications: {
     current: Notification | null;
@@ -222,12 +201,7 @@ function NotificationContent({
   verbose: boolean;
   tokenUsage: number;
   mainLoopModel: string;
-  shouldShowAutoUpdater: boolean;
-  autoUpdaterResult: AutoUpdaterResult | null;
-  isAutoUpdating: boolean;
   isShowingCompactMessage: boolean;
-  onAutoUpdaterResult: (result: AutoUpdaterResult) => void;
-  onChangeIsUpdating: (isUpdating: boolean) => void;
 }): ReactNode {
   // Poll apiKeyHelper inflight state to show slow-helper notice.
   // Gated on configuration — most users never set apiKeyHelper, so the
@@ -282,7 +256,6 @@ function NotificationContent({
           </Text>
         </Box>}
       {!isBriefOnly && <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel} />}
-      {shouldShowAutoUpdater && <AutoUpdaterWrapper verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} isUpdating={isAutoUpdating} onChangeIsUpdating={onChangeIsUpdating} showSuccessMessage={!isShowingCompactMessage} />}
       <MemoryUsageIndicator />
       <SandboxPromptFooterHint />
     </>;

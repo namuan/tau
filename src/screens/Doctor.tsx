@@ -1,7 +1,7 @@
 import { c as _c } from "react/compiler-runtime";
 import figures from 'figures';
 import { join } from 'path';
-import React, { Suspense, use, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { KeybindingWarnings } from 'src/components/KeybindingWarnings.js';
 import { getModelMaxOutputTokens } from 'src/utils/context.js';
 import { getClaudeConfigHomeDir } from 'src/utils/envUtils.js';
@@ -17,16 +17,12 @@ import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeyb
 import { Box, Text } from '../ink.js';
 import { useKeybindings } from '../keybindings/useKeybinding.js';
 import { useAppState } from '../state/AppState.js';
-import { getNpmDistTags, type NpmDistTags } from '../utils/autoUpdater.js';
 import { type ContextWarnings, checkContextWarnings } from '../utils/doctorContextWarnings.js';
 import { type DiagnosticInfo, getDoctorDiagnostic } from '../utils/doctorDiagnostic.js';
 import { validateBoundedIntEnvVar } from '../utils/envValidation.js';
 import { pathExists } from '../utils/file.js';
-import { cleanupStaleLocks, getAllLockInfo, isPidBasedLockingEnabled, type LockInfo } from '../utils/nativeInstaller/pidLock.js';
-import { getInitialSettings } from '../utils/settings/settings.js';
 import { BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT } from '../utils/shell/outputLimits.js';
 import { TASK_MAX_OUTPUT_DEFAULT, TASK_MAX_OUTPUT_UPPER_LIMIT } from '../utils/task/outputFormatting.js';
-import { getXDGStateHome } from '../utils/xdg.js';
 type Props = {
   onDone: (result?: string, options?: {
     display?: CommandResultDisplay;
@@ -46,55 +42,6 @@ type AgentInfo = {
     error: string;
   }>;
 };
-type VersionLockInfo = {
-  enabled: boolean;
-  locks: LockInfo[];
-  locksDir: string;
-  staleLocksCleaned: number;
-};
-function DistTagsDisplay(t0) {
-  const $ = _c(8);
-  const {
-    promise
-  } = t0;
-  const distTags = use(promise);
-  if (!distTags.latest) {
-    let t1;
-    if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-      t1 = <Text dimColor={true}>└ Failed to fetch versions</Text>;
-      $[0] = t1;
-    } else {
-      t1 = $[0];
-    }
-    return t1;
-  }
-  let t1;
-  if ($[1] !== distTags.stable) {
-    t1 = distTags.stable && <Text>└ Stable version: {distTags.stable}</Text>;
-    $[1] = distTags.stable;
-    $[2] = t1;
-  } else {
-    t1 = $[2];
-  }
-  let t2;
-  if ($[3] !== distTags.latest) {
-    t2 = <Text>└ Latest version: {distTags.latest}</Text>;
-    $[3] = distTags.latest;
-    $[4] = t2;
-  } else {
-    t2 = $[4];
-  }
-  let t3;
-  if ($[5] !== t1 || $[6] !== t2) {
-    t3 = <>{t1}{t2}</>;
-    $[5] = t1;
-    $[6] = t2;
-    $[7] = t3;
-  } else {
-    t3 = $[7];
-  }
-  return t3;
-}
 export function Doctor(t0) {
   const $ = _c(84);
   const {
@@ -106,17 +53,7 @@ export function Doctor(t0) {
   const [diagnostic, setDiagnostic] = useState(null);
   const [agentInfo, setAgentInfo] = useState(null);
   const [contextWarnings, setContextWarnings] = useState(null);
-  const [versionLockInfo, setVersionLockInfo] = useState(null);
   const validationErrors = useSettingsErrors();
-  let t2;
-  if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
-    t2 = getNpmDistTags().catch(_temp5);
-    $[2] = t2;
-  } else {
-    t2 = $[2];
-  }
-  const distTagsPromise = t2;
-  const autoUpdatesChannel = getInitialSettings()?.autoUpdatesChannel ?? "latest";
   let t3;
   if ($[3] !== validationErrors) {
     t3 = validationErrors;
@@ -175,24 +112,6 @@ export function Doctor(t0) {
           failedFiles
         }, async () => toolPermissionContext);
         setContextWarnings(warnings);
-        if (isPidBasedLockingEnabled()) {
-          const locksDir = join(getXDGStateHome(), "claude", "locks");
-          const staleLocksCleaned = cleanupStaleLocks(locksDir);
-          const locks = getAllLockInfo(locksDir);
-          setVersionLockInfo({
-            enabled: true,
-            locks,
-            locksDir,
-            staleLocksCleaned
-          });
-        } else {
-          setVersionLockInfo({
-            enabled: false,
-            locks: [],
-            locksDir: "",
-            staleLocksCleaned: 0
-          });
-        }
       })();
     };
     t6 = [toolPermissionContext, agentDefinitions];
@@ -265,14 +184,6 @@ export function Doctor(t0) {
   } else {
     t11 = $[20];
   }
-  let t12;
-  if ($[21] !== diagnostic.packageManager) {
-    t12 = diagnostic.packageManager && <Text>└ Package manager: {diagnostic.packageManager}</Text>;
-    $[21] = diagnostic.packageManager;
-    $[22] = t12;
-  } else {
-    t12 = $[22];
-  }
   let t13;
   if ($[23] !== diagnostic.installationPath) {
     t13 = <Text>└ Path: {diagnostic.installationPath}</Text>;
@@ -289,14 +200,6 @@ export function Doctor(t0) {
   } else {
     t14 = $[26];
   }
-  let t15;
-  if ($[27] !== diagnostic.configInstallMethod) {
-    t15 = <Text>└ Config install method: {diagnostic.configInstallMethod}</Text>;
-    $[27] = diagnostic.configInstallMethod;
-    $[28] = t15;
-  } else {
-    t15 = $[28];
-  }
   const t16 = diagnostic.ripgrepStatus.working ? "OK" : "Not working";
   const t17 = diagnostic.ripgrepStatus.mode === "embedded" ? "bundled" : diagnostic.ripgrepStatus.mode === "builtin" ? "vendor" : diagnostic.ripgrepStatus.systemPath || "system";
   let t18;
@@ -307,22 +210,6 @@ export function Doctor(t0) {
     $[31] = t18;
   } else {
     t18 = $[31];
-  }
-  let t19;
-  if ($[32] !== diagnostic.recommendation) {
-    t19 = diagnostic.recommendation && <><Text /><Text color="warning">Recommendation: {diagnostic.recommendation.split("\n")[0]}</Text><Text dimColor={true}>{diagnostic.recommendation.split("\n")[1]}</Text></>;
-    $[32] = diagnostic.recommendation;
-    $[33] = t19;
-  } else {
-    t19 = $[33];
-  }
-  let t20;
-  if ($[34] !== diagnostic.multipleInstallations) {
-    t20 = diagnostic.multipleInstallations.length > 1 && <><Text /><Text color="warning">Warning: Multiple installations found</Text>{diagnostic.multipleInstallations.map(_temp1)}</>;
-    $[34] = diagnostic.multipleInstallations;
-    $[35] = t20;
-  } else {
-    t20 = $[35];
   }
   let t21;
   if ($[36] !== diagnostic.warnings) {
@@ -340,70 +227,8 @@ export function Doctor(t0) {
   } else {
     t22 = $[39];
   }
-  let t23;
-  if ($[40] !== t11 || $[41] !== t12 || $[42] !== t13 || $[43] !== t14 || $[44] !== t15 || $[45] !== t18 || $[46] !== t19 || $[47] !== t20 || $[48] !== t21 || $[49] !== t22) {
-    t23 = <Box flexDirection="column">{t10}{t11}{t12}{t13}{t14}{t15}{t18}{t19}{t20}{t21}{t22}</Box>;
-    $[40] = t11;
-    $[41] = t12;
-    $[42] = t13;
-    $[43] = t14;
-    $[44] = t15;
-    $[45] = t18;
-    $[46] = t19;
-    $[47] = t20;
-    $[48] = t21;
-    $[49] = t22;
-    $[50] = t23;
-  } else {
-    t23 = $[50];
-  }
-  let t24;
-  if ($[51] === Symbol.for("react.memo_cache_sentinel")) {
-    t24 = <Text bold={true}>Updates</Text>;
-    $[51] = t24;
-  } else {
-    t24 = $[51];
-  }
-  const t25 = diagnostic.packageManager ? "Managed by package manager" : diagnostic.autoUpdates;
-  let t26;
-  if ($[52] !== t25) {
-    t26 = <Text>└ Auto-updates:{" "}{t25}</Text>;
-    $[52] = t25;
-    $[53] = t26;
-  } else {
-    t26 = $[53];
-  }
-  let t27;
-  if ($[54] !== diagnostic.hasUpdatePermissions) {
-    t27 = diagnostic.hasUpdatePermissions !== null && <Text>└ Update permissions:{" "}{diagnostic.hasUpdatePermissions ? "Yes" : "No (requires sudo)"}</Text>;
-    $[54] = diagnostic.hasUpdatePermissions;
-    $[55] = t27;
-  } else {
-    t27 = $[55];
-  }
-  let t28;
-  if ($[56] === Symbol.for("react.memo_cache_sentinel")) {
-    t28 = <Text>└ Auto-update channel: {autoUpdatesChannel}</Text>;
-    $[56] = t28;
-  } else {
-    t28 = $[56];
-  }
-  let t29;
-  if ($[57] === Symbol.for("react.memo_cache_sentinel")) {
-    t29 = <Suspense fallback={null}><DistTagsDisplay promise={distTagsPromise} /></Suspense>;
-    $[57] = t29;
-  } else {
-    t29 = $[57];
-  }
-  let t30;
-  if ($[58] !== t26 || $[59] !== t27) {
-    t30 = <Box flexDirection="column">{t24}{t26}{t27}{t28}{t29}</Box>;
-    $[58] = t26;
-    $[59] = t27;
-    $[60] = t30;
-  } else {
-    t30 = $[60];
-  }
+  const t23 = <Box flexDirection="column">{t10}{t11}{t13}{t14}{t18}{t21}{t22}</Box>;
+  const t30 = <Box flexDirection="column"><Text bold={true}>Local checkout</Text><Text>└ Rebuild with: npm run build</Text><Text>└ Link command: npm link</Text></Box>;
   let t31;
   let t33;
   let t34;
@@ -419,14 +244,7 @@ export function Doctor(t0) {
     t33 = $[63];
     t34 = $[64];
   }
-  let t35;
-  if ($[65] !== versionLockInfo) {
-    t35 = versionLockInfo?.enabled && <Box flexDirection="column"><Text bold={true}>Version Locks</Text>{versionLockInfo.staleLocksCleaned > 0 && <Text dimColor={true}>└ Cleaned {versionLockInfo.staleLocksCleaned} stale lock(s)</Text>}{versionLockInfo.locks.length === 0 ? <Text dimColor={true}>└ No active version locks</Text> : versionLockInfo.locks.map(_temp12)}</Box>;
-    $[65] = versionLockInfo;
-    $[66] = t35;
-  } else {
-    t35 = $[66];
-  }
+  const t35 = null;
   let t36;
   if ($[67] !== agentInfo) {
     t36 = agentInfo?.failedFiles && agentInfo.failedFiles.length > 0 && <Box flexDirection="column"><Text bold={true} color="error">Agent Parse Errors</Text><Text color="error">└ Failed to parse {agentInfo.failedFiles.length} agent file(s):</Text>{agentInfo.failedFiles.map(_temp13)}</Box>;
@@ -488,17 +306,11 @@ function _temp15(detail, i_5) {
 function _temp13(file, i_3) {
   return <Text key={i_3} dimColor={true}>{"  "}└ {file.path}: {file.error}</Text>;
 }
-function _temp12(lock, i_2) {
-  return <Text key={i_2}>└ {lock.version}: PID {lock.pid}{" "}{lock.isProcessRunning ? <Text>(running)</Text> : <Text color="warning">(stale)</Text>}</Text>;
-}
 function _temp11(validation, i_1) {
   return <Text key={i_1}>└ {validation.name}:{" "}<Text color={validation.status === "capped" ? "warning" : "error"}>{validation.message}</Text></Text>;
 }
 function _temp10(warning, i_0) {
   return <Box key={i_0} flexDirection="column"><Text color="warning">Warning: {warning.issue}</Text><Text>Fix: {warning.fix}</Text></Box>;
-}
-function _temp1(install, i) {
-  return <Text key={i}>└ {install.type} at {install.path}</Text>;
 }
 function _temp0(a) {
   return {
@@ -515,12 +327,6 @@ function _temp8(v) {
   return {
     name: v.name,
     ...result
-  };
-}
-function _temp5() {
-  return {
-    latest: null,
-    stable: null
   };
 }
 function _temp3(s_1) {
