@@ -25,6 +25,7 @@ test('legacy Claude provider selections are rejected by routing and model select
   const oauthFlow = await readFile(new URL('../src/components/ConsoleOAuthFlow.tsx', import.meta.url), 'utf8')
   const auth = await readFile(new URL('../src/utils/auth.ts', import.meta.url), 'utf8')
   const modelOptions = await readFile(new URL('../src/utils/model/modelOptions.ts', import.meta.url), 'utf8')
+  const modelConfigs = await readFile(new URL('../src/utils/model/configs.ts', import.meta.url), 'utf8')
   assert.match(client, /REMOVED_CLAUDE_INFERENCE_PROVIDERS\.includes\(provider\)/)
   assert.match(client, /inference support has been removed/)
   assert.match(providers, /API_PROVIDERS\.filter\([\s\S]{0,100}REMOVED_CLAUDE_INFERENCE_PROVIDERS\.includes\(provider\)/)
@@ -39,4 +40,5 @@ test('legacy Claude provider selections are rejected by routing and model select
   assert.doesNotMatch(auth, /awsAuthRefresh|awsCredentialExport|gcpAuthRefresh|isUsing3PServices/)
   assert.doesNotMatch(oauthFlow, /platform_setup|Amazon Bedrock|Vertex AI|Microsoft Foundry/)
   assert.doesNotMatch(modelOptions, /isClaudeAISubscriber|isMaxSubscriber|isTeamPremiumSubscriber|PAYG 1P|firstParty|formatModelPricing/)
+  assert.doesNotMatch(modelConfigs, /^\s*(bedrock|vertex|foundry):/m)
 })
