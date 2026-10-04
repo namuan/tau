@@ -14,10 +14,9 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync }
 import { isAbsolute, join, resolve } from 'path'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8'))
-const bundledRuntimePackages = new Set(['e2b', 'google-auth-library'])
+const bundledRuntimePackages = new Set(['e2b'])
 const optionalExternalPackages = new Set([
   '@anthropic-ai/mcpb',
-  '@aws-sdk/client-sts',
   '@opentelemetry/exporter-logs-otlp-grpc',
   '@opentelemetry/exporter-logs-otlp-http',
   '@opentelemetry/exporter-logs-otlp-proto',

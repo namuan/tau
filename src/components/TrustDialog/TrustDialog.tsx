@@ -14,7 +14,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js';
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js';
 import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
-import { getApiKeyHelperSources, getAwsCommandsSources, getBashPermissionSources, getDangerousEnvVarsSources, getGcpCommandsSources, getHooksSources, getOtelHeadersHelperSources } from './utils.js';
+import { getApiKeyHelperSources, getBashPermissionSources, getDangerousEnvVarsSources, getHooksSources, getOtelHeadersHelperSources } from './utils.js';
 type Props = {
   onDone(): void;
   commands?: Command[];
@@ -51,24 +51,6 @@ export function TrustDialog(t0) {
   }
   const apiKeyHelperSources = t5;
   const hasApiKeyHelper = apiKeyHelperSources.length > 0;
-  let t6;
-  if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
-    t6 = getAwsCommandsSources();
-    $[5] = t6;
-  } else {
-    t6 = $[5];
-  }
-  const awsCommandsSources = t6;
-  const hasAwsCommands = awsCommandsSources.length > 0;
-  let t7;
-  if ($[6] === Symbol.for("react.memo_cache_sentinel")) {
-    t7 = getGcpCommandsSources();
-    $[6] = t7;
-  } else {
-    t7 = $[6];
-  }
-  const gcpCommandsSources = t7;
-  const hasGcpCommands = gcpCommandsSources.length > 0;
   let t8;
   if ($[7] === Symbol.for("react.memo_cache_sentinel")) {
     t8 = getOtelHeadersHelperSources();
@@ -117,13 +99,11 @@ export function TrustDialog(t0) {
         hasHooks,
         hasBashExecution: hasAnyBashExecution,
         hasApiKeyHelper,
-        hasAwsCommands,
-        hasGcpCommands,
         hasOtelHeadersHelper,
         hasDangerousEnvVars
       });
     };
-    t13 = [hasHooks, hasAnyBashExecution, hasApiKeyHelper, hasAwsCommands, hasGcpCommands, hasOtelHeadersHelper, hasDangerousEnvVars];
+    t13 = [hasHooks, hasAnyBashExecution, hasApiKeyHelper, hasOtelHeadersHelper, hasDangerousEnvVars];
     $[13] = hasAnyBashExecution;
     $[14] = t12;
     $[15] = t13;
@@ -145,8 +125,6 @@ export function TrustDialog(t0) {
         hasHooks,
         hasBashExecution: hasAnyBashExecution,
         hasApiKeyHelper,
-        hasAwsCommands,
-        hasGcpCommands,
         hasOtelHeadersHelper,
         hasDangerousEnvVars
       });

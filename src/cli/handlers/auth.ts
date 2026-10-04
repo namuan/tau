@@ -26,7 +26,6 @@ import {
   getAuthTokenSource,
   getOauthAccountInfo,
   getSubscriptionType,
-  isUsing3PServices,
   saveOAuthTokensIfNeeded,
   validateForceLoginOrg,
 } from '../../utils/auth.js'
@@ -239,15 +238,11 @@ export async function authStatus(opts: {
     !!process.env.ANTHROPIC_API_KEY && !isRunningOnHomespace()
   const oauthAccount = getOauthAccountInfo()
   const subscriptionType = getSubscriptionType()
-  const using3P = isUsing3PServices()
-  const loggedIn =
-    hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar || using3P
+  const loggedIn = hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar
 
   // Determine auth method
   let authMethod: string = 'none'
-  if (using3P) {
-    authMethod = 'third_party'
-  } else if (authTokenSource === 'claude.ai') {
+  if (authTokenSource === 'claude.ai') {
     authMethod = 'claude.ai'
   } else if (authTokenSource === 'apiKeyHelper') {
     authMethod = 'api_key_helper'

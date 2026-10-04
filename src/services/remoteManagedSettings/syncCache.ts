@@ -13,7 +13,6 @@ import {
   getClaudeAIOAuthTokens,
 } from '../../utils/auth.js'
 import {
-  getAPIProvider,
   isFirstPartyAnthropicBaseUrl,
 } from '../../utils/model/providers.js'
 
@@ -48,11 +47,6 @@ export function resetSyncCache(): void {
  */
 export function isRemoteManagedSettingsEligible(): boolean {
   if (cached !== undefined) return cached
-
-  // 3p provider users should not hit the settings endpoint
-  if (getAPIProvider() !== 'firstParty') {
-    return (cached = setEligibility(false))
-  }
 
   // Custom base URL users should not hit the settings endpoint
   if (!isFirstPartyAnthropicBaseUrl()) {

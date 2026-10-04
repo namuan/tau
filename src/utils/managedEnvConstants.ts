@@ -74,9 +74,6 @@ export function isProviderManagedEnvVar(key: string): boolean {
  */
 export const DANGEROUS_SHELL_SETTINGS = [
   'apiKeyHelper',
-  'awsAuthRefresh',
-  'awsCredentialExport',
-  'gcpAuthRefresh',
   'otelHeadersHelper',
   'statusLine',
 ] as const
