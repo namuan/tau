@@ -703,12 +703,6 @@ export function stripWrappersFromArgv(argv: string[]): string[] {
 }
 
 /**
- * Env vars that make a *different binary* run (injection or resolution hijack).
- * Heuristic only — export-&& form bypasses this, and excludedCommands isn't a
- * security boundary anyway.
- */
-export const BINARY_HIJACK_VARS = /^(LD_|DYLD_|PATH$)/
-
 /**
  * Strip ALL leading env var prefixes from a command, regardless of whether the
  * var name is in the safe-list.
@@ -719,8 +713,6 @@ export const BINARY_HIJACK_VARS = /^(LD_|DYLD_|PATH$)/
  * for allow rules (prevents `DOCKER_HOST=evil docker ps` from auto-matching
  * `Bash(docker ps:*)`), but deny rules must be harder to circumvent.
  *
- * Also used for sandbox.excludedCommands matching (not a security boundary —
- * permission prompts are), with BINARY_HIJACK_VARS as a blocklist.
  *
  * SECURITY: Uses a broader value pattern than stripSafeWrappers. The value
  * pattern excludes only actual shell injection characters ($, backtick, ;, |,
@@ -728,14 +720,8 @@ export const BINARY_HIJACK_VARS = /^(LD_|DYLD_|PATH$)/
  * =, +, @, ~, , are harmless in unquoted env var assignment position and must
  * be matched to prevent trivial bypass via e.g. `FOO=a=b denied_command`.
  *
- * @param blocklist - optional regex tested against each var name; matching vars
- *   are NOT stripped (and stripping stops there). Omit for deny rules; pass
- *   BINARY_HIJACK_VARS for excludedCommands.
  */
-export function stripAllLeadingEnvVars(
-  command: string,
-  blocklist?: RegExp,
-): string {
+export function stripAllLeadingEnvVars(command: string): string {
   // Broader value pattern for deny-rule stripping. Handles:
   //
   // - Standard assignment (FOO=bar), append (FOO+=bar), array (FOO[0]=bar)
@@ -770,7 +756,6 @@ export function stripAllLeadingEnvVars(
 
     const m = stripped.match(ENV_VAR_PATTERN)
     if (!m) continue
-    if (blocklist?.test(m[1]!)) break
     stripped = stripped.slice(m[0].length)
   }
 
@@ -2099,7 +2084,7 @@ export async function bashToolHasPermission(
   const compoundCommandHasCd = cdCommands.length > 0
 
   // SECURITY: Block compound commands that have both cd AND git
-  // This prevents sandbox escape via: cd /malicious/dir && git status
+  // This prevents permission bypass via: cd /malicious/dir && git status
   // where the malicious directory contains a bare git repo with core.fsmonitor.
   // This check must happen HERE (before subcommand-level permission checks)
   // because bashToolCheckPermission checks each subcommand independently via
@@ -2339,7 +2324,7 @@ export async function bashToolHasPermission(
       subcommand,
       await checkCommandAndSuggestRules(
         {
-          // Pass through input params like `sandbox`
+          // Preserve the original command metadata
           ...input,
           command: subcommand,
         },

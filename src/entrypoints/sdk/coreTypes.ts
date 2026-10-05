@@ -8,13 +8,6 @@
 // Schemas are available in coreSchemas.ts for runtime validation but are not
 // part of the public API.
 
-// Re-export sandbox types for SDK consumers
-export type {
-  SandboxFilesystemConfig,
-  SandboxIgnoreViolations,
-  SandboxNetworkConfig,
-  SandboxSettings,
-} from '../sandboxTypes.js'
 // Re-export all generated types
 export * from './coreTypes.generated.js'
 

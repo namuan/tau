@@ -2,6 +2,7 @@ import type { ZodError, ZodIssue } from 'zod/v4'
 import { jsonParse } from '../slowOperations.js'
 import { plural } from '../stringUtils.js'
 import { validatePermissionRule } from './permissionValidation.js'
+import { stripLegacySandboxSetting } from './legacySettings.js'
 import { generateSettingsJSONSchema } from './schemaOutput.js'
 import type { SettingsJson } from './types.js'
 import { SettingsSchema } from './types.js'
@@ -180,7 +181,9 @@ export function validateSettingsFileContent(content: string):
     const jsonData = jsonParse(content)
 
     // Validate against SettingsSchema in strict mode
-    const result = SettingsSchema().strict().safeParse(jsonData)
+    const result = SettingsSchema()
+      .strict()
+      .safeParse(stripLegacySandboxSetting(jsonData, 'settings validation'))
 
     if (result.success) {
       return { isValid: true }

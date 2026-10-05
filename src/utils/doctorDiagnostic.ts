@@ -2,9 +2,7 @@ import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { isInBundledMode } from './bundledMode.js'
 import { getCwd } from './cwd.js'
-import { getPlatform } from './platform.js'
 import { getRipgrepStatus } from './ripgrep.js'
-import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 import { CUSTOMIZATION_SURFACES } from './settings/types.js'
 import { jsonParse } from './slowOperations.js'
@@ -56,20 +54,6 @@ async function detectConfigurationIssues(): Promise<Array<{ issue: string; fix: 
   return warnings
 }
 
-export function detectLinuxGlobPatternWarnings(): Array<{ issue: string; fix: string }> {
-  if (getPlatform() !== 'linux') return []
-
-  const globPatterns = SandboxManager.getLinuxGlobPatternWarnings()
-  if (globPatterns.length === 0) return []
-  const displayPatterns = globPatterns.slice(0, 3).join(', ')
-  const remaining = globPatterns.length - 3
-  const patternList = remaining > 0 ? `${displayPatterns} (${remaining} more)` : displayPatterns
-  return [{
-    issue: 'Glob patterns in sandbox permission rules are not fully supported on Linux',
-    fix: `Found ${globPatterns.length} pattern(s): ${patternList}. On Linux, glob patterns in Edit/Read rules will be ignored.`,
-  }]
-}
-
 export async function getDoctorDiagnostic(): Promise<DiagnosticInfo> {
   const installationType = process.env.NODE_ENV === 'development'
     ? 'development'
@@ -78,7 +62,6 @@ export async function getDoctorDiagnostic(): Promise<DiagnosticInfo> {
       : 'local-checkout'
   const ripgrepStatus = getRipgrepStatus()
   const warnings = await detectConfigurationIssues()
-  warnings.push(...detectLinuxGlobPatternWarnings())
 
   return {
     installationType,

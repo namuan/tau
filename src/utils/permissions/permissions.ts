@@ -219,8 +219,6 @@ export function createPermissionRequestMessage(
       }
       case 'permissionPromptTool':
         return `Tool '${decisionReason.permissionPromptToolName}' requires approval for this ${toolName} command`
-      case 'sandboxOverride':
-        return 'Run outside of the sandbox'
       case 'workingDir':
         return decisionReason.reason
       case 'safetyCheck':

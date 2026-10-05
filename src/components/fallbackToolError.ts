@@ -65,8 +65,7 @@ export function normalizeToolError(result: ToolResultBlockParam['content']): str
   }
 
   const extractedError = extractTag(result, 'tool_use_error') ?? result
-  const withoutSandboxViolations = removeSandboxViolationTags(extractedError)
-  const withoutErrorTags = withoutSandboxViolations.replace(/<\/?error>/g, '')
+  const withoutErrorTags = extractedError.replace(/<\/?error>/g, '')
   const trimmed = withoutErrorTags.trim()
 
   if (
@@ -144,10 +143,4 @@ function escapeRegExp(value: string): string {
 function extractTag(value: string, tagName: string): string | null {
   const pattern = new RegExp(`<${escapeRegExp(tagName)}>([\\s\\S]*?)</${escapeRegExp(tagName)}>`)
   return pattern.exec(value)?.[1] ?? null
-}
-
-function removeSandboxViolationTags(value: string): string {
-  return value
-    .replace(/<\/?sandbox_violation>/g, '')
-    .replace(/<\/?permission_denied>/g, '')
 }

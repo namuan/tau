@@ -22,7 +22,6 @@ import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
 import { MemoryUsageIndicator } from '../MemoryUsageIndicator.js';
 import { SentryErrorBoundary } from '../SentryErrorBoundary.js';
 import { TokenWarning } from '../TokenWarning.js';
-import { SandboxPromptFooterHint } from './SandboxPromptFooterHint.js';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -257,6 +256,5 @@ function NotificationContent({
         </Box>}
       {!isBriefOnly && <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel} />}
       <MemoryUsageIndicator />
-      <SandboxPromptFooterHint />
     </>;
 }

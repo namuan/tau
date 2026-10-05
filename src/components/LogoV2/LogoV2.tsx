@@ -25,7 +25,6 @@ import { isEnvTruthy } from 'src/utils/envUtils.js';
 import { getStartupPerfLogPath, isDetailedProfilingEnabled } from 'src/utils/startupProfiler.js';
 import { EmergencyTip } from './EmergencyTip.js';
 import { Opus1mMergeNotice } from './Opus1mMergeNotice.js';
-import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js';
 import { useShowGuestPassesUpsell, incrementGuestPassesSeenCount } from './GuestPassesUpsell.js';
 import { useShowOverageCreditUpsell, incrementOverageCreditUpsellSeenCount, createOverageCreditFeed } from './OverageCreditUpsell.js';
 import { plural } from '../../utils/stringUtils.js';
@@ -50,14 +49,6 @@ export function LogoV2() {
     t0 = $[0];
   }
   const showOnboarding = t0;
-  let t1;
-  if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = SandboxManager.isSandboxingEnabled();
-    $[1] = t1;
-  } else {
-    t1 = $[1];
-  }
-  const showSandboxStatus = t1;
   const showGuestPassesUpsell = useShowGuestPassesUpsell();
   const showOverageCreditUpsell = useShowOverageCreditUpsell();
   const agent = useAppState(_temp);
@@ -303,14 +294,7 @@ export function LogoV2() {
       t15 = $[38];
       t16 = $[39];
     }
-    let t17;
-    if ($[40] !== showSandboxStatus) {
-      t17 = showSandboxStatus && <Box marginTop={1} flexDirection="column"><Text color="warning">Your bash commands will be sandboxed. Disable with /sandbox.</Text></Box>;
-      $[40] = showSandboxStatus;
-      $[41] = t17;
-    } else {
-      t17 = $[41];
-    }
+    const t17 = null;
     let t18;
     let t19;
     if ($[42] === Symbol.for("react.memo_cache_sentinel")) {
@@ -482,14 +466,7 @@ export function LogoV2() {
   } else {
     t35 = $[83];
   }
-  let t36;
-  if ($[84] !== showSandboxStatus) {
-    t36 = showSandboxStatus && <Box paddingLeft={2} flexDirection="column"><Text color="warning">Your bash commands will be sandboxed. Disable with /sandbox.</Text></Box>;
-    $[84] = showSandboxStatus;
-    $[85] = t36;
-  } else {
-    t36 = $[85];
-  }
+  const t36 = null;
   let t37;
   let t38;
   let t39;

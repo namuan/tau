@@ -173,7 +173,6 @@ import { isInBundledMode, isRunningWithBun } from './utils/bundledMode.js';
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js';
 import { filterExistingPaths, getKnownPathsForRepo } from './utils/githubRepoPathMapping.js';
 import { migrateChangelogFromConfig } from './utils/releaseNotes.js';
-import { SandboxManager } from './utils/sandbox/sandbox-adapter.js';
 import { checkOutTeleportedSessionBranch, processMessagesForTeleportResume, teleportToRemoteWithErrorHandling, validateGitState, validateSessionRepository } from './utils/teleport.js';
 import { fetchSession, prepareApiRequest } from './utils/teleport/api.js';
 import { shouldEnableThinkingByDefault, type ThinkingConfig } from './utils/thinking.js';
@@ -278,9 +277,6 @@ async function logStartupTelemetry(): Promise<void> {
     is_git: isGit,
     worktree_count: worktreeCount,
     gh_auth_status: ghAuthStatus as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    sandbox_enabled: SandboxManager.isSandboxingEnabled(),
-    are_unsandboxed_commands_allowed: SandboxManager.areUnsandboxedCommandsAllowed(),
-    is_auto_bash_allowed_if_sandbox_enabled: SandboxManager.isAutoAllowBashIfSandboxedEnabled(),
     prefers_reduced_motion: getInitialSettings().prefersReducedMotion ?? false,
     ...getCertEnvVarTelemetry()
   });
@@ -406,8 +402,7 @@ function loadSettingsFromFlag(settingsFile: string): void {
       // Create a temporary file and write the JSON to it.
       // Use a content-hash-based path instead of random UUID to avoid
       // busting the Anthropic API prompt cache. The settings path ends up
-      // in the Bash tool's sandbox denyWithinAllow list, which is part of
-      // the tool description sent to the API. A random UUID per subprocess
+      // in the tool description sent to the API. A random UUID per subprocess
       // changes the tool description on every query() call, invalidating
       // the cache prefix and causing a 12x input token cost penalty.
       // The content hash ensures identical settings produce the same path
@@ -2169,12 +2164,7 @@ async function run(): Promise<CommanderCommand> {
       skillImprovement: {
         suggestion: null
       },
-      workerSandboxPermissions: {
-        queue: [],
-        selectedIndex: 0
-      },
       pendingWorkerRequest: null,
-      pendingSandboxRequest: null,
       authVersion: 0,
       initialMessage: inputPrompt ? {
         message: createUserMessage({

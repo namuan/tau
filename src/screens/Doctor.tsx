@@ -10,7 +10,6 @@ import { getOriginalCwd } from '../bootstrap/state.js';
 import type { CommandResultDisplay } from '../commands.js';
 import { Pane } from '../components/design-system/Pane.js';
 import { PressEnterToContinue } from '../components/PressEnterToContinue.js';
-import { SandboxDoctorSection } from '../components/sandbox/SandboxDoctorSection.js';
 import { ValidationErrorsList } from '../components/ValidationErrorsList.js';
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js';
@@ -233,7 +232,6 @@ export function Doctor(t0) {
   let t33;
   let t34;
   if ($[61] === Symbol.for("react.memo_cache_sentinel")) {
-    t31 = <SandboxDoctorSection />;
     t33 = <KeybindingWarnings />;
     t34 = envValidationErrors.length > 0 && <Box flexDirection="column"><Text bold={true}>Environment Variables</Text>{envValidationErrors.map(_temp11)}</Box>;
     $[61] = t31;

@@ -3351,7 +3351,7 @@ async function getTeammateMailboxAttachments(
   // Check mailbox for unread messages (routes to in-process or file-based)
   // Filter out structured protocol messages (permission requests/responses, shutdown
   // messages, etc.) — these must be left unread for useInboxPoller to route to their
-  // proper handlers (workerPermissions queue, sandbox queue, etc.). Without filtering,
+  // proper handlers (workerPermissions queue, etc.). Without filtering,
   // attachment generation races with InboxPoller: whichever reads first marks all
   // messages as read, and if attachments wins, protocol messages get bundled as raw
   // LLM context text instead of being routed to their UI handlers.

@@ -16,7 +16,6 @@ import {
   hasRules,
 } from 'src/utils/permissions/PermissionUpdate.js'
 import { permissionRuleValueToString } from 'src/utils/permissions/permissionRuleParser.js'
-import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js'
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
 import { useSetAppState } from '../../state/AppState.js'
 import { env } from '../../utils/env.js'
@@ -135,7 +134,6 @@ export function usePermissionRequestLogging(
       toolName: sanitizeToolNameForAnalytics(toolUseConfirm.tool.name),
       decisionReasonType: toolUseConfirm.permissionResult.decisionReason
         ?.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      sandboxEnabled: SandboxManager.isSandboxingEnabled(),
     })
 
     if (process.env.USER_TYPE === 'ant') {
@@ -152,7 +150,6 @@ export function usePermissionRequestLogging(
           toolName: sanitizeToolNameForAnalytics(toolUseConfirm.tool.name),
           decisionReasonType: (permissionResult.decisionReason?.type ??
             'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          sandboxEnabled: SandboxManager.isSandboxingEnabled(),
 
           // This DOES contain code/filepaths and should not be logged in the public build!
           decisionReasonDetails: decisionReasonToString(

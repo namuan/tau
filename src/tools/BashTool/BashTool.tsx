@@ -32,7 +32,6 @@ import { getAgentModelEnv } from '../../utils/shell/agentModelEnv.js';
 import { getCwd } from '../../utils/cwd.js';
 import { allWorkingDirectories, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js';
 import type { ExecResult } from '../../utils/ShellCommand.js';
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js';
 import { semanticBoolean } from '../../utils/semanticBoolean.js';
 import { semanticNumber } from '../../utils/semanticNumber.js';
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js';
@@ -413,17 +412,6 @@ export function detectBlockedSleepPattern(command: string): string | null {
   return rest ? `sleep ${secs} followed by: ${rest}` : `standalone sleep ${secs}`;
 }
 
-/**
- * Checks if a command contains tools that shouldn't run in sandbox
- * This includes:
- * - Dynamic config-based disabled commands and substrings (tengu_sandbox_disabled_commands)
- * - User-configured commands from settings.json (sandbox.excludedCommands)
- *
- * User-configured commands support the same pattern syntax as permission rules:
- * - Exact matches: "npm run lint"
- * - Prefix patterns: "npm run test:*"
- */
-
 type SimulatedSedEditResult = {
   data: Out;
 };
@@ -500,7 +488,7 @@ export const BashTool = buildTool({
   maxResultSizeChars: 30_000,
   strict: true,
   // Neither changes what runs: the command string is authoritative for
-  // execution, permissions and sandboxing.
+  // execution, permissions, path normalization, and syntax validation.
   advisoryInputFields: ['command_parts', 'description'],
   async description({
     description
@@ -613,7 +601,7 @@ export const BashTool = buildTool({
         result: true
       };
     }
-    // command_parts is advisory: execution, permissions, and sandbox
+    // command_parts is advisory: execution, permissions, and validation
     // classification all run on the raw `command` string, with or without
     // parts. The old byte-exact match requirement hard-blocked models that
     // quote differently from our compiler (same argv, different quoting) or
@@ -993,19 +981,14 @@ export const BashTool = buildTool({
         }
       }
 
-      // Annotate output with sandbox violations if any (stderr is in commandOutput).
-      // Takes the output only — passing input.command here fed the command
-      // string in as the "stderr" and discarded the real output, which is what
-      // made every failure report "nonzero exit code without diagnostic output".
-      const outputWithSbFailures = SandboxManager.annotateStderrWithSandboxFailures(commandOutput);
       if (result.preSpawnError) {
         throw new Error(result.preSpawnError);
       }
       if (interpretationResult.isError && !isInterrupt) {
-        // stderr is merged into stdout (merged fd); outputWithSbFailures
+        // stderr is merged into stdout (merged fd); commandOutput
         // already has the full output. Pass '' for stdout to avoid
         // duplication in getErrorParts() and processBashCommand.
-        const outputWithFailureGuidance = appendBashFailureGuidance(input.command, result.code, outputWithSbFailures, executionDir);
+        const outputWithFailureGuidance = appendBashFailureGuidance(input.command, result.code, commandOutput, executionDir);
         // On usage/invalid-option failures, append the binary's own
         // --help (authoritative, version-exact). Reactive: only spawns
         // when failure output matches a usage pattern. 3s timeout per
@@ -1019,7 +1002,7 @@ export const BashTool = buildTool({
           cwd: executionDir
         });
         // Record failure for retry guard before throwing
-        recordBashFailure(input.command, result.code, outputWithSbFailures, executionDir);
+        recordBashFailure(input.command, result.code, commandOutput, executionDir);
         throw new ShellError('', outputWithModuleHelp, result.code, result.interrupted);
       }
       wasInterrupted = result.interrupted;

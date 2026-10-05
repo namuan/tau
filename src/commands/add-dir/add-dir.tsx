@@ -10,7 +10,6 @@ import { Box, Text } from '../../ink.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import { applyPermissionUpdate, persistPermissionUpdate } from '../../utils/permissions/PermissionUpdate.js';
 import type { PermissionUpdateDestination } from '../../utils/permissions/PermissionUpdateSchema.js';
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js';
 import { addDirHelpMessage, validateDirectoryForWorkspace } from './validation.js';
 function AddDirError(t0) {
   const $ = _c(10);
@@ -83,7 +82,6 @@ export async function call(onDone: LocalJSXCommandOnDone, context: LocalJSXComma
       toolPermissionContext: updatedContext
     }));
 
-    // Update sandbox config so Bash commands can access the new directory.
     // Bootstrap state is the source of truth for session-only dirs; persisted
     // dirs are picked up via the settings subscription, but we refresh
     // eagerly here to avoid a race when the user acts immediately.
@@ -91,7 +89,6 @@ export async function call(onDone: LocalJSXCommandOnDone, context: LocalJSXComma
     if (!currentDirs.includes(path)) {
       setAdditionalDirectoriesForClaudeMd([...currentDirs, path]);
     }
-    SandboxManager.refreshConfig();
     let message: string;
     if (remember) {
       try {

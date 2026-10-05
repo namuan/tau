@@ -9,7 +9,6 @@ import { modelDisplayStringForProvider } from './model/display.js';
 import { getAPIProvider, PROVIDER_DISPLAY_NAMES } from './model/providers.js';
 import { getMTLSConfig } from './mtls.js';
 import { getProxyUrl } from './proxy.js';
-import { SandboxManager } from './sandbox/sandbox-adapter.js';
 import { getSettingsWithAllErrors } from './settings/allErrors.js';
 import { getEnabledSettingSources, getSettingSourceDisplayNameCapitalized } from './settings/constants.js';
 import { getManagedFileSettingsPresence, getPolicySettingsOrigin, getSettingsForSource } from './settings/settings.js';
@@ -18,16 +17,6 @@ export type Property = {
   value: React.ReactNode | Array<string>;
 };
 export type Diagnostic = React.ReactNode;
-export function buildSandboxProperties(): Property[] {
-  if ("external" !== 'ant') {
-    return [];
-  }
-  const isSandboxed = SandboxManager.isSandboxingEnabled();
-  return [{
-    label: 'Bash Sandbox',
-    value: isSandboxed ? 'Enabled' : 'Disabled'
-  }];
-}
 export async function buildMemoryDiagnostics(): Promise<Diagnostic[]> {
   const files = await getMemoryFiles();
   const largeFiles = getLargeMemoryFiles(files);

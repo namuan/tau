@@ -25,6 +25,7 @@ import { readFileSync } from '../../fileRead.js'
 import { getFsImplementation } from '../../fsOperations.js'
 import { safeParseJSON } from '../../json.js'
 import { profileCheckpoint } from '../../startupProfiler.js'
+import { stripLegacySandboxSetting } from '../legacySettings.js'
 import {
   getManagedFilePath,
   getManagedSettingsDropInDir,
@@ -184,7 +185,10 @@ export function parseCommandOutputAsSettings(
   stdout: string,
   sourcePath: string,
 ): { settings: SettingsJson; errors: ValidationError[] } {
-  const data = safeParseJSON(stdout, false)
+  const data = stripLegacySandboxSetting(
+    safeParseJSON(stdout, false),
+    sourcePath,
+  )
   if (!data || typeof data !== 'object') {
     return { settings: {}, errors: [] }
   }

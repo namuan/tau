@@ -25,6 +25,7 @@ import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { classifyAxiosError, getErrnoCode } from '../../utils/errors.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
+import { stripLegacySandboxSetting } from '../../utils/settings/legacySettings.js'
 import {
   type SettingsJson,
   SettingsSchema,
@@ -319,7 +320,9 @@ async function fetchRemoteManagedSettings(
     }
 
     // Full validation of settings structure
-    const settingsValidation = SettingsSchema().safeParse(parsed.data.settings)
+    const settingsValidation = SettingsSchema().safeParse(
+      stripLegacySandboxSetting(parsed.data.settings, 'remote managed settings'),
+    )
     if (!settingsValidation.success) {
       logForDebugging(
         `Remote settings: Settings validation failed - ${settingsValidation.error.message}`,

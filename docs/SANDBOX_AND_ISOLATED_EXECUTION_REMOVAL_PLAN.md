@@ -24,7 +24,7 @@ Trace shared code before removal. Remove remote APIs, settings, or transport cod
 - Permission code also queries sandbox-only state for sandbox auto-allow and sandbox filesystem restrictions. Remove those branches without removing ordinary ask/allow/deny behavior or generic file-tool permission checks.
 - `src/utils/hooks/execHttpHook.ts` uses the sandbox network proxy. It must be traced and simplified when that proxy is removed.
 - `src/lanes/shared/sandbox.ts` has no direct source imports in the current search. Treat it as apparently unreferenced; verify generated/build references before deleting it.
-- The adapter statically imports `@anthropic-ai/sandbox-runtime`, but the package is not declared in `package.json` or the lockfiles. This explains why direct test imports can fail even though the build succeeds.
+- Before Phase 3, the adapter statically imported `@anthropic-ai/sandbox-runtime`, which was not declared in `package.json` or the lockfiles. The adapter has since been deleted.
 
 ### Hosted agents and CCR remote sessions
 
@@ -91,9 +91,9 @@ Remove SSH session startup, session management, permission forwarding, reconnect
 
 Remove the safetest command and its E2B client, upload/run workflow, template selection, configuration, dependency references, tests, and documentation. Check that no other feature uses those E2B-specific modules before deleting shared code.
 
-### 7. Delete the local sandbox adapter and dependency references
+### 7. Audit local sandbox adapter and dependency references
 
-After all local consumers are removed or refactored, delete `src/utils/sandbox/sandbox-adapter.ts` and remove its imports. Remove `@anthropic-ai/sandbox-runtime` references from build/runtime configuration and dependency guidance. The adapter is currently imported transitively by Bash and permission modules; its static import is why unrelated tests can fail when the package is absent.
+The adapter and its imports were removed in Phase 3. Verify no local Bash execution path imports or invokes `sandbox-adapter` or `@anthropic-ai/sandbox-runtime`, and remove any remaining dependency or documentation references.
 
 ### 8. Update product guidance
 
@@ -111,9 +111,12 @@ Update Bash system prompts, settings help, command help, README/docs, and diagno
 
 - [x] Phase 1 — Inventory completed and recorded above.
 - [x] Phase 2 — Removed local sandbox wrapping from the shell execution path, removed `dangerouslyDisableSandbox` from Bash schemas/plumbing/internal callers, removed sandbox-specific auto-allow behavior, and removed sandbox instructions from the Bash prompt.
-- [ ] Phase 3 — Remove local sandbox settings and user-facing features.
+- [x] Phase 3 — Removed local sandbox settings/schema/UI/startup/doctor paths, sandbox-only telemetry and network callbacks, the local adapter, and legacy sandbox settings are now warned about and stripped. Ordinary Tau permission and file protections remain.
+- [ ] Phase 4 — Remove hosted remote-agent execution and CCR remote-session infrastructure.
 
-Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/preflight/workdir/background tests passed. `npx tsc --noEmit` still reports existing project-wide missing-module/compiler-type issues; it also reports the known Bash workdir type errors.
+Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/preflight/workdir/background tests passed. `npx tsc --noEmit` still reports existing project-wide missing-module/compiler-type issues and the known Bash workdir type errors.
+
+Phase 3 validation: `npm run build`, CLI `--version`, legacy settings compatibility test, Eval tool tests, and focused Bash prompt/planner/preflight tests passed. `src/utils/toolSearchSafety.test.ts` still cannot run under Bun because `src/ink/components/Box.tsx` imports missing `src/global.d.ts`.
 
 ## Acceptance Criteria
 
@@ -125,6 +128,6 @@ Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/prefli
 - Hosted remote-agent execution and its session infrastructure, SSH sessions, and E2B-backed safetest are removed.
 - In-process agents and unrelated provider APIs remain intact.
 
-## Open Decision
+## Compatibility Policy
 
-Confirm the recommended legacy-config behavior: accept old Tau `sandbox.*` keys with a warning and ignore them, or reject them as unsupported. The warning-and-ignore option is recommended for a smoother local upgrade.
+Legacy Tau `sandbox.*` settings are warned about and stripped during settings loading and validation. They are not migrated or enforced.

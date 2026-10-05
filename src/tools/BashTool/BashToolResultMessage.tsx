@@ -1,6 +1,5 @@
 import { c as _c } from "react/compiler-runtime";
 import React from 'react';
-import { removeSandboxViolationTags } from 'src/utils/sandbox/sandbox-ui-utils.js';
 import { KeyboardShortcutHint } from '../../components/design-system/KeyboardShortcutHint.js';
 import { InlineImage } from '../../components/InlineImage.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
@@ -18,27 +17,6 @@ type Props = {
 // Pattern to match "Shell cwd was reset to <path>" message
 // Use (?:^|\n) to match either start of string or after a newline
 const SHELL_CWD_RESET_PATTERN = /(?:^|\n)(Shell cwd was reset to .+)$/;
-
-/**
- * Extracts sandbox violations from stderr if present
- * Returns both the cleaned stderr and the violations content
- */
-function extractSandboxViolations(stderr: string): {
-  cleanedStderr: string;
-} {
-  const violationsMatch = stderr.match(/<sandbox_violations>([\s\S]*?)<\/sandbox_violations>/);
-  if (!violationsMatch) {
-    return {
-      cleanedStderr: stderr
-    };
-  }
-
-  // Remove the sandbox violations section from stderr
-  const cleanedStderr = removeSandboxViolationTags(stderr).trim();
-  return {
-    cleanedStderr
-  };
-}
 
 /**
  * Extracts the "Shell cwd was reset" warning message from stderr
@@ -81,7 +59,7 @@ export default function BashToolResultMessage(t0) {
     backgroundTaskId
   } = t1;
   const stdout = t2 === undefined ? "" : t2;
-  const stdErrWithViolations = t3 === undefined ? "" : t3;
+  const stdErr = t3 === undefined ? "" : t3;
   let T0;
   let cwdResetWarning;
   let stderr;
@@ -89,16 +67,13 @@ export default function BashToolResultMessage(t0) {
   let t5;
   let t6;
   let t7;
-  if ($[0] !== isImage || $[1] !== stdErrWithViolations || $[2] !== stdout || $[3] !== verbose) {
+  if ($[0] !== isImage || $[1] !== stdErr || $[2] !== stdout || $[3] !== verbose) {
     t7 = Symbol.for("react.early_return_sentinel");
     bb0: {
-      const {
-        cleanedStderr: stderrWithoutViolations
-      } = extractSandboxViolations(stdErrWithViolations);
       ({
         cleanedStderr: stderr,
         cwdResetWarning
-      } = extractCwdResetWarning(stderrWithoutViolations));
+      } = extractCwdResetWarning(stdErr));
       if (isImage) {
         // Built inline rather than memoized into $[11]: the preview depends on
         // stdout, which the enclosing guard already tracks, so the element is
@@ -125,7 +100,7 @@ export default function BashToolResultMessage(t0) {
       t6 = stderr.trim() !== "" ? <OutputLine content={stderr} verbose={verbose} isError={true} /> : null;
     }
     $[0] = isImage;
-    $[1] = stdErrWithViolations;
+    $[1] = stdErr;
     $[2] = stdout;
     $[3] = verbose;
     $[4] = T0;

@@ -138,7 +138,6 @@ import {
 } from './commands/reset-limits/index.js'
 import antTrace from './commands/ant-trace/index.js'
 import perfIssue from './commands/perf-issue/index.js'
-import sandboxToggle from './commands/sandbox-toggle/index.js'
 import stickers from './commands/stickers/index.js'
 import pin from './commands/pin.js'
 import { logError } from './utils/log.js'
@@ -333,7 +332,6 @@ const COMMANDS = memoize((): Command[] => [
   hooks,
   exportCommand,
   importCmd,
-  sandboxToggle,
   logout, login(), provider, lane,
   passes,
   ...(peersCmd ? [peersCmd] : []),

@@ -273,7 +273,7 @@ export async function exec(
   // In file mode, both stdout and stderr go to the same file fd.
   // On POSIX, O_APPEND makes each write atomic (seek-to-end + write), so
   // stdout and stderr are interleaved chronologically without tearing.
-  // SECURITY: O_NOFOLLOW prevents symlink-following attacks from the sandbox.
+  // SECURITY: O_NOFOLLOW prevents symlink-following attacks.
   let outputHandle: FileHandle | undefined
   if (!usePipeMode) {
     const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0

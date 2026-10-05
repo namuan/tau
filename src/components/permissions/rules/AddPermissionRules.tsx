@@ -8,7 +8,6 @@ import type { PermissionBehavior, PermissionRule, PermissionRuleValue } from '..
 import { applyPermissionUpdate, persistPermissionUpdate } from '../../../utils/permissions/PermissionUpdate.js';
 import { permissionRuleValueToString } from '../../../utils/permissions/permissionRuleParser.js';
 import { detectUnreachableRules, type UnreachableRule } from '../../../utils/permissions/shadowedRuleDetection.js';
-import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js';
 import { type EditableSettingSource, SOURCES } from '../../../utils/settings/constants.js';
 import { plural } from '../../../utils/stringUtils.js';
 import type { OptionWithDescription } from '../../CustomSelect/select.js';
@@ -89,10 +88,7 @@ export function AddPermissionRules(t0) {
             ruleBehavior,
             source: destination
           }));
-          const sandboxAutoAllowEnabled = SandboxManager.isSandboxingEnabled() && SandboxManager.isAutoAllowBashIfSandboxedEnabled();
-          const allUnreachable = detectUnreachableRules(updatedContext, {
-            sandboxAutoAllowEnabled
-          });
+          const allUnreachable = detectUnreachableRules(updatedContext);
           const newUnreachable = allUnreachable.filter(u => ruleValues.some(rv => rv.toolName === u.rule.ruleValue.toolName && rv.ruleContent === u.rule.ruleValue.ruleContent));
           onAddRules(rules, newUnreachable.length > 0 ? newUnreachable : undefined);
         }

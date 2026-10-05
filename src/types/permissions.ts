@@ -298,10 +298,6 @@ export type PermissionDecisionReason =
       reason: string
     }
   | {
-      type: 'sandboxOverride'
-      reason: 'excludedCommand'
-    }
-  | {
       type: 'classifier'
       classifier: string
       reason: string

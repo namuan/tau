@@ -444,7 +444,7 @@ export async function renderBashCommandPlan(
     '',
     'Next step:',
     '- If the plan matches the task, rerun the adjusted command with plan_only omitted or false.',
-    '- Actual execution will still pass through permissions, sandboxing, path normalization, and syntax validation.',
+    '- Actual execution will still pass through permissions, path normalization, and syntax validation.',
     '- If the CLI syntax is still uncertain, run one of the discovery commands first instead of guessing variants.',
   )
 

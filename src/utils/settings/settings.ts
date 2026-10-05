@@ -10,6 +10,7 @@ import {
 import { getRemoteManagedSettingsSyncFromCache } from '../../services/remoteManagedSettings/syncCacheState.js'
 import { uniq } from '../array.js'
 import { logForDebugging } from '../debug.js'
+import { stripLegacySandboxSetting } from './legacySettings.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
 import { getClaudeConfigHomeDir } from '../envUtils.js'
 import { getProjectDir } from '../sessionStoragePortable.js'
@@ -208,7 +209,7 @@ function parseSettingsFileUncached(path: string): {
       return { settings: {}, errors: [] }
     }
 
-    const data = safeParseJSON(content, false)
+    const data = stripLegacySandboxSetting(safeParseJSON(content, false), path)
 
     // Filter invalid permission rules before schema validation so one bad
     // rule doesn't cause the entire settings file to be rejected.
@@ -321,7 +322,9 @@ function getSettingsForSourceUncached(
   if (source === 'flagSettings') {
     const inlineSettings = getFlagSettingsInline()
     if (inlineSettings) {
-      const parsed = SettingsSchema().safeParse(inlineSettings)
+      const parsed = SettingsSchema().safeParse(
+        stripLegacySandboxSetting(inlineSettings, 'inline settings'),
+      )
       if (parsed.success) {
         return mergeWith(
           fileSettings || {},
@@ -513,7 +516,7 @@ export function settingsMergeCustomizer(
 
 /**
  * Get a list of setting keys from managed settings for logging purposes.
- * For certain nested settings (permissions, sandbox, hooks), expands to show
+ * For certain nested settings (permissions, hooks), expands to show
  * one level of nesting (e.g., "permissions.allow"). For other settings,
  * returns only the top-level key.
  *
@@ -528,7 +531,7 @@ export function getManagedSettingsKeysForLogging(
     string,
     unknown
   >
-  const keysToExpand = ['permissions', 'sandbox', 'hooks']
+  const keysToExpand = ['permissions', 'hooks']
   const allKeys: string[] = []
 
   // Define valid nested keys for each nested setting we expand
@@ -541,19 +544,6 @@ export function getManagedSettingsKeysForLogging(
       'disableBypassPermissionsMode',
       ...(feature('TRANSCRIPT_CLASSIFIER') ? ['disableAutoMode'] : []),
       'additionalDirectories',
-    ]),
-    sandbox: new Set([
-      'enabled',
-      'failIfUnavailable',
-      'allowUnsandboxedCommands',
-      'network',
-      'filesystem',
-      'ignoreViolations',
-      'excludedCommands',
-      'autoAllowBashIfSandboxed',
-      'enableWeakerNestedSandbox',
-      'enableWeakerNetworkIsolation',
-      'ripgrep',
     ]),
     // For hooks, we use z.record with enum keys, so we validate separately
     hooks: new Set([
@@ -635,7 +625,9 @@ function loadSettingsFromDisk(): SettingsWithErrors {
         // 1. Remote (highest priority)
         const remoteSettings = getRemoteManagedSettingsSyncFromCache()
         if (remoteSettings && Object.keys(remoteSettings).length > 0) {
-          const result = SettingsSchema().safeParse(remoteSettings)
+          const result = SettingsSchema().safeParse(
+            stripLegacySandboxSetting(remoteSettings, 'remote managed settings'),
+          )
           if (result.success) {
             policySettings = result.data
           } else {
@@ -725,7 +717,9 @@ function loadSettingsFromDisk(): SettingsWithErrors {
       if (source === 'flagSettings') {
         const inlineSettings = getFlagSettingsInline()
         if (inlineSettings) {
-          const parsed = SettingsSchema().safeParse(inlineSettings)
+          const parsed = SettingsSchema().safeParse(
+            stripLegacySandboxSetting(inlineSettings, 'inline settings'),
+          )
           if (parsed.success) {
             mergedSettings = mergeWith(
               mergedSettings,
