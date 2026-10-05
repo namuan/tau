@@ -74,7 +74,6 @@ export async function processBashCommand(inputString: string, precedingInputBloc
 
     const response = await BashTool.call({
       command: inputString,
-      dangerouslyDisableSandbox: true
     }, bashModeContext, undefined, undefined, onProgress);
     const shellTool = BashTool;
     const data = response.data;

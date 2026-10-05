@@ -12,13 +12,11 @@ import { BashTool } from '../../../tools/BashTool/BashTool.js';
 import { getFirstWordPrefix, getSimpleCommandPrefix } from '../../../tools/BashTool/bashPermissions.js';
 import { getDestructiveCommandWarning } from '../../../tools/BashTool/destructiveCommandWarning.js';
 import { parseSedEditCommand } from '../../../tools/BashTool/sedEditParser.js';
-import { shouldUseSandbox } from '../../../tools/BashTool/shouldUseSandbox.js';
 import { getCompoundCommandPrefixesStatic } from '../../../utils/bash/prefix.js';
 import { createPromptRuleContent, generateGenericDescription, getBashPromptAllowDescriptions, isClassifierPermissionsEnabled } from '../../../utils/permissions/bashClassifier.js';
 import { enableBypassPermissionsModeForSession } from '../../../utils/permissions/bypassPermissionsMode.js';
 import { extractRules } from '../../../utils/permissions/PermissionUpdate.js';
 import type { PermissionUpdate } from '../../../utils/permissions/PermissionUpdateSchema.js';
-import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js';
 import { Select } from '../../CustomSelect/select.js';
 import { ShimmerChar } from '../../Spinner/ShimmerChar.js';
 import { useShimmerAnimation } from '../../Spinner/useShimmerAnimation.js';
@@ -267,20 +265,10 @@ function BashPermissionRequestInner({
   // extraction). React Compiler can't auto-memoize imported functions (can't
   // prove side-effect freedom), so this useMemo still guards against any
   // re-render source (e.g. Inner state updates). Same pattern as PR#20730.
-  const {
-    destructiveWarning: destructiveWarning_0,
-    sandboxingEnabled: sandboxingEnabled_0,
-    isSandboxed: isSandboxed_0
-  } = useMemo(() => {
-    const destructiveWarning = getFeatureValue_CACHED_MAY_BE_STALE('tengu_destructive_command_warning', false) ? getDestructiveCommandWarning(command) : null;
-    const sandboxingEnabled = SandboxManager.isSandboxingEnabled();
-    const isSandboxed = sandboxingEnabled && shouldUseSandbox(toolUseConfirm.input);
-    return {
-      destructiveWarning,
-      sandboxingEnabled,
-      isSandboxed
-    };
-  }, [command, toolUseConfirm.input]);
+  const destructiveWarning_0 = useMemo(
+    () => getFeatureValue_CACHED_MAY_BE_STALE('tengu_destructive_command_warning', false) ? getDestructiveCommandWarning(command) : null,
+    [command],
+  );
   const unaryEvent = useMemo<UnaryEvent>(() => ({
     completion_type: 'tool_use_single',
     language_name: 'none'
@@ -446,7 +434,7 @@ function BashPermissionRequestInner({
             {'"'}
           </Text>}
       </Text> : toolUseConfirm.classifierCheckInProgress ? <ClassifierCheckingSubtitle /> : classifierWasChecking ? <Text dimColor>Requires manual approval</Text> : undefined : undefined;
-  return <PermissionDialog workerBadge={workerBadge} title={sandboxingEnabled_0 && !isSandboxed_0 ? 'Bash command (unsandboxed)' : 'Bash command'} subtitle={classifierSubtitle}>
+  return <PermissionDialog workerBadge={workerBadge} title="Bash command" subtitle={classifierSubtitle}>
       <Box flexDirection="column" paddingX={2} paddingY={1}>
         <Text dimColor={explainerState.visible}>
           {BashTool.renderToolUseMessage({

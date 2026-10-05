@@ -62,7 +62,6 @@ import { interpretCommandResult } from './commandSemantics.js';
 import { getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js';
 import { checkReadOnlyConstraints } from './readOnlyValidation.js';
 import { parseSedEditCommand } from './sedEditParser.js';
-import { shouldUseSandbox } from './shouldUseSandbox.js';
 import { BASH_TOOL_NAME } from './toolName.js';
 import { BackgroundHint, renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, renderToolUseProgressMessage, renderToolUseQueuedMessage } from './UI.js';
 import { buildImageToolResult, isImageOutput, resetCwdIfOutsideProject, resizeShellImageOutput, stdErrAppendShellResetMessage, stripEmptyLines } from './utils.js';
@@ -274,7 +273,6 @@ const fullInputSchema = lazySchema(() => z.strictObject({
   plan_only: semanticBoolean(z.boolean().optional()).describe('Dry-run plan only; use only when explicitly requested'),
   syntax_confirmed: semanticBoolean(z.boolean().optional()).describe('Deprecated no-op compatibility flag'),
   command_parts: bashCommandPartsSchema.optional().describe('Optional safely quoted structure. Used only when it compiles exactly to `command`; otherwise ignored with a result note.'),
-  dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe('Run outside the sandbox; use only when authorized'),
   workdir: z.string().optional().describe('Deprecated internal/back-compat execution directory. The model-facing schema omits this field; encode target directories in the command with absolute paths or native CLI location flags.'),
   _simulatedSedEdit: z.object({
     filePath: z.string(),
@@ -290,8 +288,8 @@ const fullInputSchema = lazySchema(() => z.strictObject({
 // native CLI location flags. _simulatedSedEdit is set by SedEditPermissionRequest
 // after the user approves a sed edit preview, and _workdirFromCd is set by
 // validateInput (bashWorkdir) when it converts a leading `cd X && …` into a workdir.
-// Exposing _simulatedSedEdit would let the model bypass permission checks and the
-// sandbox by pairing an innocuous command with an arbitrary file write.
+// Exposing _simulatedSedEdit would let the model bypass permission checks by
+// pairing an innocuous command with an arbitrary file write.
 // Also conditionally remove run_in_background when background tasks are disabled.
 //
 // This schema is reused for TWO jobs: the model-facing JSON (zodToJsonSchema) AND
@@ -376,7 +374,6 @@ const outputSchema = lazySchema(() => z.object({
   backgroundTaskId: z.string().optional().describe('ID of the background task if command is running in background'),
   backgroundedByUser: z.boolean().optional().describe('True if the user manually backgrounded the command with Ctrl+B'),
   assistantAutoBackgrounded: z.boolean().optional().describe('True if assistant-mode auto-backgrounded a long-running blocking command'),
-  dangerouslyDisableSandbox: z.boolean().optional().describe('Flag to indicate if sandbox mode was overridden'),
   returnCodeInterpretation: z.string().optional().describe('Semantic interpretation for non-error exit codes with special meaning'),
   noOutputExpected: z.boolean().optional().describe('Whether the command is expected to produce no output on success'),
   commandPlan: z.string().optional().describe('Dry-run command plan when plan_only is true'),
@@ -584,11 +581,7 @@ export const BashTool = buildTool({
         });
       }
     }
-    // Env var FIRST: shouldUseSandbox → splitCommand_DEPRECATED → shell-quote's
-    // `new RegExp` per call. userFacingName runs per-render for every bash
-    // message in history; with ~50 msgs + one slow-to-tokenize command, this
-    // exceeds the shimmer tick → transition abort → infinite retry (#21605).
-    return isEnvTruthy(process.env.CLAUDE_CODE_BASH_SANDBOX_SHOW_INDICATOR) && shouldUseSandbox(input) ? 'SandboxedBash' : 'Bash';
+    return 'Bash';
   },
   getToolUseSummary(input) {
     if (!input?.command) {
@@ -791,7 +784,6 @@ export const BashTool = buildTool({
           interrupted: false,
           commandPlan: plan,
           noOutputExpected: false,
-          dangerouslyDisableSandbox: 'dangerouslyDisableSandbox' in input ? input.dangerouslyDisableSandbox as boolean | undefined : undefined
         }
       };
     }
@@ -1147,7 +1139,6 @@ export const BashTool = buildTool({
       backgroundTaskId: result.backgroundTaskId,
       backgroundedByUser: result.backgroundedByUser,
       assistantAutoBackgrounded: result.assistantAutoBackgrounded,
-      dangerouslyDisableSandbox: 'dangerouslyDisableSandbox' in input ? input.dangerouslyDisableSandbox as boolean | undefined : undefined,
       persistedOutputPath,
       persistedOutputSize,
       persistedTailSample
@@ -1240,7 +1231,6 @@ async function* runShellCommand({
       }
     },
     preventCwdChanges,
-    shouldUseSandbox: shouldUseSandbox(input),
     shouldAutoBackground,
     workdir,
     agentModelEnv

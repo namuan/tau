@@ -451,10 +451,6 @@ export function normalizeToolInput<T extends Tool>(
         ...(plan_only !== undefined && { plan_only }),
         ...(syntax_confirmed !== undefined && { syntax_confirmed }),
         ...(command_parts !== undefined && { command_parts }),
-        ...('dangerouslyDisableSandbox' in parsed &&
-          parsed.dangerouslyDisableSandbox !== undefined && {
-            dangerouslyDisableSandbox: parsed.dangerouslyDisableSandbox,
-          }),
       } as z.infer<T['inputSchema']>
     }
     case FileEditTool.name: {

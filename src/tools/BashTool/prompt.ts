@@ -3,10 +3,7 @@ import { getAttributionTexts } from '../../utils/attribution.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { shouldIncludeGitInstructions } from '../../utils/gitSettings.js'
-import { getClaudeTempDir } from '../../utils/permissions/filesystem.js'
 import { getPlatform } from '../../utils/platform.js'
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
-import { jsonStringify } from '../../utils/slowOperations.js'
 import {
   getDefaultBashTimeoutMs,
   getMaxBashTimeoutMs,
@@ -87,117 +84,6 @@ Use \`gh\` for GitHub issues, pull requests, checks, and releases.`
 - Before a PR, inspect the complete branch diff/history against its base. Keep the title under 70 characters; include a concise summary and test plan${prAttribution ? `, then append:\n${prAttribution}` : ''}. Return the PR URL.`
 }
 
-// SandboxManager merges config from multiple sources (settings layers, defaults,
-// CLI flags) without deduping, so paths like ~/.cache appear 3× in allowOnly.
-// Dedup here before inlining into the prompt — affects only what the model sees,
-// not sandbox enforcement. Saves ~150-200 tokens/request when sandbox is enabled.
-function dedup<T>(arr: T[] | undefined): T[] | undefined {
-  if (!arr || arr.length === 0) return arr
-  return [...new Set(arr)]
-}
-
-function getSimpleSandboxSection(): string {
-  if (!SandboxManager.isSandboxingEnabled()) {
-    return ''
-  }
-
-  const fsReadConfig = SandboxManager.getFsReadConfig()
-  const fsWriteConfig = SandboxManager.getFsWriteConfig()
-  const networkRestrictionConfig = SandboxManager.getNetworkRestrictionConfig()
-  const allowUnixSockets = SandboxManager.getAllowUnixSockets()
-  const ignoreViolations = SandboxManager.getIgnoreViolations()
-  const allowUnsandboxedCommands =
-    SandboxManager.areUnsandboxedCommandsAllowed()
-
-  // Replace the per-UID temp dir literal (e.g. /private/tmp/claude-1001/) with
-  // "$TMPDIR" so the prompt is identical across users — avoids busting the
-  // cross-user global prompt cache. The sandbox already sets $TMPDIR at runtime.
-  const claudeTempDir = getClaudeTempDir()
-  const normalizeAllowOnly = (paths: string[]): string[] =>
-    [...new Set(paths)].map(p => (p === claudeTempDir ? '$TMPDIR' : p))
-
-  const filesystemConfig = {
-    read: {
-      denyOnly: dedup(fsReadConfig.denyOnly),
-      ...(fsReadConfig.allowWithinDeny && {
-        allowWithinDeny: dedup(fsReadConfig.allowWithinDeny),
-      }),
-    },
-    write: {
-      allowOnly: normalizeAllowOnly(fsWriteConfig.allowOnly),
-      denyWithinAllow: dedup(fsWriteConfig.denyWithinAllow),
-    },
-  }
-
-  const networkConfig = {
-    ...(networkRestrictionConfig?.allowedHosts && {
-      allowedHosts: dedup(networkRestrictionConfig.allowedHosts),
-    }),
-    ...(networkRestrictionConfig?.deniedHosts && {
-      deniedHosts: dedup(networkRestrictionConfig.deniedHosts),
-    }),
-    ...(allowUnixSockets && { allowUnixSockets: dedup(allowUnixSockets) }),
-  }
-
-  const restrictionsLines = []
-  if (Object.keys(filesystemConfig).length > 0) {
-    restrictionsLines.push(`Filesystem: ${jsonStringify(filesystemConfig)}`)
-  }
-  if (Object.keys(networkConfig).length > 0) {
-    restrictionsLines.push(`Network: ${jsonStringify(networkConfig)}`)
-  }
-  if (ignoreViolations) {
-    restrictionsLines.push(
-      `Ignored violations: ${jsonStringify(ignoreViolations)}`,
-    )
-  }
-
-  const sandboxOverrideItems: Array<string | string[]> =
-    allowUnsandboxedCommands
-      ? [
-          'You should always default to running commands within the sandbox. Do NOT attempt to set `dangerouslyDisableSandbox: true` unless:',
-          [
-            'The user *explicitly* asks you to bypass sandbox',
-            'A specific command just failed and you see evidence of sandbox restrictions causing the failure. Note that commands can fail for many reasons unrelated to the sandbox (missing files, wrong arguments, network issues, etc.).',
-          ],
-          'Evidence of sandbox-caused failures includes:',
-          [
-            '"Operation not permitted" errors for file/network operations',
-            'Access denied to specific paths outside allowed directories',
-            'Network connection failures to non-whitelisted hosts',
-            'Unix socket connection errors',
-          ],
-          'When you see evidence of sandbox-caused failure:',
-          [
-            "Immediately retry with `dangerouslyDisableSandbox: true` (don't ask, just do it)",
-            'Briefly explain what sandbox restriction likely caused the failure. Be sure to mention that the user can use the `/sandbox` command to manage restrictions.',
-            'This will prompt the user for permission',
-          ],
-          'Treat each command you execute with `dangerouslyDisableSandbox: true` individually. Even if you have recently run a command with this setting, you should default to running future commands within the sandbox.',
-          'Do not suggest adding sensitive paths like ~/.bashrc, ~/.zshrc, ~/.ssh/*, or credential files to the sandbox allowlist.',
-        ]
-      : [
-          'All commands MUST run in sandbox mode - the `dangerouslyDisableSandbox` parameter is disabled by policy.',
-          'Commands cannot run outside the sandbox under any circumstances.',
-          'If a command fails due to sandbox restrictions, work with the user to adjust sandbox settings instead.',
-        ]
-
-  const items: Array<string | string[]> = [
-    ...sandboxOverrideItems,
-    'For temporary files, always use the `$TMPDIR` environment variable. TMPDIR is automatically set to the correct sandbox-writable directory in sandbox mode. Do NOT use `/tmp` directly - use `$TMPDIR` instead.',
-  ]
-
-  return [
-    '',
-    '## Command sandbox',
-    'By default, your command will be run in a sandbox. This sandbox controls which directories and network hosts commands may access or modify without an explicit override.',
-    '',
-    'The sandbox has the following restrictions:',
-    restrictionsLines.join('\n'),
-    '',
-    ...prependBullets(items),
-  ].join('\n')
-}
 
 export function getSimplePrompt(): string {
   // Ant-native builds alias find/grep to embedded bfs/ugrep in Claude's shell,
@@ -246,6 +132,7 @@ export function getSimplePrompt(): string {
     'Before creating files or running project-specific build/test/package commands, verify the target directory and relevant manifest exist. Never guess paths.',
     'Quote paths containing spaces and shell expansions unless splitting/globbing is intended.',
     'Run normal Bash commands directly. Use `plan_only: true` only when the user explicitly asks for a dry-run plan; do not use it as a routine preflight for Python, package-manager, build, test, or cleanup commands.',
+    'Use `$TMPDIR` for temporary files instead of assuming a fixed temporary directory.',
     `\`timeout\` is milliseconds; default ${getDefaultTimeoutMs()}, maximum ${getMaxTimeoutMs()}.`,
     'To show the user a chart, plot, or rendered image, print a single `data:image/png;base64,...` URI as the entire stdout — Tau renders it inline in the terminal and sends it to you as an image. Prefer this over ASCII-art plotting libraries such as plotext. For matplotlib, use the Agg backend and savefig to an in-memory buffer.',
     ...(backgroundNote !== null ? [backgroundNote] : []),
@@ -283,7 +170,6 @@ export function getSimplePrompt(): string {
     '',
     '# Instructions',
     ...prependBullets(instructionItems),
-    getSimpleSandboxSection(),
     ...(getCommitAndPRInstructions() ? ['', getCommitAndPRInstructions()] : []),
   ].join('\n')
 }

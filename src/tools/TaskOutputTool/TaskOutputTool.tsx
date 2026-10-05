@@ -486,7 +486,6 @@ function TaskOutputResultDisplay(t0) {
         stdout: task.output,
         stderr: "",
         isImage: false,
-        dangerouslyDisableSandbox: true,
         returnCodeInterpretation: task.error
       };
       $[3] = task.error;

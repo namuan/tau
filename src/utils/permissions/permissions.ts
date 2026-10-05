@@ -5,8 +5,6 @@ import { isSelfLearningEnabled } from '../../memdir/paths.js'
 import type { Tool, ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
-import { shouldUseSandbox } from '../../tools/BashTool/shouldUseSandbox.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '../../tools/ExitPlanModeTool/constants.js'
 import { REPL_TOOL_NAME } from '../../tools/REPLTool/constants.js'
 import type { AssistantMessage } from '../../types/message.js'
@@ -14,7 +12,6 @@ import { extractOutputRedirections } from '../bash/commands.js'
 import { logForDebugging } from '../debug.js'
 import { AbortError, toError } from '../errors.js'
 import { logError } from '../log.js'
-import { SandboxManager } from '../sandbox/sandbox-adapter.js'
 import {
   getSettingSourceDisplayNameLowercase,
   SETTING_SOURCES,
@@ -1068,23 +1065,14 @@ export async function checkRuleBasedPermissions(
   // 1b. Entire tool has an ask rule
   const askRule = getAskRuleForTool(appState.toolPermissionContext, tool)
   if (askRule && !bypassPermissionPrompts) {
-    const canSandboxAutoAllow =
-      tool.name === BASH_TOOL_NAME &&
-      SandboxManager.isSandboxingEnabled() &&
-      SandboxManager.isAutoAllowBashIfSandboxedEnabled() &&
-      shouldUseSandbox(input)
-
-    if (!canSandboxAutoAllow) {
-      return {
-        behavior: 'ask',
-        decisionReason: {
-          type: 'rule',
-          rule: askRule,
-        },
-        message: createPermissionRequestMessage(tool.name),
-      }
+    return {
+      behavior: 'ask',
+      decisionReason: {
+        type: 'rule',
+        rule: askRule,
+      },
+      message: createPermissionRequestMessage(tool.name),
     }
-    // Fall through to let tool.checkPermissions handle command-specific rules
   }
 
   // 1c. Tool-specific permission check (e.g. bash subcommand rules)
@@ -1164,26 +1152,14 @@ async function hasPermissionsToUseToolInner(
     askRule &&
     !shouldBypassPermissionPrompts(appState.toolPermissionContext)
   ) {
-    // When autoAllowBashIfSandboxed is on, sandboxed commands skip the ask rule and
-    // auto-allow via Bash's checkPermissions. Commands that won't be sandboxed (excluded
-    // commands, dangerouslyDisableSandbox) still need to respect the ask rule.
-    const canSandboxAutoAllow =
-      tool.name === BASH_TOOL_NAME &&
-      SandboxManager.isSandboxingEnabled() &&
-      SandboxManager.isAutoAllowBashIfSandboxedEnabled() &&
-      shouldUseSandbox(input)
-
-    if (!canSandboxAutoAllow) {
-      return {
-        behavior: 'ask',
-        decisionReason: {
-          type: 'rule',
-          rule: askRule,
-        },
-        message: createPermissionRequestMessage(tool.name),
-      }
+    return {
+      behavior: 'ask',
+      decisionReason: {
+        type: 'rule',
+        rule: askRule,
+      },
+      message: createPermissionRequestMessage(tool.name),
     }
-    // Fall through to let Bash's checkPermissions handle command-specific rules
   }
 
   // 1c. Ask the tool implementation for a permission result

@@ -1496,9 +1496,6 @@ async function checkPermissionsAndCallTool(
         ...(bashInput.description !== undefined && {
           description: bashInput.description,
         }),
-        ...('dangerouslyDisableSandbox' in bashInput && {
-          dangerouslyDisableSandbox: bashInput.dangerouslyDisableSandbox,
-        }),
       }
     }
 

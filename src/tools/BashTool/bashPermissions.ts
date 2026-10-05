@@ -64,7 +64,6 @@ import {
   suggestionForPrefix as sharedSuggestionForPrefix,
 } from '../../utils/permissions/shellRuleMatching.js'
 import { getPlatform } from '../../utils/platform.js'
-import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
 import { BashTool } from './BashTool.js'
@@ -80,7 +79,6 @@ import {
 import { checkPermissionMode } from './modeValidation.js'
 import { checkPathConstraints } from './pathValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
-import { shouldUseSandbox } from './shouldUseSandbox.js'
 
 // DCE cliff: Bun's feature() evaluator has a per-function complexity budget.
 // bashToolHasPermission is right at the limit. `import { X as Y }` aliases
@@ -1261,110 +1259,6 @@ export async function checkCommandAndSuggestRules(
 }
 
 /**
- * Checks if a command should be auto-allowed when sandboxed.
- * Returns early if there are explicit deny/ask rules that should be respected.
- *
- * NOTE: This function should only be called when sandboxing and auto-allow are enabled.
- *
- * @param input - The bash tool input
- * @param toolPermissionContext - The permission context
- * @returns PermissionResult with:
- *   - deny/ask if explicit rule exists (exact or prefix)
- *   - allow if no explicit rules (sandbox auto-allow applies)
- *   - passthrough should not occur since we're in auto-allow mode
- */
-function checkSandboxAutoAllow(
-  input: z.infer<typeof BashTool.inputSchema>,
-  toolPermissionContext: ToolPermissionContext,
-): PermissionResult {
-  const command = input.command.trim()
-
-  // Check for explicit deny/ask rules on the full command (exact + prefix)
-  const { matchingDenyRules, matchingAskRules } = matchingRulesForInput(
-    input,
-    toolPermissionContext,
-    'prefix',
-  )
-
-  // Return immediately if there's an explicit deny rule on the full command
-  if (matchingDenyRules[0] !== undefined) {
-    return {
-      behavior: 'deny',
-      message: `Permission to use ${BashTool.name} with command ${command} has been denied.`,
-      decisionReason: {
-        type: 'rule',
-        rule: matchingDenyRules[0],
-      },
-    }
-  }
-
-  // SECURITY: For compound commands, check each subcommand against deny/ask
-  // rules. Prefix rules like Bash(rm:*) won't match the full compound command
-  // (e.g., "echo hello && rm -rf /" doesn't start with "rm"), so we must
-  // check each subcommand individually.
-  // IMPORTANT: Subcommand deny checks must run BEFORE full-command ask returns.
-  // Otherwise a wildcard ask rule matching the full command (e.g., Bash(*echo*))
-  // would return 'ask' before a prefix deny rule on a subcommand (e.g., Bash(rm:*))
-  // gets checked, downgrading a deny to an ask.
-  const subcommands = splitCommand(command)
-  if (subcommands.length > 1) {
-    let firstAskRule: PermissionRule | undefined
-    for (const sub of subcommands) {
-      const subResult = matchingRulesForInput(
-        { command: sub },
-        toolPermissionContext,
-        'prefix',
-      )
-      // Deny takes priority — return immediately
-      if (subResult.matchingDenyRules[0] !== undefined) {
-        return {
-          behavior: 'deny',
-          message: `Permission to use ${BashTool.name} with command ${command} has been denied.`,
-          decisionReason: {
-            type: 'rule',
-            rule: subResult.matchingDenyRules[0],
-          },
-        }
-      }
-      // Stash first ask match; don't return yet (deny across all subs takes priority)
-      firstAskRule ??= subResult.matchingAskRules[0]
-    }
-    if (firstAskRule) {
-      return {
-        behavior: 'ask',
-        message: createPermissionRequestMessage(BashTool.name),
-        decisionReason: {
-          type: 'rule',
-          rule: firstAskRule,
-        },
-      }
-    }
-  }
-
-  // Full-command ask check (after all deny sources have been exhausted)
-  if (matchingAskRules[0] !== undefined) {
-    return {
-      behavior: 'ask',
-      message: createPermissionRequestMessage(BashTool.name),
-      decisionReason: {
-        type: 'rule',
-        rule: matchingAskRules[0],
-      },
-    }
-  }
-  // No explicit rules, so auto-allow with sandbox
-
-  return {
-    behavior: 'allow',
-    updatedInput: input,
-    decisionReason: {
-      type: 'other',
-      reason: 'Auto-allowed with sandbox (autoAllowBashIfSandboxed enabled)',
-    },
-  }
-}
-
-/**
  * Filter out `cd ${cwd}` prefix subcommands, keeping astCommands aligned.
  * Extracted to keep bashToolHasPermission under Bun's feature() DCE
  * complexity threshold — inlining this breaks pendingClassifierCheck
@@ -1840,22 +1734,6 @@ export async function bashToolHasPermission(
         decisionReason,
         message: createPermissionRequestMessage(BashTool.name, decisionReason),
       }
-    }
-  }
-
-  // Check sandbox auto-allow (which respects explicit deny/ask rules)
-  // Only call this if sandboxing and auto-allow are both enabled
-  if (
-    SandboxManager.isSandboxingEnabled() &&
-    SandboxManager.isAutoAllowBashIfSandboxedEnabled() &&
-    shouldUseSandbox(input)
-  ) {
-    const sandboxAutoAllowResult = checkSandboxAutoAllow(
-      input,
-      appState.toolPermissionContext,
-    )
-    if (sandboxAutoAllowResult.behavior !== 'passthrough') {
-      return sandboxAutoAllowResult
     }
   }
 

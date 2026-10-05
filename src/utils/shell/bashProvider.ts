@@ -56,7 +56,6 @@ export async function createBashShellProvider(
   shellPath: string,
   options?: { skipSnapshot?: boolean },
 ): Promise<ShellProvider> {
-  let currentSandboxTmpDir: string | undefined
   const snapshotPromise: Promise<string | undefined> = options?.skipSnapshot
     ? Promise.resolve(undefined)
     : createAndSaveSnapshot(shellPath).catch(error => {
@@ -75,8 +74,6 @@ export async function createBashShellProvider(
       command: string,
       opts: {
         id: number | string
-        sandboxTmpDir?: string
-        useSandbox: boolean
       },
     ): Promise<{ commandString: string; cwdFilePath: string }> {
       let snapshotFilePath = await snapshotPromise
@@ -99,16 +96,9 @@ export async function createBashShellProvider(
       }
       lastSnapshotFilePath = snapshotFilePath
 
-      // Stash sandboxTmpDir for use in getEnvironmentOverrides
-      currentSandboxTmpDir = opts.sandboxTmpDir
-
       const tmpdir = osTmpdir()
-      const shellCwdFilePath = opts.useSandbox
-        ? posixJoin(opts.sandboxTmpDir!, `cwd-${opts.id}`)
-        : posixJoin(tmpdir, `claude-${opts.id}-cwd`)
-      const cwdFilePath = opts.useSandbox
-        ? posixJoin(opts.sandboxTmpDir!, `cwd-${opts.id}`)
-        : nativeJoin(tmpdir, `claude-${opts.id}-cwd`)
+      const shellCwdFilePath = posixJoin(tmpdir, `claude-${opts.id}-cwd`)
+      const cwdFilePath = nativeJoin(tmpdir, `claude-${opts.id}-cwd`)
 
       // Defensive byte-level rewrites: strip invisible Unicode and stray
       // control bytes (CRLF heredoc kill, ZWSP, BOM, etc.), and rewrite
@@ -211,16 +201,6 @@ export async function createBashShellProvider(
       // When null (before socket initializes), user's TMUX is preserved.
       if (claudeTmuxEnv) {
         env.TMUX = claudeTmuxEnv
-      }
-      if (currentSandboxTmpDir) {
-        const posixTmpDir = currentSandboxTmpDir
-        env.TMPDIR = posixTmpDir
-        env.CLAUDE_CODE_TMPDIR = posixTmpDir
-        // Zsh uses TMPPREFIX (default /tmp/zsh) for heredoc temp files,
-        // not TMPDIR. Set it to a path inside the sandbox tmp dir so
-        // heredocs work in sandboxed zsh commands.
-        // Safe to set unconditionally — non-zsh shells ignore TMPPREFIX.
-        env.TMPPREFIX = posixJoin(posixTmpDir, 'zsh')
       }
       // Apply session env vars set via /env (child processes only, not the REPL)
       for (const [key, value] of getSessionEnvVars()) {

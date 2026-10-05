@@ -12,7 +12,6 @@ export type BashCommandPlannerInput = {
   run_in_background?: boolean
   plan_only?: boolean
   syntax_confirmed?: boolean
-  dangerouslyDisableSandbox?: boolean
   command_parts?: BashCommandParts
 }
 
@@ -401,7 +400,6 @@ export async function renderBashCommandPlan(
     `- Shell: Bash/POSIX`,
     `- Workdir: ${input.workdir ?? cwd}`,
     `- Background requested: ${input.run_in_background === true ? 'yes' : 'no'}`,
-    `- Sandbox override requested: ${input.dangerouslyDisableSandbox === true ? 'yes' : 'no'}`,
     '',
     'Detected shape:',
     `- Domain: ${info.domain}`,

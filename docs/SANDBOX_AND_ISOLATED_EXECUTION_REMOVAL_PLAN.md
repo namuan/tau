@@ -107,6 +107,14 @@ Update Bash system prompts, settings help, command help, README/docs, and diagno
 - Verify hosted remote-agent execution, CCR remote sessions, SSH sessions, and E2B-backed safetest are absent, while in-process agents and unrelated provider APIs still work.
 - Run `git diff --check` and inspect the final file/reference inventory.
 
+## Phase Progress
+
+- [x] Phase 1 — Inventory completed and recorded above.
+- [x] Phase 2 — Removed local sandbox wrapping from the shell execution path, removed `dangerouslyDisableSandbox` from Bash schemas/plumbing/internal callers, removed sandbox-specific auto-allow behavior, and removed sandbox instructions from the Bash prompt.
+- [ ] Phase 3 — Remove local sandbox settings and user-facing features.
+
+Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/preflight/workdir/background tests passed. `npx tsc --noEmit` still reports existing project-wide missing-module/compiler-type issues; it also reports the known Bash workdir type errors.
+
 ## Acceptance Criteria
 
 - Local Bash commands no longer invoke the OS sandbox runtime or expose sandbox override controls.

@@ -3,8 +3,6 @@ import { constants as fsConstants, readFileSync, unlinkSync } from 'fs'
 import { type FileHandle, mkdir, open, realpath } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
 import { isAbsolute, resolve } from 'path'
-import { join as posixJoin } from 'path/posix'
-import { tmpdir } from 'os'
 import { logEvent } from 'src/services/analytics/index.js'
 import {
   clearSystemPromptSectionCacheEntry,
@@ -32,8 +30,6 @@ export type { ExecResult } from './ShellCommand.js'
 
 import { accessSync } from 'fs'
 import { onCwdChangedForHooks } from './hooks/fileChangedWatcher.js'
-import { getClaudeTempDirName } from './permissions/filesystem.js'
-import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { type AgentModelEnv, withAgentEnv } from './shell/agentEnv.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
@@ -164,7 +160,6 @@ export type ExecOptions = {
     isIncomplete: boolean,
   ) => void
   preventCwdChanges?: boolean
-  shouldUseSandbox?: boolean
   shouldAutoBackground?: boolean
   /** When provided, stdout is piped (not sent to file) and this callback fires on each data chunk. */
   onStdout?: (data: string) => void
@@ -196,7 +191,6 @@ export async function exec(
     timeout,
     onProgress,
     preventCwdChanges: optPreventCwdChanges,
-    shouldUseSandbox,
     shouldAutoBackground,
     onStdout,
     workdir,
@@ -215,20 +209,10 @@ export async function exec(
     .toString(16)
     .padStart(4, '0')
 
-  // Sandbox temp directory - use per-user directory name to prevent multi-user permission conflicts
-  const sandboxTmpDir = posixJoin(
-    process.env.CLAUDE_CODE_TMPDIR || tmpdir(),
-    getClaudeTempDirName(),
+  const { commandString, cwdFilePath } = await provider.buildExecCommand(
+    command,
+    { id },
   )
-
-  const { commandString: builtCommand, cwdFilePath } =
-    await provider.buildExecCommand(command, {
-      id,
-      sandboxTmpDir: shouldUseSandbox ? sandboxTmpDir : undefined,
-      useSandbox: shouldUseSandbox ?? false,
-    })
-
-  let commandString = builtCommand
 
   let cwd = pwd()
 
@@ -273,22 +257,6 @@ export async function exec(
   }
 
   const binShell = provider.shellPath
-
-  if (shouldUseSandbox) {
-    commandString = await SandboxManager.wrapWithSandbox(
-      commandString,
-      binShell,
-      undefined,
-      abortSignal,
-    )
-    // Create sandbox temp directory for sandboxed processes with secure permissions
-    try {
-      const fs = getFsImplementation()
-      await fs.mkdir(sandboxTmpDir, { mode: 0o700 })
-    } catch (error) {
-      logForDebugging(`Failed to create ${sandboxTmpDir} directory: ${error}`)
-    }
-  }
 
   const spawnBinary = binShell
   const shellArgs = provider.getSpawnArgs(commandString)
@@ -390,14 +358,6 @@ export async function exec(
     const nativeCwdFilePath = cwdFilePath
 
     void shellCommand.result.then(async result => {
-      // On Linux, bwrap creates 0-byte mount-point files on the host to deny
-      // writes to non-existent paths (.bashrc, HEAD, etc.). These persist after
-      // bwrap exits as ghost dotfiles in cwd. Cleanup is synchronous and a no-op
-      // on macOS. Keep before any await so callers awaiting .result see a clean
-      // working tree in the same microtask.
-      if (shouldUseSandbox) {
-        SandboxManager.cleanupAfterCommand()
-      }
       // Only foreground tasks update the cwd
       if (result && !preventCwdChanges && !result.backgroundTaskId) {
         try {
