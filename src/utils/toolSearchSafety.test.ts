@@ -9,7 +9,6 @@ import {
 } from '../tools/ToolSearchTool/prompt.js'
 import { isSmallTierGroqModel } from '../lanes/openai-compat/groq_tool_policy.js'
 import { selectOpenAICompatToolsForRequest } from '../lanes/openai-compat/lazy_tools.js'
-import { filterToSingleShell } from '../lanes/openai-compat/single_shell.js'
 import { groqTransformer } from '../lanes/openai-compat/transformers/groq.js'
 import { isOpenCodeAnthropicRouteModel } from '../lanes/openai-compat/opencode_anthropic_route.js'
 import {
@@ -404,7 +403,7 @@ test('Groq small-tier request pipeline keeps allowed deferred schemas eagerly', 
   })
   const transformed = groqTransformer.filterTools?.(model, upstream) ?? upstream
   const finalTools = selectOpenAICompatToolsForRequest(
-    filterToSingleShell(transformed),
+    transformed,
     [],
     'groq-small-tier-pipeline',
   )

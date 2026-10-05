@@ -1433,7 +1433,7 @@ const READONLY_COMMANDS = [
   // Cross-platform commands from shared validation
   ...EXTERNAL_READONLY_COMMANDS,
 
-  // Unix/bash-specific read-only commands (not shared because they don't exist in PowerShell)
+  // Unix/Bash-specific read-only commands
 
   // Time and date
   'cal',

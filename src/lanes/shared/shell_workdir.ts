@@ -6,12 +6,12 @@
  * Earlier lane schemas exposed directory knobs (`workdir`, `dir_path`, `cwd`)
  * so models could recover from wrong-cwd commands. That fixed one class of
  * loop but taught models to depend on a separate execution-directory field
- * instead of putting the target path in the command. The Bash/PowerShell
- * resolvers now auto-locate common targets and bake absolute paths/native CLI
+ * instead of putting the target path in the command. The Bash resolver now
+ * auto-locates common targets and bakes absolute paths/native CLI
  * location flags into the command string, so the model-facing schema should not
  * advertise a second directory control surface.
  *
- * The shared Bash/PowerShell impls already have a first-class `workdir`
+ * The shared Bash impl already has a first-class `workdir`
  * field that is strictly better than a cd-prefix:
  *   - quoting-safe (no hand-quoting paths with spaces; on Windows the
  *     backslashes in a `cd "C:\…"` prefix are bash escapes),

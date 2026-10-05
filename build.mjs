@@ -236,8 +236,7 @@ const result = await build({
   // ESM output doesn't have `require` in scope, so esbuild replaces any
   // `require(x)` calls in source with a throwing stub. Inject a real
   // `require` built from `createRequire(import.meta.url)` at the top of
-  // the bundle so all the lazy-loaded modules (semver, PowerShellTool,
-  // etc.) work at runtime.
+  // the bundle so lazy-loaded modules work at runtime.
   banner: {
     js: `import { createRequire as __createRequireForESM } from 'node:module';\nconst require = __createRequireForESM(import.meta.url);`,
   },

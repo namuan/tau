@@ -239,19 +239,12 @@ export interface Transformer {
   } | undefined
 
   /**
-   * Optional per-model shell-tool description override. The compat lane
-   * forwards the caller's BashTool / PowerShellTool description verbatim
-   * by default (which is frontier-tier verbose), so weak models drown
-   * in detail and emit wrong-shell syntax. When this hook returns a
-   * non-empty string, it REPLACES the caller's description for the
-   * named shell tool BEFORE the STRICT PARAMETERS hint is appended.
+   * Optional per-model Bash description override. The compat lane
+   * forwards the caller's description verbatim by default. When this hook
+   * returns a non-empty string, it replaces that description before the
+   * STRICT PARAMETERS hint is appended.
    *
-   * - `toolName` is "Bash" or "PowerShell" (the only names the compat
-   *   lane swaps; pass-through otherwise).
-   * - `ctx.platform` is the host platform (`process.platform`) so the
-   *   override can pick POSIX vs Windows paths and shells.
-   * - `ctx.psEdition` is `"desktop"` (5.1), `"core"` (7+), or `null`
-   *   when not yet resolved or not applicable.
+   * `ctx.platform` is the host platform (`process.platform`).
    *
    * Must be deterministic given (toolName, model, ctx) so the cached
    * description stays byte-stable across turns. Don't return per-call
@@ -259,11 +252,10 @@ export interface Transformer {
    * cache.
    */
   overrideShellToolDescription?(
-    toolName: 'Bash' | 'PowerShell',
+    toolName: 'Bash',
     model: string,
     ctx: {
       platform: NodeJS.Platform
-      psEdition: 'desktop' | 'core' | null
     },
   ): string | undefined
 }

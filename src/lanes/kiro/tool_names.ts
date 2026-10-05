@@ -11,18 +11,13 @@
  *   2. Tool calls returned by Kiro are mapped back to Tau names
  *      before passing to context.executeTool().
  *
- * NOTE: Only 1:1 mappings are listed here. Tools that would create
- * duplicates (e.g. PowerShell → shell when Bash → shell already exists)
- * are excluded — the dedup logic in _buildToolSpecs handles those.
  * Edit is kept as-is because Kiro has no equivalent (Kiro's "write"
  * covers both create and edit, but Tau separates them).
  */
 
 /** Tau tool name → Kiro native tool name */
 const CLAUDEX_TO_KIRO: Record<string, string> = {
-  // Shell — Bash on Unix, PowerShell on Windows; only one is active
   Bash:        'shell',
-  PowerShell:  'shell',
   // File operations
   Read:        'read',
   Write:       'write',
@@ -39,12 +34,12 @@ const CLAUDEX_TO_KIRO: Record<string, string> = {
   Agent:       'subagent',
 }
 
-const SHELL_TOOL_NAMES = new Set(['Bash', 'PowerShell'])
+const SHELL_TOOL_NAMES = new Set(['Bash'])
 
 /** Kiro native tool name → Tau tool name (reverse map) */
 const KIRO_TO_CLAUDEX: Record<string, string> = {}
 for (const [claudex, kiro] of Object.entries(CLAUDEX_TO_KIRO)) {
-  // First Tau name wins (Bash beats PowerShell for 'shell')
+  // First Tau name wins for mapped tools.
   if (!(kiro in KIRO_TO_CLAUDEX)) {
     KIRO_TO_CLAUDEX[kiro] = claudex
   }
@@ -105,29 +100,10 @@ export function buildKiroToolNameReverseMap(
   return reverse
 }
 
-/**
- * Choose which local shell tool should back Kiro's single native `shell`
- * capability for this session.
- *
- * On Windows, prefer PowerShell when available so native Kiro shell calls
- * can execute cmdlets like `Get-ChildItem` instead of being forced through
- * the Bash executor. Elsewhere, Bash remains the natural default.
- */
 export function resolvePreferredKiroShellToolName(
   toolNames: readonly string[],
-): 'Bash' | 'PowerShell' | null {
-  const hasBash = toolNames.includes('Bash')
-  const hasPowerShell = toolNames.includes('PowerShell')
-
-  if (process.platform === 'win32') {
-    if (hasPowerShell) return 'PowerShell'
-    if (hasBash) return 'Bash'
-  } else {
-    if (hasBash) return 'Bash'
-    if (hasPowerShell) return 'PowerShell'
-  }
-
-  return null
+): 'Bash' | null {
+  return toolNames.includes('Bash') ? 'Bash' : null
 }
 
 export function isKiroShellCandidate(claudexName: string): boolean {

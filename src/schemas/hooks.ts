@@ -34,7 +34,7 @@ function buildHookSchemas() {
       .enum(SHELL_TYPES)
       .optional()
       .describe(
-        "Shell interpreter. 'bash' uses your $SHELL (bash/zsh/sh); 'powershell' uses pwsh. Defaults to bash.",
+        "Shell interpreter. 'bash' uses your $SHELL (bash/zsh/sh)."
       ),
     timeout: z
       .number()

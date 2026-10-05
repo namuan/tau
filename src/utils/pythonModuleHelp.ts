@@ -1,6 +1,5 @@
 /**
- * The precheck behind a failed Python import, shared by the Eval, Bash and
- * PowerShell tools.
+ * The precheck behind a failed Python import, shared by the Eval and Bash tools.
  *
  * "No module named 'x'" alone sends a model guessing: it installs into some
  * interpreter, re-runs in another, or gives up and switches tools. Before that
@@ -24,7 +23,6 @@ import {
   shellCommand,
   type ModuleProbe,
   type PythonEnv,
-  type ShellKind,
 } from './pythonEnv.js'
 
 function formatSteps(commands: readonly string[]): string {
@@ -80,10 +78,10 @@ function localModulePath(top: string, cwd: string): string | undefined {
 
 export async function describeMissingPythonModule(options: {
   module: string
-  tool: 'eval' | 'bash' | 'powershell'
+  tool: 'eval' | 'bash'
   /** The interpreter that ran the code, when known (the Eval kernel's). */
   interpreter?: string
-  /** The shell command that ran, for Bash and PowerShell. */
+  /** The shell command that ran. */
   command?: string
   cwd?: string
 }): Promise<string | undefined> {
@@ -123,7 +121,6 @@ export async function describeMissingPythonModule(options: {
 
   const known = others.find(p => p.found[top]?.dist)?.found[top]?.dist
   const dist = distributionForModule(top, known)
-  const shell: ShellKind = options.tool === 'powershell' ? 'powershell' : 'bash'
   const parts: string[] = []
 
   parts.push(
@@ -159,9 +156,9 @@ export async function describeMissingPythonModule(options: {
     const withModule = others.find(p => p.env.origin !== 'path') ?? others[0]
     const uv = await isUvAvailable()
     const installInto = (env: PythonEnv) =>
-      pythonInstallSteps(env, [dist.name], shell, uv)
+      pythonInstallSteps(env, [dist.name], 'bash', uv)
     if (withModule) {
-      const run = shellCommand(withModule.env.executable, shell)
+      const run = shellCommand(withModule.env.executable, 'bash')
       const steps =
         target && !others.some(p => sameInterpreter(p.env.executable, target.executable))
           ? installInto(target)
@@ -178,7 +175,7 @@ export async function describeMissingPythonModule(options: {
       } else {
         const rerun =
           ran && !sameInterpreter(target.executable, ran.env.executable)
-            ? `, then run the command with that interpreter (\`${shellCommand(target.executable, shell)} …\`)`
+            ? `, then run the command with that interpreter (\`${shellCommand(target.executable, 'bash')} …\`)`
             : ', then re-run'
         parts.push(`Install it into ${describePythonEnv(target)}: ${formatSteps(steps.commands)}${rerun}.`)
       }
@@ -196,7 +193,7 @@ export async function describeMissingPythonModule(options: {
  */
 export async function pythonModuleNoteFor(
   output: string,
-  options: { tool: 'bash' | 'powershell'; command: string; cwd?: string },
+  options: { tool: 'bash'; command: string; cwd?: string },
 ): Promise<string | undefined> {
   const module = missingPythonModule(output)
   if (!module || output.includes('Python environment check:')) return undefined
@@ -210,7 +207,7 @@ export async function pythonModuleNoteFor(
 /** Append the precheck note to a failed command's output, when it applies. */
 export async function appendPythonModuleHelp(
   output: string,
-  options: { tool: 'bash' | 'powershell'; command: string; cwd?: string },
+  options: { tool: 'bash'; command: string; cwd?: string },
 ): Promise<string> {
   const note = await pythonModuleNoteFor(output, options)
   return note ? `${output.trimEnd()}\n\n${note}` : output

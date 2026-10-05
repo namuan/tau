@@ -1,6 +1,5 @@
 import type { ProviderTool } from '../../services/api/providers/base_provider.js'
 import type { LaneToolRegistration } from '../types.js'
-import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
 import { GEMINI_TOOL_REGISTRY } from '../gemini/tools.js'
 import { applyShellWorkdir } from '../shared/shell_workdir.js'
 import { WEB_SEARCH_NATIVE_DESCRIPTION } from '../../tools/WebSearchTool/prompt.js'
@@ -751,7 +750,6 @@ const CURSOR_TOOL_ENUMS_BY_NAME: Record<string, readonly number[]> = {
 
   Bash: [CT.RUN_TERMINAL_COMMAND_V2],
   Shell: [CT.RUN_TERMINAL_COMMAND_V2],
-  PowerShell: [CT.RUN_TERMINAL_COMMAND_V2],
   list_dir: [CT.LIST_DIR, CT.LIST_DIR_V2],
   list_dir_v2: [CT.LIST_DIR_V2],
   run_shell_command: [CT.RUN_TERMINAL_COMMAND_V2],
@@ -1225,6 +1223,6 @@ function _asNumber(value: unknown): number | undefined {
 
 function _cursorListDirCommand(dirPath: string | undefined): string {
   if (!dirPath) return 'ls -la'
-  const bashPath = process.platform === 'win32' ? windowsPathToPosixPath(dirPath) : dirPath
+  const bashPath = dirPath
   return `ls -la -- ${JSON.stringify(bashPath)}`
 }

@@ -127,15 +127,13 @@ export async function getImageFromClipboard(): Promise<ImageWithDimensions | nul
   }
 
   try {
-    // Platform backend: osascript on macOS, powershell.exe on Windows/WSL,
-    // xclip/wl-paste on Linux. See utils/clipboardImage.ts.
     let imageBuffer = await readClipboardImageBytes()
     if (!imageBuffer) {
       return null
     }
 
     // BMP is not supported by the API — convert to PNG via Sharp.
-    // This handles WSL2 where Windows copies images as BMP by default.
+    // This handles copied BMP images.
     if (
       imageBuffer.length >= 2 &&
       imageBuffer[0] === 0x42 &&

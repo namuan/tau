@@ -1,19 +1,13 @@
 /**
  * Pattern lists for dangerous shell-tool allow-rule prefixes.
  *
- * An allow rule like `Bash(python:*)` or `PowerShell(node:*)` lets the model
- * run arbitrary code via that interpreter, bypassing the auto-mode classifier.
- * These lists feed the isDangerous{Bash,PowerShell}Permission predicates in
- * permissionSetup.ts, which strip such rules at auto-mode entry.
- *
- * The matcher in each predicate handles the rule-shape variants (exact, `:*`,
- * trailing `*`, ` *`, ` -…*`). PS-specific cmdlet strings live in
- * isDangerousPowerShellPermission (permissionSetup.ts).
+ * An allow rule like `Bash(python:*)` lets the model run arbitrary code via
+ * that interpreter, bypassing the auto-mode classifier. These lists feed the
+ * Bash permission predicate in permissionSetup.ts.
  */
 
 /**
- * Cross-platform code-execution entry points present on both Unix and Windows.
- * Shared to prevent the two lists drifting apart on interpreter additions.
+ * Common code-execution entry points that must not be broadly allowlisted.
  */
 export const CROSS_PLATFORM_CODE_EXEC = [
   // Interpreters
@@ -27,6 +21,8 @@ export const CROSS_PLATFORM_CODE_EXEC = [
   'perl',
   'php',
   'lua',
+  'pwsh',
+  'powershell',
   // Package runners
   'npx',
   'bunx',
@@ -34,10 +30,10 @@ export const CROSS_PLATFORM_CODE_EXEC = [
   'yarn run',
   'pnpm run',
   'bun run',
-  // Shells reachable from both (Git Bash / WSL on Windows, native on Unix)
+  // Shells
   'bash',
   'sh',
-  // Remote arbitrary-command wrapper (native OpenSSH on Win10+)
+  // Remote arbitrary-command wrapper
   'ssh',
 ] as const
 
@@ -54,7 +50,7 @@ export const DANGEROUS_BASH_PATTERNS: readonly string[] = [
   // dotfile data shows are commonly over-allowlisted as broad prefixes.
   // These stay ant-only — external users don't have coo, and the rest are
   // an empirical-risk call grounded in ant sandbox data, not a universal
-  // "this tool is unsafe" judgment. PS may want these once it has usage data.
+  // "this tool is unsafe" judgment.
   ...(process.env.USER_TYPE === 'ant'
     ? [
         'fa run',

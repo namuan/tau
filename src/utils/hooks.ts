@@ -16,9 +16,7 @@ import {
   invalidateSessionEnvCache,
 } from './sessionEnvironment.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { DEFAULT_HOOK_SHELL } from './shell/shellProvider.js'
-import { buildPowerShellArgs } from './shell/powershellProvider.js'
 import {
   getSessionId,
   getProjectRoot,
@@ -676,12 +674,7 @@ function processHookJSONOutput({
 }
 
 /**
- * Execute a command-based hook using bash or PowerShell.
- *
- * Shell resolution: hook.shell → 'bash'. PowerShell hooks spawn pwsh
- * with -NoProfile -NonInteractive -Command and skip bash-specific prep
- * (POSIX path conversion, .sh auto-prepend, CLAUDE_CODE_SHELL_PREFIX).
- * See docs/design/ps-shell-selection.md §5.1.
+ * Execute a command-based hook using Bash.
  */
 async function execCommandHook(
   hook: HookCommand & { type: 'command' },
@@ -715,13 +708,8 @@ async function execCommandHook(
 
   // --
   // Per-hook shell selection (phase 1 of docs/design/ps-shell-selection.md).
-  // Resolution order: hook.shell → DEFAULT_HOOK_SHELL. The defaultShell
-  // fallback (settings.defaultShell) is phase 2 — not wired yet.
+  // Hooks default to the supported Bash shell.
   //
-  const shellType = hook.shell ?? DEFAULT_HOOK_SHELL
-
-  const isPowerShell = shellType === 'powershell'
-
   // Set CLAUDE_PROJECT_DIR to the stable project root (not the worktree path).
   // getProjectRoot() is never updated when entering a worktree, so hooks that
   // reference $CLAUDE_PROJECT_DIR always resolve relative to the real repo root.
@@ -729,14 +717,9 @@ async function execCommandHook(
 
   const command = hook.command
 
-  // CLAUDE_CODE_SHELL_PREFIX wraps the command via POSIX quoting
-  // (formatShellPrefixCommand uses shell-quote). This makes no sense for
-  // PowerShell — see design §8.1. For now PS hooks ignore the prefix;
-  // a CLAUDE_CODE_PS_SHELL_PREFIX (or shell-aware prefix) is a follow-up.
-  const finalCommand =
-    !isPowerShell && process.env.CLAUDE_CODE_SHELL_PREFIX
-      ? formatShellPrefixCommand(process.env.CLAUDE_CODE_SHELL_PREFIX, command)
-      : command
+  const finalCommand = process.env.CLAUDE_CODE_SHELL_PREFIX
+    ? formatShellPrefixCommand(process.env.CLAUDE_CODE_SHELL_PREFIX, command)
+    : command
 
   const hookTimeoutMs = hook.timeout
     ? hook.timeout * 1000
@@ -751,14 +734,7 @@ async function execCommandHook(
     envVars.CLAUDE_PLUGIN_ROOT = skillRoot
   }
 
-  // CLAUDE_ENV_FILE points to a .sh file that the hook writes env var
-  // definitions into; getSessionEnvironmentScript() concatenates them and
-  // bashProvider injects the content into bash commands. A PS hook would
-  // naturally write PS syntax ($env:FOO = 'bar'), which bash can't parse.
-  // Skip for PS — consistent with how .sh prepend and SHELL_PREFIX are
-  // already bash-only above.
   if (
-    !isPowerShell &&
     (hookEvent === 'SessionStart' ||
       hookEvent === 'Setup' ||
       hookEvent === 'CwdChanged' ||
@@ -780,38 +756,12 @@ async function execCommandHook(
     )
   }
 
-  // --
-  // Spawn. Two completely separate paths:
-  //
-  //   Bash: spawn(cmd, [], { shell: <gitBashPath | true> }) — the shell
-  //   option makes Node pass the whole string to the shell for parsing.
-  //
-  //   PowerShell: spawn(pwshPath, ['-NoProfile', '-NonInteractive',
-  //   '-Command', cmd]) — explicit argv, no shell option. -NoProfile
-  //   skips user profile scripts (faster, deterministic).
-  //   -NonInteractive fails fast instead of prompting.
-  //
   let child: ChildProcessWithoutNullStreams
-  const effectiveShellType: 'bash' | 'powershell' = shellType
-  if (effectiveShellType === 'powershell') {
-    const pwshPath = await getCachedPowerShellPath()
-    if (!pwshPath) {
-      throw new Error(
-        `Hook "${hook.command}" needs a shell, but neither Bash nor PowerShell ` +
-          `is available on this system. Install Bash or PowerShell 7+.`,
-      )
-    }
-    child = spawn(pwshPath, buildPowerShellArgs(finalCommand), {
-      env: envVars,
-      cwd: safeCwd,
-    }) as ChildProcessWithoutNullStreams
-  } else {
-    child = spawn(finalCommand, [], {
-      env: envVars,
-      cwd: safeCwd,
-      shell: true,
-    }) as ChildProcessWithoutNullStreams
-  }
+  child = spawn(finalCommand, [], {
+    env: envVars,
+    cwd: safeCwd,
+    shell: true,
+  }) as ChildProcessWithoutNullStreams
 
   // Hooks use pipe mode — stdout must be streamed into JS so we can parse
   // the first response line to detect async hooks ({"async": true}).
@@ -1516,10 +1466,8 @@ export async function getMatchingHooks(
             ): m is MatchedHook & { hook: HookCommand & { type: 'command' } } =>
               m.hook.type === 'command',
           )
-          // shell is part of identity: {command:'echo x', shell:'bash'}
-          // and {command:'echo x', shell:'powershell'} are distinct hooks,
-          // not duplicates. Default to 'bash' so legacy configs (no shell
-          // field) still dedup against explicit shell:'bash'.
+          // Default to 'bash' so legacy configs (no shell field) still dedup
+          // against explicit shell:'bash'.
           .map(m => [
             hookDedupKey(
               m,

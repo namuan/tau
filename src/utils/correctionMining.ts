@@ -28,7 +28,7 @@ import { join } from 'path'
 import { createInterface } from 'readline'
 
 // Tool names, hardcoded rather than imported so this stays a leaf module.
-// Must match BASH_TOOL_NAME / POWERSHELL_TOOL_NAME.
+// Shell names preserved in conversation transcripts.
 const SHELL_TOOL_NAMES: Record<string, 'bash' | 'powershell'> = {
   Bash: 'bash',
   PowerShell: 'powershell',

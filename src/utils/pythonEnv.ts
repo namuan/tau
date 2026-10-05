@@ -10,8 +10,8 @@
  * `ModuleNotFoundError` one call later.
  *
  * Everything that needs a Python package asks here instead of guessing: the
- * Read tool looks for a document library, and the Eval, Bash and PowerShell
- * tools explain a failed import. The order is always the same: an explicit
+ * Read tool looks for a document library, and the Eval and Bash tools explain
+ * a failed import. The order is always the same: an explicit
  * override, the active environment, the project's venv, then the system
  * interpreters on PATH.
  *
@@ -548,7 +548,7 @@ export function distributionForModule(
   return { name: top, certain: false }
 }
 
-export type ShellKind = 'bash' | 'powershell'
+export type ShellKind = 'bash'
 
 /** An interpreter path as a shell argument. */
 export function shellArg(
@@ -556,23 +556,20 @@ export function shellArg(
   shell: ShellKind,
   platform: NodeJS.Platform = process.platform,
 ): string {
-  // Forward slashes work for Windows paths in Git Bash, PowerShell and the
-  // programs themselves, and need no quoting when nothing else is special.
+  // Forward slashes work for Windows paths in Git Bash and the programs
+  // themselves, and need no quoting when nothing else is special.
   const forward = platform === 'win32' ? path.replace(/\\/g, '/') : path
   if (/^[\w.:/+@-]+$/.test(forward)) return forward
-  return shell === 'powershell'
-    ? `'${path.replace(/'/g, "''")}'`
-    : `"${forward.replace(/(["\\$`])/g, '\\$1')}"`
+  return `"${forward.replace(/(["\\$`])/g, '\\$1')}"`
 }
 
-/** An interpreter path in command position. PowerShell needs `&` to run a quoted path. */
+/** An interpreter path in command position. */
 export function shellCommand(
   path: string,
   shell: ShellKind,
   platform: NodeJS.Platform = process.platform,
 ): string {
-  const arg = shellArg(path, shell, platform)
-  return shell === 'powershell' && arg.startsWith("'") ? `& ${arg}` : arg
+  return shellArg(path, shell, platform)
 }
 
 /**

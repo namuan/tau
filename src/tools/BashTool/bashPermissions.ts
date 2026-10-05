@@ -2621,8 +2621,7 @@ export function isNormalizedGitCommand(command: string): boolean {
  *
  * Also matches pushd/popd — they change cwd just like cd, so
  *   pushd /tmp/bare-repo && git status
- * must trigger the same cd+git guard. Mirrors PowerShell's
- * DIRECTORY_CHANGE_ALIASES (src/utils/powershell/parser.ts).
+ * must trigger the same cd+git guard.
  */
 export function isNormalizedCdCommand(command: string): boolean {
   const stripped = stripSafeWrappers(command)

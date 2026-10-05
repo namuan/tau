@@ -66,12 +66,11 @@ const SCRIPT_INTERPRETERS = new Set([
   'python', 'python3', 'python2', 'py', 'pypy', 'pypy3',
   'ruby', 'perl', 'php', 'lua',
   'bash', 'sh', 'zsh', 'dash', 'ksh',
-  'pwsh', 'powershell',
 ])
 
 const SCRIPT_EXTENSIONS = new Set([
   '.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx', '.jsx',
-  '.py', '.rb', '.pl', '.php', '.lua', '.sh', '.bash', '.ps1',
+  '.py', '.rb', '.pl', '.php', '.lua', '.sh', '.bash',
 ])
 
 // Flags that switch the interpreter to inline-code/module mode or consume the
@@ -454,19 +453,16 @@ export function resolveAmbiguousPick(
 //   - anything else (compose, `python -m`, npm, cargo, …) → run inside a
 //       ONE-OFF cwd change that never drifts the session cwd:
 //         bash:        (cd '<abs>' && <cmd>)              ← subshell
-//         powershell:  Push-Location -LiteralPath '<abs>'; <cmd>; Pop-Location
-// Both forms preserve the real exit code (bash short-circuits `&& pwd` on
-// failure; PowerShell captures $LASTEXITCODE before writing cwd). Pure string
+// The wrapper preserves the real exit code. Pure string
 // transforms — the caller only invokes these on an `auto` resolution, where the
 // absolute path is already known to exist.
 
-export type AnchorShell = 'bash' | 'powershell'
+export type AnchorShell = 'bash'
 
 /**
  * Spell an absolute host-fs path for the target shell. Git Bash wants POSIX
  * form (`/c/Users/...`) so the backslashes in a Windows path are not treated as
- * escapes; PowerShell keeps the native `C:\Users\...`. Cross-platform: a no-op
- * on non-Windows hosts.
+ * escapes. Cross-platform: a no-op on non-Windows hosts.
  */
 function spellAbsolutePath(absHostPath: string, shell: AnchorShell, platform: Platform): string {
   if (shell === 'bash' && platform === 'windows') {
@@ -481,9 +477,7 @@ function spellAbsolutePath(absHostPath: string, shell: AnchorShell, platform: Pl
 
 /** Single-quote a path for the shell (always quote — harmless and space-safe). */
 function quotePathForShell(p: string, shell: AnchorShell): string {
-  return shell === 'bash'
-    ? `'${p.replace(/'/g, `'\\''`)}'`
-    : `'${p.replace(/'/g, "''")}'`
+  return `'${p.replace(/'/g, `'\\''`)}'`
 }
 
 function insertAfterLeadingRunner(
@@ -603,7 +597,7 @@ function replaceFirstArg(command: string, token: string, replacement: string): s
 
 /**
  * Wrap a command so it runs in `absDir` as a ONE-OFF (the session cwd never
- * drifts). bash uses a subshell; PowerShell uses Push/Pop-Location.
+ * drifts). Bash uses a subshell.
  */
 export function wrapWithDirPrefix(
   command: string,
@@ -612,9 +606,7 @@ export function wrapWithDirPrefix(
   platform: Platform = getPlatform(),
 ): string {
   const dir = quotePathForShell(spellAbsolutePath(absDir, shell, platform), shell)
-  return shell === 'bash'
-    ? `(cd ${dir} && ${command})`
-    : `Push-Location -LiteralPath ${dir}; ${command}; Pop-Location`
+  return `(cd ${dir} && ${command})`
 }
 
 /**
@@ -755,8 +747,7 @@ async function resolveManifestWorkdir(
 // fails with "No module named 'pkg'". The script preflight deliberately bails on
 // `-m` (it switches the interpreter to module mode), so handle it here: locate
 // the module's file in a subdirectory and run from the directory that makes the
-// dotted import resolve. Shared by Bash + PowerShell via resolveTargetWorkdir,
-// so the model never has to remember `workdir` for this case.
+// dotted import resolve. The model never has to remember `workdir` for this case.
 
 const MODULE_RUNNERS = new Set([
   'python', 'python3', 'python2', 'py', 'pypy', 'pypy3',
@@ -863,7 +854,7 @@ async function resolveModuleWorkdir(
 // root and it fails with a "no project / not found" error — exactly like
 // `npm`/`docker compose`, which got bespoke resolvers above. Rather than a
 // function per tool, this is ONE table-driven resolver: supporting a new tool
-// is a single row. Shared by Bash + PowerShell via resolveTargetWorkdir.
+// is a single row. Shared by Bash via resolveTargetWorkdir.
 
 interface ProjectToolMarker {
   /** First-token executables (after env vars; path + .exe stripped, lowercased). */
@@ -1078,9 +1069,8 @@ const _targetWorkdirCache = new Map<string, string>()
  *   - package-manifest runners: `npm run build`, `yarn test`, `pnpm i`
  *   - Compose: `docker compose up`, `docker-compose up`, podman
  * A single unambiguous subdirectory is returned as an `auto` workdir (applied at
- * execution time by the shell tools, so the model never has to retry); several
- * different subdirectories are `ambiguous`. Shared by BashTool and
- * PowerShellTool so both shells behave identically. A successful `auto` is
+ * execution time by BashTool, so the model never has to retry); several
+ * different subdirectories are `ambiguous`. A successful `auto` is
  * cached so a repeat of the same target from the same run dir is instant.
  */
 export async function resolveTargetWorkdir(
@@ -1145,9 +1135,9 @@ export async function resolveTargetWorkdir(
 }
 
 /**
- * Target-existence preflight shared by BashTool and PowerShellTool. The
- * wrong-directory case is auto-corrected at execution time (resolveTargetWorkdir
- * → the shell tools' call()), INCLUDING the multi-candidate case: rather than
+ * Target-existence preflight. The wrong-directory case is auto-corrected at
+ * execution time (resolveTargetWorkdir → BashTool.call()), INCLUDING the
+ * multi-candidate case: rather than
  * block — which loops a weak model on an error it can't act on — the tools
  * surface every candidate so the model re-runs naming the one it means (no
  * silent guess). So this stays as a shared seam in case future checks need it.

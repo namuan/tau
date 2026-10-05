@@ -14,7 +14,7 @@
  *
  * Lanes that forward the canonical Anthropic `input_schema` verbatim
  * (claude, openai-compat live path, kiro, qwen, cline, kilo) already inherit
- * the BashTool/PowerShellTool model-facing schema and need no entry here.
+ * the BashTool model-facing schema and need no entry here.
  *
  * Run:  bun run src/lanes/shared/shell_workdir.test.ts
  */

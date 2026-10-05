@@ -1,9 +1,9 @@
 /**
- * Regression tests for shell-description rendering + single-shell
- * filter + per-transformer schema/generation extras.
+ * Regression tests for shell-description rendering and per-transformer
+ * schema/generation extras.
  *
  * The core invariant: tool description bytes shipped to the upstream
- * provider must be DETERMINISTIC given (model, platform, psEdition).
+ * provider must be DETERMINISTIC given the model and tool.
  * Any per-call data leaking in (homedir, tmpdir, session id,
  * timestamps) would churn the upstream prompt cache every turn — the
  * exact cost regression the user asked us to avoid.
@@ -12,7 +12,6 @@
  */
 
 import { getCompatShellDescription } from './shell_descriptions.js'
-import { filterToSingleShell, pickPreferredShell } from './single_shell.js'
 import { moonshotTransformer } from './transformers/moonshot.js'
 import { openrouterTransformer } from './transformers/openrouter.js'
 import { minimaxTransformer } from './transformers/minimax.js'
@@ -96,13 +95,6 @@ test('Bash description is byte-stable across two renders on the same input', () 
   assertEq(a, b, 'two renders should produce identical bytes')
 })
 
-test('PowerShell description is byte-stable across psEdition=desktop renders', () => {
-  const ctx = { platform: 'win32' as NodeJS.Platform, psEdition: 'desktop' as const }
-  const a = getCompatShellDescription('PowerShell', ctx)!
-  const b = getCompatShellDescription('PowerShell', ctx)!
-  assertEq(a, b, 'two renders should produce identical bytes')
-})
-
 test('Bash description does not include process-specific data', () => {
   const ctx = { platform: 'linux' as NodeJS.Platform, psEdition: null }
   const desc = getCompatShellDescription('Bash', ctx)!
@@ -116,27 +108,10 @@ test('Bash description does not include process-specific data', () => {
   assert(!/[A-Za-z]:\\Users\\[A-Za-z0-9_.-]+\\AppData/.test(desc), 'should not include AppData paths')
 })
 
-test('PowerShell description differs between editions', () => {
-  const win = { platform: 'win32' as NodeJS.Platform, psEdition: 'desktop' as const }
-  const cross = { platform: 'win32' as NodeJS.Platform, psEdition: 'core' as const }
-  const a = getCompatShellDescription('PowerShell', win)!
-  const b = getCompatShellDescription('PowerShell', cross)!
-  assert(a !== b, '5.1 and 7+ descriptions must diverge on chain operators')
-  assert(a.includes('5.1') || a.includes('PowerShell 5'), '5.1 description should call it out')
-  assert(b.includes('7+') || b.includes('PowerShell 7'), '7+ description should call it out')
-})
-
 test('Unknown tool name returns undefined (caller falls back to original description)', () => {
   const ctx = { platform: 'linux' as NodeJS.Platform, psEdition: null }
   const desc = getCompatShellDescription('NotAShell', ctx)
   assertEq(desc, undefined, 'must be undefined so caller uses original description')
-})
-
-test('Bash description on Windows mentions Git Bash + POSIX paths', () => {
-  const ctx = { platform: 'win32' as NodeJS.Platform, psEdition: null }
-  const desc = getCompatShellDescription('Bash', ctx)!
-  assert(desc.toLowerCase().includes('git bash'), 'should mention Git Bash on Windows')
-  assert(desc.includes('/c/Users'), 'should show POSIX path example')
 })
 
 test('Bash description steers dev servers to tracked background tasks', () => {
@@ -148,50 +123,11 @@ test('Bash description steers dev servers to tracked background tasks', () => {
   assert(desc.includes('& echo $!'), 'should include the raw-background anti-pattern')
 })
 
-test('Bash description on Linux does NOT mention Git Bash', () => {
-  const ctx = { platform: 'linux' as NodeJS.Platform, psEdition: null }
+test('Bash description uses POSIX paths', () => {
+  const ctx = { platform: 'darwin' as NodeJS.Platform }
   const desc = getCompatShellDescription('Bash', ctx)!
-  assert(!desc.toLowerCase().includes('git bash'), 'Git Bash note is Windows-only')
-})
-
-// ─── Single-shell filter ────────────────────────────────────────
-
-test('filterToSingleShell is a no-op when only one shell is present', () => {
-  const tools = [{ name: 'Bash' }, { name: 'Read' }, { name: 'Edit' }]
-  const out = filterToSingleShell(tools)
-  assertEq(out.length, 3, 'no shell to drop')
-  assert(out.find(t => t.name === 'Bash') !== undefined, 'Bash must survive')
-})
-
-test('filterToSingleShell drops one shell when both are present', () => {
-  const tools = [{ name: 'Bash' }, { name: 'PowerShell' }, { name: 'Read' }]
-  const out = filterToSingleShell(tools)
-  assertEq(out.length, 2, 'one of the two shells must be dropped')
-  const hasBash = out.some(t => t.name === 'Bash')
-  const hasPS = out.some(t => t.name === 'PowerShell')
-  assert(hasBash !== hasPS, 'exactly one of Bash/PowerShell must remain')
-})
-
-test('CLAUDE_CODE_SHELL=powershell forces PowerShell selection', () => {
-  const prev = process.env.CLAUDE_CODE_SHELL
-  process.env.CLAUDE_CODE_SHELL = 'powershell'
-  try {
-    assertEq(pickPreferredShell(), 'PowerShell', 'env override should pick PowerShell')
-  } finally {
-    if (prev === undefined) delete process.env.CLAUDE_CODE_SHELL
-    else process.env.CLAUDE_CODE_SHELL = prev
-  }
-})
-
-test('CLAUDE_CODE_SHELL=bash forces Bash selection', () => {
-  const prev = process.env.CLAUDE_CODE_SHELL
-  process.env.CLAUDE_CODE_SHELL = '/usr/bin/bash'
-  try {
-    assertEq(pickPreferredShell(), 'Bash', 'env override should pick Bash')
-  } finally {
-    if (prev === undefined) delete process.env.CLAUDE_CODE_SHELL
-    else process.env.CLAUDE_CODE_SHELL = prev
-  }
+  assert(desc.includes('Use POSIX paths'), 'should describe POSIX path syntax')
+  assert(!desc.toLowerCase().includes('git bash'), 'should not mention Git Bash')
 })
 
 // ─── Moonshot schema sanitizer ──────────────────────────────────
@@ -460,19 +396,10 @@ test('MiniMax defaults return undefined for non-MiniMax model ids', () => {
 // ─── Cross-cutting cache invariants ─────────────────────────────
 
 test('Shell description never contains a timestamp-shaped substring', () => {
-  for (const ctx of [
-    { platform: 'linux' as NodeJS.Platform, psEdition: null },
-    { platform: 'darwin' as NodeJS.Platform, psEdition: null },
-    { platform: 'win32' as NodeJS.Platform, psEdition: 'desktop' as const },
-    { platform: 'win32' as NodeJS.Platform, psEdition: 'core' as const },
-  ]) {
-    for (const tool of ['Bash', 'PowerShell']) {
-      const desc = getCompatShellDescription(tool, ctx)
-      if (!desc) continue
-      assert(!/\d{4}-\d{2}-\d{2}T/.test(desc), `${tool}@${ctx.platform}/${ctx.psEdition}: timestamp leaked`)
-      assert(!/\b\d{10}\b/.test(desc), `${tool}@${ctx.platform}/${ctx.psEdition}: epoch leaked`)
-    }
-  }
+  const ctx = { platform: 'darwin' as NodeJS.Platform }
+  const desc = getCompatShellDescription('Bash', ctx)!
+  assert(!/\d{4}-\d{2}-\d{2}T/.test(desc), 'timestamp leaked')
+  assert(!/\b\d{10}\b/.test(desc), 'epoch leaked')
 })
 
 // ─── Summary ───────────────────────────────────────────────────

@@ -46,7 +46,6 @@ import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
-import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { parseGitCommitId } from '../../tools/shared/gitOperationTracking.js'
 import {
   isDeferredTool,
@@ -715,8 +714,7 @@ function appendToolInputValidationRecoveryHint(
     `Bash retry guidance: ${sentNote}` +
     'Re-send the SAME call with a non-empty string `command` — that field holds the actual shell ' +
     'command to run (for example {"command":"docker compose up"}). Never call Bash without `command`. ' +
-    'If the intended command uses PowerShell syntax (Get-ChildItem, Select-String, $env:...), use the ' +
-    'PowerShell tool instead of Bash.'
+    'If the intended command uses PowerShell syntax (Get-ChildItem, Select-String, $env:...), rewrite it as Bash/POSIX syntax.'
   )
 }
 
@@ -1692,7 +1690,7 @@ async function checkPermissionsAndCallTool(
     // Enrich tool parameters with git commit ID from successful git commit output
     if (
       isToolDetailsLoggingEnabled() &&
-      (tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME) &&
+      tool.name === BASH_TOOL_NAME &&
       'command' in processedInput &&
       typeof processedInput.command === 'string' &&
       processedInput.command.match(/\bgit\s+commit\b/) &&

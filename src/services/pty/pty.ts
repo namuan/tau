@@ -63,14 +63,7 @@ const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 // 1 MiB
 
 function defaultShell(): { file: string; args: string[] } {
-  if (process.platform === 'win32') {
-    const ps = process.env.PSModulePath
-      ? 'powershell.exe'
-      : (process.env.ComSpec ?? 'cmd.exe')
-    return { file: ps, args: [] }
-  }
-  const shell = process.env.SHELL ?? '/bin/sh'
-  return { file: shell, args: [] }
+  return { file: process.env.SHELL ?? '/bin/bash', args: [] }
 }
 
 /**

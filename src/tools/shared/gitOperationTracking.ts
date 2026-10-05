@@ -4,8 +4,8 @@
  * Detects `git commit`, `git push`, `gh pr create`, `glab mr create`, and
  * curl-based PR creation in command strings, then increments OTLP counters
  * and fires analytics events. The regexes operate on raw command text so they
- * work identically for Bash and PowerShell (both invoke git/gh/glab/curl as
- * external binaries with the same argv syntax).
+ * work on Bash command strings that invoke git/gh/glab/curl as external
+ * binaries.
  */
 
 import { getCommitCounter, getPrCounter } from '../../bootstrap/state.js'

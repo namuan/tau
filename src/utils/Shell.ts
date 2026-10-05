@@ -37,8 +37,6 @@ import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { type AgentModelEnv, withAgentEnv } from './shell/agentEnv.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
-import { getCachedPowerShellPath } from './shell/powershellDetection.js'
-import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { subprocessEnv } from './subprocessEnv.js'
 
@@ -71,8 +69,7 @@ function isExecutable(shellPath: string): boolean {
 /**
  * Determines the best available shell to use.
  *
- * Returns null when no POSIX shell is available. Command execution must not
- * silently fall back to PowerShell because Bash syntax is different.
+ * Returns null when no POSIX shell is available.
  */
 export async function findSuitableShell(): Promise<string | null> {
   // Check for explicit shell override first
@@ -148,25 +145,13 @@ async function getShellConfigImpl(): Promise<ShellConfig | null> {
 // Memoize the entire shell config so it only happens once per session
 export const getShellConfig = memoize(getShellConfigImpl)
 
-export const getPsProvider = memoize(async (): Promise<ShellProvider> => {
-  const psPath = await getCachedPowerShellPath()
-  if (!psPath) {
-    throw new Error('PowerShell is not available')
-  }
-  return createPowerShellProvider(psPath)
-})
-
 /**
- * Resolves the active shell provider for a requested shell type.
- * The shell layer should never reinterpret Bash commands as PowerShell commands.
+ * Resolves the Bash shell provider.
  */
-const resolveProvider: Record<ShellType, () => Promise<ShellProvider>> = {
-  bash: async () => {
-    const config = await getShellConfig()
-    if (config) return config.provider
-    throw new Error('No suitable shell found. Install Bash or Zsh and restart Tau.')
-  },
-  powershell: getPsProvider,
+async function resolveBashProvider(): Promise<ShellProvider> {
+  const config = await getShellConfig()
+  if (config) return config.provider
+  throw new Error('No suitable shell found. Install Bash or Zsh and restart Tau.')
 }
 
 export type ExecOptions = {
@@ -224,7 +209,7 @@ export async function exec(
   // sequential calls deterministic.
   const preventCwdChanges = workdir ? true : optPreventCwdChanges
 
-  const provider = await resolveProvider[shellType]()
+  const provider = await resolveBashProvider()
 
   const id = Math.floor(Math.random() * 0x10000)
     .toString(16)
@@ -289,22 +274,10 @@ export async function exec(
 
   const binShell = provider.shellPath
 
-  // Sandboxed PowerShell: wrapWithSandbox hardcodes `<binShell> -c '<cmd>'` —
-  // using pwsh there would lose -NoProfile -NonInteractive (profile load
-  // inside sandbox → delays, stray output, may hang on prompts). Instead:
-  //   • powershellProvider.buildExecCommand (useSandbox) pre-wraps as
-  //     `pwsh -NoProfile -NonInteractive -EncodedCommand <base64>` — base64
-  //     survives the runtime's shellquote.quote() layer
-  //   • pass /bin/sh as the sandbox's inner shell to exec that invocation
-  //   • outer spawn is also /bin/sh -c to parse the runtime's POSIX output
-  // /bin/sh exists on every platform where sandbox is supported.
-  const isSandboxedPowerShell = shouldUseSandbox && shellType === 'powershell'
-  const sandboxBinShell = isSandboxedPowerShell ? '/bin/sh' : binShell
-
   if (shouldUseSandbox) {
     commandString = await SandboxManager.wrapWithSandbox(
       commandString,
-      sandboxBinShell,
+      binShell,
       undefined,
       abortSignal,
     )
@@ -317,10 +290,8 @@ export async function exec(
     }
   }
 
-  const spawnBinary = isSandboxedPowerShell ? '/bin/sh' : binShell
-  const shellArgs = isSandboxedPowerShell
-    ? ['-c', commandString]
-    : provider.getSpawnArgs(commandString)
+  const spawnBinary = binShell
+  const shellArgs = provider.getSpawnArgs(commandString)
   const envOverrides = await provider.getEnvironmentOverrides(command)
 
   // When onStdout is provided, use pipe mode: stdout flows through

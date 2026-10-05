@@ -126,12 +126,9 @@ test('an OS-managed Python gets advice, never --break-system-packages', () => {
   assert(!JSON.stringify(steps).includes('break-system-packages'), 'no override flag')
 })
 
-test('paths with spaces are quoted per shell', () => {
+test('Bash quotes interpreter paths with spaces', () => {
   const path = 'C:\\Program Files\\Python312\\python.exe'
   assert(shellArg(path, 'bash', 'win32') === '"C:/Program Files/Python312/python.exe"', shellArg(path, 'bash', 'win32'))
-  assert(shellArg(path, 'powershell', 'win32') === "'C:\\Program Files\\Python312\\python.exe'", shellArg(path, 'powershell', 'win32'))
-  assert(shellCommand(path, 'powershell', 'win32').startsWith("& '"), 'PowerShell runs a quoted path with &')
-  assert(shellCommand('/usr/bin/python3', 'powershell', 'linux') === '/usr/bin/python3', 'plain path stays bare')
 })
 
 test('package names: reported, known mismatch, or uncertain', () => {

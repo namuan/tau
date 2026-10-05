@@ -1,49 +1,11 @@
 import { randomUUID } from 'crypto'
-import type { Tool, ToolUseContext } from '../Tool.js'
+import type { ToolUseContext } from '../Tool.js'
 import { BashTool } from '../tools/BashTool/BashTool.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage, MalformedCommandError, ShellError } from './errors.js'
-import type { FrontmatterShell } from './frontmatterParser.js'
 import { createAssistantMessage } from './messages.js'
 import { hasPermissionsToUseTool } from './permissions/permissions.js'
 import { processToolResultBlock } from './toolResultStorage.js'
-
-// Narrow structural slice both BashTool and PowerShellTool satisfy. We can't
-// use the base Tool type: it marks call()'s canUseTool/parentMessage as
-// required, but both concrete tools have them optional and the original code
-// called BashTool.call({ command }, ctx) with just 2 args. We can't use
-// `typeof BashTool` either: BashTool's input schema has fields (e.g.
-// _simulatedSedEdit) that PowerShellTool's does not.
-// NOTE: call() is invoked directly here, bypassing validateInput — any
-// load-bearing check must live in call() itself (see PR #23311).
-type ShellOut = { stdout: string; stderr: string; interrupted: boolean }
-type PromptShellTool = Tool & {
-  call(
-    input: { command: string },
-    context: ToolUseContext,
-  ): Promise<{ data: ShellOut }>
-}
-
-import { isPowerShellToolEnabled } from './shell/shellToolUtils.js'
-
-// Lazy: this file is on the startup import chain (main → commands →
-// loadSkillsDir → here). A static import would load PowerShellTool.ts
-// (and transitively parser.ts, validators, etc.) at startup on all
-// platforms, defeating tools.ts's lazy require. Deferred until the
-// first skill with `shell: powershell` actually runs.
-/* eslint-disable @typescript-eslint/no-require-imports */
-const getPowerShellTool = (() => {
-  let cached: PromptShellTool | undefined
-  return (): PromptShellTool => {
-    if (!cached) {
-      cached = (
-        require('../tools/PowerShellTool/PowerShellTool.js') as typeof import('../tools/PowerShellTool/PowerShellTool.js')
-      ).PowerShellTool
-    }
-    return cached
-  }
-})()
-/* eslint-enable @typescript-eslint/no-require-imports */
 
 // Pattern for code blocks: ```! command ```
 const BLOCK_PATTERN = /```!\s*\n?([\s\S]*?)\n?```/g
@@ -61,26 +23,15 @@ const INLINE_PATTERN = /(?<=^|\s)!`([^`]+)`/gm
  * - Code blocks: ```! command ```
  * - Inline: !`command`
  *
- * @param shell - Shell to route commands through. Defaults to bash.
- *   This is *never* read from settings.defaultShell — it comes from .md
- *   frontmatter (author's choice) or is undefined for built-in commands.
- *   See docs/design/ps-shell-selection.md §5.3.
  */
 export async function executeShellCommandsInPrompt(
   text: string,
   context: ToolUseContext,
   slashCommandName: string,
-  shell?: FrontmatterShell,
 ): Promise<string> {
   let result = text
 
-  // Resolve the tool once. `shell === undefined` and `shell === 'bash'` both
-  // hit BashTool. PowerShell only when the runtime gate allows — a skill
-  // author's frontmatter choice doesn't override the user's opt-in/out.
-  const shellTool: PromptShellTool =
-    shell === 'powershell' && isPowerShellToolEnabled()
-      ? getPowerShellTool()
-      : BashTool
+  const shellTool = BashTool
 
   // INLINE_PATTERN's lookbehind is ~100x slower than BLOCK_PATTERN on large
   // skill content (265µs vs 2µs @ 17KB). 93% of skills have no !` at all,
@@ -126,8 +77,7 @@ export async function executeShellCommandsInPrompt(
               : formatBashOutput(data.stdout, data.stderr)
           // Function replacer — String.replace interprets $$, $&, $`, $' in
           // the replacement string even with a string search pattern. Shell
-          // output (especially PowerShell: $env:PATH, $$, $PSVersionTable)
-          // is arbitrary user data; a bare string arg would corrupt it.
+          // output is arbitrary user data; a bare string arg would corrupt it.
           result = result.replace(match[0], () => output)
         } catch (e) {
           if (e instanceof MalformedCommandError) {

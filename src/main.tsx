@@ -1265,7 +1265,7 @@ async function run(): Promise<CommanderCommand> {
       overlyBroadBashPermissions
     } = initResult;
 
-    // Handle overly broad shell allow rules for ant users (Bash(*), PowerShell(*))
+    // Handle overly broad Bash allow rules for ant users
     if ("external" === 'ant' && overlyBroadBashPermissions.length > 0) {
       for (const permission of overlyBroadBashPermissions) {
         logForDebugging(`Ignoring overly broad shell permission ${permission.ruleDisplay} from ${permission.sourceDisplay}`);

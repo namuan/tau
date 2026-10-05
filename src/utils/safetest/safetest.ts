@@ -92,11 +92,6 @@ const OPTIONAL_TEMPLATE_ALIASES: Record<
     use: 'Windows detonation with Wine or a Windows-analysis template',
     fallback: 'base',
   },
-  powershell: {
-    files: '.ps1, .psm1',
-    use: 'PowerShell execution with pwsh installed',
-    fallback: 'base',
-  },
   browser: {
     files: '.html, .svg',
     use: 'browser/DOM behavior checks',
@@ -530,12 +525,6 @@ function recommendTemplate(
       reason: 'JavaScript/TypeScript file: using a configured JS/security template if available, otherwise base.',
     }
   }
-  if (['.ps1', '.psm1', '.psd1'].includes(ext)) {
-    return {
-      selectedAlias: pick(['powershell', 'pwsh', 'security'], 'base'),
-      reason: 'PowerShell file: using a configured PowerShell/security template if available, otherwise base.',
-    }
-  }
   if (['.exe', '.dll', '.bat', '.cmd', '.msi', '.scr', '.com'].includes(ext)) {
     return {
       selectedAlias: pick(['wine', 'windows', 'windows-analysis', 'security'], 'base'),
@@ -665,7 +654,6 @@ function deriveDefaultCommand(relativePath: string, templateKind: 'wine' | 'defa
     '  *.php) run_or_explain php "$target" ;;',
     '  *.lua) run_or_explain lua "$target" ;;',
     '  *.jar) run_with_display java -jar "$target" ;;',
-    '  *.ps1) run_or_explain pwsh -File "$target" ;;',
     '  *.dll|*.msi|*.exe|*.scr|*.com|*.bat|*.cmd)',
     '    if [ "$SAFETEST_TEMPLATE_KIND" = "wine" ] && command -v wine >/dev/null 2>&1; then',
     '      case "$lower" in',

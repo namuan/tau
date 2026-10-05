@@ -267,7 +267,7 @@ function _buildToolSpecs(
     ) {
       continue
     }
-    // Skip duplicates — e.g. Bash + PowerShell both map to 'shell'
+    // Skip duplicate mapped tool names.
     if (seen.has(kiroName)) continue
     seen.add(kiroName)
     const schema = sanitizeSchemaForLane(
@@ -357,18 +357,9 @@ function _buildKiroToolSelectionGuide(
     pick('NotebookEdit', 'edit Jupyter notebook cells'),
   ))
 
-  const shellEntries: string[] = []
-  if (preferredShellToolName && toolNames.has(preferredShellToolName)) {
-    const shellDescription = preferredShellToolName === 'PowerShell'
-      ? 'run Windows shell and git commands'
-      : 'run shell and git commands'
-    shellEntries.push(`${preferredShellToolName} (${shellDescription})`)
-  } else {
-    shellEntries.push(...collect(
-      pick('Bash', 'run shell and git commands'),
-      pick('PowerShell', 'run Windows shell and git commands'),
-    ))
-  }
+  const shellEntries = collect(
+    pick('Bash', 'run shell and git commands'),
+  )
   shellEntries.push(...collect(
     pick('TaskOutput', 'read background task output'),
     pick('TaskStop', 'stop a background task'),
@@ -427,12 +418,8 @@ function _normalizeKiroToolDescription(
 
   if (kiroName !== 'shell') return resolved
 
-  if (claudexName === 'PowerShell') {
-    return `${resolved}\nUse Windows PowerShell syntax for commands.`
-  }
-
   if (claudexName === 'Bash') {
-    return `${resolved}\nUse POSIX/bash syntax for commands. Do not use PowerShell cmdlets.`
+    return `${resolved}\nUse POSIX/bash syntax for commands.`
   }
 
   return resolved

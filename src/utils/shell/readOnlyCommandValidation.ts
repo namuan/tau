@@ -1,5 +1,5 @@
 /**
- * Shared command validation maps for shell tools (BashTool, PowerShellTool, etc.).
+ * Shared command validation maps for shell commands.
  *
  * Exports complete command configuration maps that any shell tool can import:
  * - GIT_READ_ONLY_COMMANDS: all git subcommands with safe flags and callbacks

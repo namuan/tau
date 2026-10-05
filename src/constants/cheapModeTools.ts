@@ -26,7 +26,7 @@ import { EVAL_TOOL_NAME } from '../tools/EvalTool/constants.js'
  * Core tool names kept in cheap power mode. Everything else — optional
  * prebuilt tools, agents, skills, and the auxiliary built-ins — is
  * dropped so the request stays minimal. Conditional availability (embedded
- * search, todo v2, PowerShell platform gate) is handled upstream by
+ * search and todo v2) is handled upstream by
  * getAllBaseTools(); this set only needs to name the allowed core.
  *
  * Shared by getTools() (tools.ts) and mergeAndFilterTools() (toolPool.ts) so

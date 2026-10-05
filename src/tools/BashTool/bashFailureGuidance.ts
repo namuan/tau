@@ -23,10 +23,8 @@ const FAILURE_PATTERNS: FailurePattern[] = [
     // being used by another process") and would be misclassified.
     pattern: /\b(device or resource busy|resource busy or locked|text file busy|EBUSY|ETXTBSY|being used by another process|EPERM: operation not permitted, (?:unlink|rename|rmdir))\b/i,
     reason: 'The target file, directory, or resource is held by a running process.',
-    guidance: platform =>
-      platform === 'windows'
-        ? 'Find the specific process holding it before retrying: powershell.exe -Command "Get-NetTCPConnection -LocalPort <port>" for a busy port, or tasklist //FI "PID eq <pid>" (double slashes — Git Bash mangles single-slash flags); Git Bash has no lsof/fuser. Then stop only that PID: kill <PID> or powershell.exe -Command "Stop-Process -Id <PID> -Force" — never kill every process of an image name. Prefer starting long-running processes with run_in_background so they stay tracked and stoppable by task ID.'
-        : 'Find the specific process holding it before retrying: lsof <path> or fuser <path>; for a busy port, lsof -i :<port> or fuser <port>/tcp. Then stop only that PID with kill <PID> — never kill every process of an image name (no broad killall/pkill). Prefer starting long-running processes with run_in_background so they stay tracked and stoppable by task ID.',
+    guidance:
+      'Find the specific process holding it before retrying: lsof <path> or fuser <path>; for a busy port, lsof -i :<port> or fuser <port>/tcp. Then stop only that PID with kill <PID> — never kill every process of an image name (no broad killall/pkill). Prefer starting long-running processes with run_in_background so they stay tracked and stoppable by task ID.',
   },
   {
     pattern: /\bNo FileSystem for scheme\s*["']?C["']?|(?:CreateFile|stat|open|access).*?\bC:[\\/]|invalid (?:path|volume specification).*?\bC:[\\/]/i,
@@ -182,7 +180,6 @@ const CONFIG_IN_CWD_TOOLS_REGEX =
 // tool that can never exist there.
 const WINDOWS_ONLY_TOOLS_REGEX =
   /(^|[\s;&|(])(tasklist|taskkill|ipconfig|findstr|robocopy|xcopy|schtasks|wmic|icacls|driverquery)(\.exe)?\b/i
-const POSIX_ONLY_TOOLS_REGEX = /(^|[\s;&|(])(lsof|fuser)\b/i
 const REMOTE_PATH_BOUNDARY_REGEX =
   /(^|[\s;&|(])(?:docker(?:\s+compose)?|docker-compose|podman|nerdctl)\s+(?:exec|run|cp)\b|(^|[\s;&|(])(?:kubectl|oc)\b[^;&|\n]*\b(?:exec|cp)\b|(^|[\s;&|(])(?:ssh|scp|sftp|rsync|wsl|adb|hadoop|hdfs)\b/i
 
@@ -192,12 +189,6 @@ function commandContextGuidance(command: string, platform: Platform): string[] {
   if (platform !== 'windows' && WINDOWS_ONLY_TOOLS_REGEX.test(command)) {
     hints.push(
       'This command uses Windows-only tools that do not exist on this host. Use the native equivalents: ps aux / kill <PID> (processes), lsof -i :<port> (ports), ip addr or ifconfig (network), grep (search), cp -r or rsync (copy), chmod/chown (permissions), cron (scheduling).',
-    )
-  }
-
-  if (platform === 'windows' && POSIX_ONLY_TOOLS_REGEX.test(command)) {
-    hints.push(
-      'lsof and fuser are not available in Git Bash. Use powershell.exe -Command "Get-NetTCPConnection -LocalPort <port>" for ports or "Get-Process -Id <pid>" for processes, then kill <PID> or Stop-Process -Id <PID>.',
     )
   }
 

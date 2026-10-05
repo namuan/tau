@@ -6,7 +6,7 @@ export const DESCRIPTION =
 export const PTY_TOOL_PROMPT = `Run a command inside a pseudoterminal (PTY). Use this when a command requires a real TTY — e.g. full-screen TUIs (top, htop, vim opened non-interactively for one-shot ops), REPLs, interactive installers, or programs that detect "is a tty" and change behavior.
 
 When NOT to use this:
-- Plain non-interactive commands. Use Bash (or PowerShell on Windows) instead — those are faster and more featureful.
+- Plain non-interactive commands. Use Bash instead — it is faster and more featureful.
 - Long-running daemons / dev servers. The PTY waits for the shell to exit; daemons never exit on their own. Use BashTool's background mode instead.
 
 Inputs:

@@ -386,7 +386,6 @@ export function createSkillCommand({
             },
           },
         `/${skillName}`,
-        shell,
       )
 
       return [{ type: 'text', text: finalContent }]

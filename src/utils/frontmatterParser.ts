@@ -51,9 +51,7 @@ export type FrontmatterData = {
   // Uses the same format as AGENTS.md path frontmatter
   paths?: string | string[] | null
   // Shell to use for !`cmd` and ```! blocks in skill/command .md content.
-  // 'bash' (default) or 'powershell'. File-scoped — applies to all !-blocks.
-  // Never consults settings.defaultShell: skills are portable across platforms,
-  // so the author picks the shell, not the reader. See docs/design/ps-shell-selection.md §5.3.
+  // File-scoped — applies to all !-blocks.
   shell?: string | null
   [key: string]: unknown
 }
@@ -332,9 +330,9 @@ export function parseBooleanFrontmatter(value: unknown): boolean {
 /**
  * Shell values accepted in `shell:` frontmatter for .md `!`-block execution.
  */
-export type FrontmatterShell = 'bash' | 'powershell'
+export type FrontmatterShell = 'bash'
 
-const FRONTMATTER_SHELLS: readonly FrontmatterShell[] = ['bash', 'powershell']
+const FRONTMATTER_SHELLS: readonly FrontmatterShell[] = ['bash']
 
 /**
  * Parse and validate the `shell:` frontmatter field.

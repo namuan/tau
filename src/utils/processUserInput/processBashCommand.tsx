@@ -10,8 +10,6 @@ import { logEvent } from '../../services/analytics/index.js';
 import { errorMessage, ShellError } from '../errors.js';
 import { createHiddenBashMessage } from '../hiddenBashMessage.js';
 import { createSyntheticUserCaveatMessage, createUserInterruptionMessage, createUserMessage, prepareUserContent } from '../messages.js';
-import { resolveDefaultShell } from '../shell/resolveDefaultShell.js';
-import { isPowerShellToolEnabled } from '../shell/shellToolUtils.js';
 import { processToolResultBlock } from '../toolResultStorage.js';
 import { escapeXml } from '../xml.js';
 import type { ProcessUserInputContext } from './processUserInput.js';
@@ -24,15 +22,7 @@ export async function processBashCommand(inputString: string, precedingInputBloc
   messages: (UserMessage | AttachmentMessage | SystemMessage)[];
   shouldQuery: boolean;
 }> {
-  // Shell routing (docs/design/ps-shell-selection.md §5.2): consult
-  // defaultShell, fall back to bash. isPowerShellToolEnabled() applies the
-  // same platform + env-var gate as tools.ts so input-box routing matches
-  // tool-list visibility. Computed up front so telemetry records the
-  // actual shell, not the raw setting.
-  const usePowerShell = isPowerShellToolEnabled() && resolveDefaultShell() === 'powershell';
-  logEvent('tengu_input_bash', {
-    powershell: usePowerShell
-  });
+  logEvent('tengu_input_bash', {});
   const userMessage = createUserMessage({
     content: prepareUserContent({
       inputString: `<bash-input>${inputString}</bash-input>`,
@@ -82,27 +72,11 @@ export async function processBashCommand(inputString: string, precedingInputBloc
       });
     };
 
-    // User-initiated `!` commands run outside sandbox. Both shell tools honor
-    // dangerouslyDisableSandbox (checked against areUnsandboxedCommandsAllowed()
-    // in shouldUseSandbox.ts). PS sandbox is Linux/macOS/WSL2 only — on Windows
-    // native, shouldUseSandbox() returns false regardless (unsupported platform).
-    // Lazy-require PowerShellTool so its ~300KB chunk only loads when the
-    // user has actually selected the powershell default shell.
-    type PSMod = typeof import('src/tools/PowerShellTool/PowerShellTool.js');
-    let PowerShellTool: PSMod['PowerShellTool'] | null = null;
-    if (usePowerShell) {
-      /* eslint-disable @typescript-eslint/no-require-imports */
-      PowerShellTool = (require('src/tools/PowerShellTool/PowerShellTool.js') as PSMod).PowerShellTool;
-      /* eslint-enable @typescript-eslint/no-require-imports */
-    }
-    const shellTool = PowerShellTool ?? BashTool;
-    const response = PowerShellTool ? await PowerShellTool.call({
-      command: inputString,
-      dangerouslyDisableSandbox: true
-    }, bashModeContext, undefined, undefined, onProgress) : await BashTool.call({
+    const response = await BashTool.call({
       command: inputString,
       dangerouslyDisableSandbox: true
     }, bashModeContext, undefined, undefined, onProgress);
+    const shellTool = BashTool;
     const data = response.data;
     if (!data) {
       throw new Error('No result received from shell command');

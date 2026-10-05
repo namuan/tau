@@ -33,7 +33,6 @@ import type {
 } from '../types.js'
 import { OPENAI_COMPAT_TOOL_REGISTRY, selectEditToolSet } from './tools.js'
 import { getCompatShellDescription } from './shell_descriptions.js'
-import { filterToSingleShell } from './single_shell.js'
 import { recordProviderRateLimits } from '../../services/api/providerRateLimits.js'
 import { selectOpenAICompatToolsForRequest } from './lazy_tools.js'
 import {
@@ -80,7 +79,6 @@ import {
   isGeminiOnOpenRouter,
 } from './or_gemini_cache.js'
 import { getPlatform } from '../../utils/platform.js'
-import { getPowerShellEdition } from '../../utils/shell/powershellDetection.js'
 import {
   appendStrictParamsHint,
   buildOpenAICompatToolUsageRules,
@@ -545,34 +543,21 @@ export class OpenAICompatLane implements Lane {
     const transformerForTools = getTransformer(provider as ProviderId)
     const perModelFilteredTools = transformerForTools.filterTools?.(model, tools) ?? tools
 
-    // Drop the non-preferred shell when BOTH Bash and PowerShell are
-    // exposed (Windows + ant-default or CLAUDE_CODE_USE_POWERSHELL_TOOL=1
-    // + git-bash). Frontier lanes handle two shells fine; weak compat
-    // models routinely pick the wrong one and emit cross-shell syntax,
-    // so the lane picks for them. See single_shell.ts for selection.
     const filteredTools = selectOpenAICompatToolsForRequest(
-      filterToSingleShell(perModelFilteredTools),
+      perModelFilteredTools,
       messages,
       sessionId,
       provider,
     )
 
-    // Resolve the PowerShell edition once per request (memoized in
-    // powershellDetection.ts; subsequent requests hit the cache). We
-    // need it sync for shell-description rendering — `await` here, NOT
-    // inside buildOpenAITools.
-    const psEdition = await getPowerShellEdition()
-
     // Tool conversion → OpenAI function tools with per-provider schema
     // cleanup (strip $schema / $id / additionalProperties / strict etc.).
     // Every function tool gets the STRICT PARAMETERS description hint,
-    // plus function.strict: true when the provider honors it. Bash /
-    // PowerShell tool descriptions may be replaced with compact
-    // example-driven versions for weak compat-lane models — see
-    // shell_descriptions.ts.
+    // plus function.strict: true when the provider honors it. Bash
+    // descriptions may be replaced with compact example-driven versions
+    // for weak compat-lane models — see shell_descriptions.ts.
     const buildToolsCtx: BuildToolsCtx = {
       platform: getPlatform() === 'windows' ? 'win32' : (process.platform),
-      psEdition,
     }
     const builtTools = buildOpenAITools(filteredTools, provider, model, buildToolsCtx)
 
@@ -3566,7 +3551,6 @@ function applyProviderResponseQuirks(chunk: any, provider: ProviderType): any {
 
 interface BuildToolsCtx {
   platform: NodeJS.Platform
-  psEdition: 'desktop' | 'core' | null
 }
 
 function buildOpenAITools(
@@ -3595,16 +3579,13 @@ function buildOpenAITools(
       model,
     )
 
-    // Shell-description override path: replaces caller's verbose
-    // frontier-tier description with a compact, example-driven version
-    // for Bash / PowerShell so weak compat-lane models stop emitting
-    // cross-shell syntax. The transformer can opt in/out per model;
-    // the default (used when the transformer doesn't override) is the
-    // shared OpenCode-style description from shell_descriptions.ts.
-    const isShellTool = t.name === 'Bash' || t.name === 'PowerShell'
-    const customShellDesc = isShellTool
-      ? transformer.overrideShellToolDescription?.(t.name as 'Bash' | 'PowerShell', model, ctx)
-        ?? getCompatShellDescription(t.name, ctx)
+    // Shell-description override path: replaces the Bash description with a
+    // compact, example-driven version for weak compat-lane models. The
+    // transformer can opt in/out per model; the default is the shared
+    // description from shell_descriptions.ts.
+    const customShellDesc = t.name === 'Bash'
+      ? transformer.overrideShellToolDescription?.('Bash', model, ctx)
+        ?? getCompatShellDescription('Bash', ctx)
       : undefined
     const baseDescription = customShellDesc ?? t.description ?? ''
 

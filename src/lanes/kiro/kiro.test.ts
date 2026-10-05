@@ -339,15 +339,15 @@ function main(): void {
     assert(!('required' in nestedPayload), 'expected nested empty required[] stripped')
   })
 
-  test('maps native shell tool_use blocks back to the preferred local shell tool', () => {
-    const preferredShellToolName = resolvePreferredKiroShellToolName(['Bash', 'PowerShell']) ?? 'Bash'
+  test('maps native shell tool_use blocks back to Bash', () => {
+    const preferredShellToolName = resolvePreferredKiroShellToolName(['Bash']) ?? 'Bash'
     const { state } = createHandlerState(preferredShellToolName)
     const emitted = _handleKiroEvent({
       eventType: 'toolUseEvent',
       payload: {
         toolUseId: 'toolu_shell',
         name: 'shell',
-        input: '{"command":"Get-ChildItem"}',
+        input: '{"command":"git status"}',
       },
     }, state)
 
@@ -434,7 +434,7 @@ function main(): void {
     assert(state.toolBlocks.size === 0, 'expected tool block state to be cleared after finalization')
   })
 
-  test('adds shell syntax guidance that matches the chosen local shell backend', () => {
+  test('adds Bash syntax guidance to the Kiro shell tool', () => {
     const payload = buildKiroPayload({
       model: 'deepseek-3.2',
       system: '',
@@ -449,26 +449,12 @@ function main(): void {
             required: ['command'],
           },
         },
-        {
-          name: 'PowerShell',
-          description: 'Run PowerShell command',
-          input_schema: {
-            type: 'object',
-            properties: { command: { type: 'string' } },
-            required: ['command'],
-          },
-        },
       ],
     })
 
     const tool = payload.conversationState.currentMessage.userInputMessage.userInputMessageContext?.tools?.[0]
     assert(!!tool, 'expected shell tool spec')
-    const preferredShellToolName = resolvePreferredKiroShellToolName(['Bash', 'PowerShell']) ?? 'Bash'
-    if (preferredShellToolName === 'PowerShell') {
-      assert(tool?.toolSpecification.description.includes('Use Windows PowerShell syntax'), 'expected PowerShell syntax guidance')
-    } else {
-      assert(tool?.toolSpecification.description.includes('Use POSIX/bash syntax'), 'expected Bash syntax guidance')
-    }
+    assert(tool?.toolSpecification.description.includes('Use POSIX/bash syntax'), 'expected Bash syntax guidance')
   })
 
   test('adds a Kiro tool selection guide for the actual session tool pool', () => {
@@ -478,8 +464,8 @@ function main(): void {
       messages: [{ role: 'user', content: 'Inspect the repo' }],
       tools: [
         {
-          name: 'PowerShell',
-          description: 'Run PowerShell command',
+          name: 'Bash',
+          description: 'Run shell command',
           input_schema: {
             type: 'object',
             properties: { command: { type: 'string' } },
@@ -538,13 +524,12 @@ function main(): void {
 
     const content = payload.conversationState.currentMessage.userInputMessage.content
     assert(content.includes('<tool_selection_guide>'), 'expected tool selection guide in prompt')
-    assert(content.includes('PowerShell (run Windows shell and git commands)'), 'expected preferred shell guidance')
+    assert(content.includes('Bash (run shell and git commands)'), 'expected shell guidance')
     assert(content.includes('Read (read files)'), 'expected file tool guidance')
     assert(content.includes('Edit (modify existing files in place)'), 'expected edit guidance')
     assert(content.includes('EnterPlanMode (switch into planning mode)'), 'expected planning guidance')
     assert(content.includes('Agent (launch a subagent)'), 'expected agent guidance')
     assert(content.includes('only describe rate limiting when the result explicitly says 429'), 'expected subagent rate-limit guard')
-    assert(content.includes('ListMcpResourcesTool (list MCP resources)'), 'expected MCP guidance')
     assert(content.includes('Repo rules'), 'expected original system prompt preserved')
   })
 

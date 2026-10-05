@@ -1,6 +1,6 @@
 const NIM_FAST_TOOL_ALLOWLIST: ReadonlySet<string> = new Set([
   // Shell / filesystem / search / web.
-  'Bash', 'PowerShell',
+  'Bash',
   'Read', 'Write', 'Edit',
   'Grep', 'Glob',
   'WebSearch', 'WebFetch',

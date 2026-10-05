@@ -151,7 +151,7 @@ export function getBashSyntaxCorrectionHints(
     /\$env:[A-Za-z_][A-Za-z0-9_]*/.test(command)
   ) {
     hints.push(
-      'This looks like PowerShell syntax. Use the PowerShell tool, or rewrite it as POSIX/Bash syntax.',
+      'This looks like PowerShell syntax. Rewrite it as POSIX/Bash syntax.'
     )
   }
 

@@ -2,7 +2,6 @@ import { randomBytes } from 'node:crypto'
 import type { AnthropicContentBlock, AnthropicStreamEvent } from '../../services/api/providers/base_provider.js'
 import type { LaneProviderCallParams, NormalizedUsage } from '../types.js'
 import { openCodeRouteFor } from './opencode_anthropic_route.js'
-import { filterToSingleShell } from './single_shell.js'
 
 export function isOpencodeAnonymousModelId(id: string): boolean {
   const normalized = id.toLowerCase()
@@ -43,9 +42,7 @@ export async function* streamOpenCodeZen(
   params: LaneProviderCallParams,
   send: (params: LaneProviderCallParams) => AsyncGenerator<AnthropicStreamEvent, NormalizedUsage>,
 ): AsyncGenerator<AnthropicStreamEvent, NormalizedUsage> {
-  // Preserve the chat route's shell selection before Bash becomes `bash`.
-  const tools = openCodeRouteFor('opencode', params.model) === 'chat'
-    ? filterToSingleShell(params.tools) : params.tools
+  const tools = params.tools
   const used = new Set(tools.map(tool => tool.name))
   const names = new Map<string, string>()
   const originals = new Map<string, string>()

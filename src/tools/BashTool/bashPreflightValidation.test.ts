@@ -839,14 +839,6 @@ async function main(): Promise<void> {
       )
     })
 
-    await test('anchorCommandToDir rewrites a script arg to a native absolute path (PowerShell)', async () => {
-      const out = anchorCommandToDir('python app.py', 'C:\\Workspace\\proj', 'powershell', 'windows')
-      assert(
-        out === `python 'C:\\Workspace\\proj\\app.py'`,
-        `expected native absolute file arg, got: ${out}`,
-      )
-    })
-
     await test('anchorCommandToDir quotes a path containing spaces', async () => {
       const out = anchorCommandToDir('node server.js', '/workspace/my proj', 'bash', 'linux')
       assert(
@@ -897,22 +889,9 @@ async function main(): Promise<void> {
       )
     })
 
-    await test('anchorCommandToDir wraps a no-file-arg command with Push/Pop-Location (PowerShell)', async () => {
-      const out = anchorCommandToDir('docker compose up', 'C:\\Workspace\\TP1', 'powershell', 'windows')
-      assert(
-        out === `Push-Location -LiteralPath 'C:\\Workspace\\TP1'; docker compose up; Pop-Location`,
-        `expected Push/Pop-Location wrap, got: ${out}`,
-      )
-    })
-
-    await test('wrapWithDirPrefix never drifts the session cwd (subshell / Push-Pop)', async () => {
+    await test('wrapWithDirPrefix never drifts the session cwd', async () => {
       const bash = wrapWithDirPrefix('npm run build', '/workspace/app', 'bash', 'linux')
       assert(bash === `(cd '/workspace/app' && npm run build)`, `bash wrap wrong: ${bash}`)
-      const ps = wrapWithDirPrefix('npm run build', 'C:\\Workspace\\app', 'powershell', 'windows')
-      assert(
-        ps === `Push-Location -LiteralPath 'C:\\Workspace\\app'; npm run build; Pop-Location`,
-        `powershell wrap wrong: ${ps}`,
-      )
     })
 
     // --- Cache: remember specific-file targets, never sticky compose ----------

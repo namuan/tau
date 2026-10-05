@@ -32,7 +32,7 @@ if (process.env.CLAUDE_CODE_REMOTE === 'true') {
 }
 
 // Harness-science L0 ablation baseline. Inlined here (not init.ts) because
-// BashTool/AgentTool/PowerShellTool capture DISABLE_BACKGROUND_TASKS into
+// BashTool/AgentTool capture DISABLE_BACKGROUND_TASKS into
 // module-level consts at import time — init() runs too late. feature() gate
 // DCEs this entire block from external builds.
 // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
