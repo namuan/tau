@@ -175,7 +175,7 @@ await test('normalizes a learned model’s tool schemas in place', () => {
         properties: {
           description: { type: 'string' },
           prompt: { type: 'string' },
-          isolation: { type: 'string', enum: ['worktree', 'remote'] },
+          isolation: { type: 'string', enum: ['worktree'] }
         },
         required: ['description', 'prompt'],
       },

@@ -62,7 +62,7 @@ const AGENT_TOOL: ProviderTool = {
     properties: {
       description: { type: 'string' },
       prompt: { type: 'string' },
-      isolation: { type: 'string', enum: ['worktree', 'remote'] },
+      isolation: { type: 'string', enum: ['worktree'] },
       model: { type: 'string' },
       subagent_type: { type: 'string' },
     },
