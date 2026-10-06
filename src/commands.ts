@@ -43,8 +43,7 @@ import releaseNotes from './commands/release-notes/index.js'
 import rename from './commands/rename/index.js'
 import report from './commands/report/index.js'
 import resume from './commands/resume/index.js'
-import review, { ultrareview } from './commands/review.js'
-import session from './commands/session/index.js'
+import review from './commands/review.js'
 import share from './commands/share/index.js'
 import skills from './commands/skills/index.js'
 import status from './commands/status/index.js'
@@ -83,11 +82,6 @@ const workflowsCmd = feature('WORKFLOW_SCRIPTS')
       require('./commands/workflows/index.js') as typeof import('./commands/workflows/index.js')
     ).default
   : null
-const webCmd = feature('CCR_REMOTE_SETUP')
-  ? (
-      require('./commands/remote-setup/index.js') as typeof import('./commands/remote-setup/index.js')
-    ).default
-  : null
 const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (
       require('./services/skillSearch/localSearch.js') as typeof import('./services/skillSearch/localSearch.js')
@@ -95,9 +89,6 @@ const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
   : null
 const subscribePr = feature('KAIROS_GITHUB_WEBHOOKS')
   ? require('./commands/subscribe-pr.js').default
-  : null
-const ultraplan = feature('ULTRAPLAN')
-  ? require('./commands/ultraplan.js').default
   : null
 const torch = feature('TORCH') ? require('./commands/torch.js').default : null
 const peersCmd = feature('UDS_INBOX')
@@ -164,7 +155,6 @@ import models from './commands/models/index.js'
 import surf from './commands/surf/index.js'
 import tag from './commands/tag/index.js'
 import outputStyle from './commands/output-style/index.js'
-import remoteEnv from './commands/remote-env/index.js'
 import upgrade from './commands/upgrade/index.js'
 import {
   extraUsage,
@@ -229,7 +219,6 @@ export const INTERNAL_ONLY_COMMANDS = [
   ...(forceSnip ? [forceSnip] : []),
   mockLimits,
   version,
-  ...(ultraplan ? [ultraplan] : []),
   ...(subscribePr ? [subscribePr] : []),
   resetLimits,
   resetLimitsNonInteractive,
@@ -290,12 +279,10 @@ const COMMANDS = memoize((): Command[] => [
   fallback,
   surf,
   outputStyle,
-  remoteEnv,
   releaseNotes,
   report,
   rename,
   resume,
-  session,
   skills,
   stats,
   statistics,
@@ -308,7 +295,6 @@ const COMMANDS = memoize((): Command[] => [
   theme,
   feedback,
   review,
-  ultrareview,
   rewind,
   tree,
   safetest,
@@ -320,7 +306,6 @@ const COMMANDS = memoize((): Command[] => [
   usage,
   usageReport,
   vim,
-  ...(webCmd ? [webCmd] : []),
   ...(forkCmd ? [forkCmd] : []),
   ...(buddy ? [buddy] : []),
   ...(proactive ? [proactive] : []),
@@ -591,7 +576,6 @@ export const getSlashCommandToolSkills = memoize(
  * 2. Preserving local-only commands in REPL's handleRemoteInit after CCR filters
  */
 export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
-  session, // Shows QR code / URL for remote session
   exit, // Exit the TUI
   clear, // Clear screen
   help, // Show help
