@@ -54,8 +54,6 @@ import type { PromptRequest, PromptResponse } from '../types/hooks.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { PromptInputQueuedCommands } from '../components/PromptInput/PromptInputQueuedCommands.js';
 import { useRemoteSession } from '../hooks/useRemoteSession.js';
-import { useSSHSession } from '../hooks/useSSHSession.js';
-import type { SSHSession } from '../ssh/createSSHSession.js';
 import { SkillImprovementSurvey } from '../components/SkillImprovementSurvey.js';
 import { useSkillImprovementSurvey } from '../hooks/useSkillImprovementSurvey.js';
 import { useMoreRight } from '../moreright/useMoreRight.js';
@@ -511,8 +509,6 @@ export type Props = {
   taskListId?: string;
   // Remote session config for --remote mode (uses CCR as execution engine)
   remoteSessionConfig?: RemoteSessionConfig;
-  // SSH session for `tau ssh` mode (local REPL, remote tools over ssh)
-  sshSession?: SSHSession;
   // Thinking configuration to use when thinking is enabled
   thinkingConfig: ThinkingConfig;
 };
@@ -536,7 +532,6 @@ export function REPL({
   disableSlashCommands = false,
   taskListId,
   remoteSessionConfig,
-  sshSession,
   thinkingConfig
 }: Props): React.ReactNode {
   const isRemoteSession = !!remoteSessionConfig;
@@ -1243,16 +1238,7 @@ export function REPL({
     setInProgressToolUseIDs
   });
 
-  // SSH session hook - manages ssh child process for `tau ssh` mode.
-  const sshRemote = useSSHSession({
-    session: sshSession,
-    setMessages,
-    setIsLoading: setIsExternalLoading,
-    setToolUseConfirmQueue,
-    tools: combinedInitialTools
-  });
-
-  const activeRemote = sshRemote.isRemoteMode ? sshRemote : remoteSession;
+  const activeRemote = remoteSession;
   const [pastedContents, setPastedContents] = useState<Record<number, PastedContent>>({});
   const [submitCount, setSubmitCount] = useState(0);
   // Ref instead of state to avoid triggering React re-renders on every
