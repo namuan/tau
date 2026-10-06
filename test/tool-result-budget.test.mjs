@@ -41,7 +41,6 @@ export function __toolResultBudgetAudit() {
   init_growthbook(); init_powerMode(); init_toolResultStorage(); init_limits(); init_conversationRecovery(); init_QueryEngine();
   return {
     QueryEngine,
-    getContentReplacementCCRWrite,
     dedupeContentReplacementRecords,
     resetGrowthBook, setSessionPowerMode,
     getPersistenceThreshold, getPerMessageBudgetLimit,
@@ -52,11 +51,9 @@ export function __toolResultBudgetAudit() {
     createEmptyContentReplacementStateLike,
     getContentReplacementStateBinding,
     reconstructContentReplacementState, reconstructForSubagentResume,
-    extractTeleportResumeData,
     resetProjectForTesting, setSessionFileForTesting,
-    setInternalEventWriter, createContentReplacementRecorder, flushSessionStorage,
+    createContentReplacementRecorder, flushSessionStorage,
     recordInheritedContentReplacementsForFork,
-    allowsFreshContentReplacements, setRemoteIngressUrlForTesting,
     switchSession,
     getToolResultPath,
     persistToolResult, buildLargeToolResultMessage,
@@ -526,145 +523,6 @@ test('normal parent resumes saved cheap sidechain previews without parent state'
   )
 })
 
-test('teleport transport metadata reaches normal resume replacement state', async () => {
-  resetPolicyEnvironment()
-  audit.setSessionPowerMode('normal')
-  const id = randomUUID()
-  const replacement = '<persisted-output>remote saved preview</persisted-output>'
-  const remoteMessage = {
-    ...userToolResults([{ id, content: 'remote raw output'.repeat(2_000) }]),
-    isSidechain: false,
-  }
-  const sidechainMessage = {
-    ...userToolResults([
-      { id: `side-${randomUUID()}`, content: 'sidechain output' },
-    ]),
-    isSidechain: true,
-  }
-  const entries = [
-    remoteMessage,
-    sidechainMessage,
-    {
-      type: 'content-replacement',
-      sessionId: 'remote-session',
-      replacements: [{ kind: 'tool-result', toolUseId: id, replacement }],
-    },
-    {
-      type: 'content-replacement',
-      sessionId: 'remote-session',
-      agentId: 'side-agent',
-      replacements: [
-        {
-          kind: 'tool-result',
-          toolUseId: 'side-result',
-          replacement: 'sidechain preview',
-        },
-      ],
-    },
-  ]
-
-  const resumedData = audit.extractTeleportResumeData(entries)
-  assert.deepEqual(resumedData.log, [remoteMessage])
-  assert.deepEqual(resumedData.contentReplacements, [
-    { kind: 'tool-result', toolUseId: id, replacement },
-  ])
-
-  const state = audit.provisionContentReplacementState(
-    resumedData.log,
-    resumedData.contentReplacements,
-  )
-  assert.ok(state)
-  assert.equal(state.enabledOutsideCheap, false)
-  const applied = await audit.applyToolResultBudget(resumedData.log, state)
-  assert.equal(applied[0].message.content[0].content, replacement)
-
-  const printSource = readFileSync(resolve('src/cli/print.ts'), 'utf8')
-  assert.match(
-    printSource,
-    /contentReplacements: teleportResult\.contentReplacements/,
-  )
-  const mainSource = readFileSync(resolve('src/main.tsx'), 'utf8')
-  assert.match(
-    mainSource,
-    /contentReplacements: teleportContentReplacements/,
-  )
-
-  const withoutMetadata = audit.extractTeleportResumeData([remoteMessage])
-  assert.deepEqual(withoutMetadata.contentReplacements, [])
-  assert.equal(
-    audit.provisionContentReplacementState(
-      withoutMetadata.log,
-      withoutMetadata.contentReplacements,
-    ),
-    undefined,
-    'normal/v1 fallback must leave historical originals untouched',
-  )
-  audit.setSessionPowerMode('cheap')
-  const cheapFallback = audit.provisionContentReplacementState(
-    withoutMetadata.log,
-    withoutMetadata.contentReplacements,
-  )
-  assert.ok(cheapFallback.seenIds.has(id))
-  assert.equal(cheapFallback.replacements.size, 0)
-  const frozenOriginal = await audit.applyToolResultBudget(
-    withoutMetadata.log,
-    cheapFallback,
-  )
-  assert.equal(JSON.stringify(frozenOriginal), JSON.stringify(withoutMetadata.log))
-})
-
-test('CCR metadata writer round-trips main records and rejects agent scope', async () => {
-  resetPolicyEnvironment()
-  const tempDir = await mkdtemp(join(tmpdir(), 'tau-ccr-replacements-'))
-  const transcriptPath = join(tempDir, 'session.jsonl')
-  const sessionId = randomUUID()
-  const toolUseId = randomUUID()
-  const replacement = '<persisted-output>CCR exact preview</persisted-output>'
-  const records = [{ kind: 'tool-result', toolUseId, replacement }]
-  const writes = []
-  process.env.TEST_ENABLE_SESSION_PERSISTENCE = 'true'
-
-  try {
-    writeFileSync(transcriptPath, '')
-    audit.resetProjectForTesting()
-    audit.switchSession(sessionId)
-    audit.setSessionFileForTesting(transcriptPath)
-    audit.setInternalEventWriter(async (eventType, payload, options) => {
-      writes.push({ eventType, payload, options })
-    })
-    assert.equal(audit.allowsFreshContentReplacements(), true)
-
-    audit.createContentReplacementRecorder()(records)
-    await audit.flushSessionStorage()
-    assert.equal(writes.length, 1)
-    assert.equal(writes[0].eventType, 'transcript')
-    assert.equal(writes[0].payload.type, 'content-replacement')
-    assert.deepEqual(writes[0].payload.replacements, records)
-    assert.equal(writes[0].options, undefined)
-
-    // CCRClient supplies a UUID to opaque payloads that do not have one.
-    const ccrPayload = { ...writes[0].payload, uuid: randomUUID() }
-    const roundTrip = audit.extractTeleportResumeData([ccrPayload])
-    assert.deepEqual(roundTrip.contentReplacements, records)
-
-    const agentEntry = {
-      type: 'content-replacement',
-      sessionId,
-      agentId: 'agent-sidechain',
-      replacements: records,
-    }
-    assert.equal(
-      audit.getContentReplacementCCRWrite(agentEntry),
-      undefined,
-      'agent records must not enter the foreground CCR stream',
-    )
-  } finally {
-    audit.resetProjectForTesting()
-    delete process.env.TEST_ENABLE_SESSION_PERSISTENCE
-    await rm(tempDir, { recursive: true, force: true })
-  }
-})
-
 test('headless fork seeds inherited records once, restamped and deduped', async () => {
   resetPolicyEnvironment()
   audit.setSessionPowerMode('normal')
@@ -739,71 +597,6 @@ test('headless fork seeds inherited records once, restamped and deduped', async 
     audit.resetProjectForTesting()
     delete process.env.TEST_ENABLE_SESSION_PERSISTENCE
     await rm(tempDir, { recursive: true, force: true })
-  }
-})
-
-test('legacy v1 freezes fresh results while preserving stored reapply', async () => {
-  resetPolicyEnvironment()
-  audit.setSessionPowerMode('cheap')
-  process.env.ENABLE_SESSION_PERSISTENCE = 'true'
-  try {
-    audit.resetProjectForTesting()
-    audit.setRemoteIngressUrlForTesting(
-      'https://legacy-session-ingress.invalid',
-    )
-    assert.equal(audit.allowsFreshContentReplacements(), false)
-
-    const freshIds = [randomUUID(), randomUUID(), randomUUID()]
-    const freshMessages = [
-      userToolResults([
-        { id: freshIds[0], content: 'A'.repeat(9_000) },
-        { id: freshIds[1], content: 'B'.repeat(8_500) },
-        { id: freshIds[2], content: 'C'.repeat(8_000) },
-      ]),
-    ]
-    const state = audit.createContentReplacementState(false)
-    let persisted = 0
-    const first = await audit.applyToolResultBudget(
-      freshMessages,
-      state,
-      () => persisted++,
-      undefined,
-      audit.allowsFreshContentReplacements(),
-    )
-    assert.equal(first, freshMessages)
-    assert.equal(persisted, 0)
-    assert.equal(state.replacements.size, 0)
-    for (const id of freshIds) assert.ok(state.seenIds.has(id))
-
-    const storedReplacement =
-      '<persisted-output>v1 previously stored preview</persisted-output>'
-    const storedState = audit.reconstructContentReplacementState(
-      freshMessages,
-      [
-        {
-          kind: 'tool-result',
-          toolUseId: freshIds[0],
-          replacement: storedReplacement,
-        },
-      ],
-      undefined,
-      false,
-    )
-    const reapplied = await audit.applyToolResultBudget(
-      freshMessages,
-      storedState,
-      undefined,
-      undefined,
-      audit.allowsFreshContentReplacements(),
-    )
-    assert.equal(reapplied[0].message.content[0].content, storedReplacement)
-    assert.equal(reapplied[0].message.content[1].content, 'B'.repeat(8_500))
-
-    const querySource = readFileSync(resolve('src/query.ts'), 'utf8')
-    assert.match(querySource, /allowsFreshContentReplacements\(\)/)
-  } finally {
-    audit.resetProjectForTesting()
-    delete process.env.ENABLE_SESSION_PERSISTENCE
   }
 })
 

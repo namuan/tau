@@ -18,13 +18,13 @@ import { isAnalyticsDisabled } from 'src/services/analytics/config.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
 import { initializeAnalyticsGates } from 'src/services/analytics/sink.js';
-import { getOriginalCwd, setAdditionalDirectoriesForClaudeMd, setMainLoopModelOverride, setMainThreadAgentType, setTeleportedSessionInfo } from './bootstrap/state.js';
+import { getOriginalCwd, setAdditionalDirectoriesForClaudeMd, setMainLoopModelOverride, setMainThreadAgentType } from './bootstrap/state.js';
 import { getCommands } from './commands.js';
 import { getOauthConfig } from './constants/oauth.js';
 import { PRODUCT_COMMAND } from './constants/product.js';
 import { getSystemContext, getUserContext } from './context.js';
 import type { StatsStore } from './context/stats.js';
-import { launchInvalidSettingsDialog, launchResumeChooser, launchSnapshotUpdateDialog, launchTeleportRepoMismatchDialog, launchTeleportResumeWrapper } from './dialogLaunchers.js';
+import { launchInvalidSettingsDialog, launchResumeChooser, launchSnapshotUpdateDialog } from './dialogLaunchers.js';
 import { init, initializeTelemetryAfterTrust } from './entrypoints/init.js';
 import { addToHistory } from './history.js';
 import type { Root } from './ink.js';
@@ -34,7 +34,7 @@ import { launchRepl } from './replLauncher.js';
 import { hasGrowthBookEnvOverride, initializeGrowthBook, refreshGrowthBookAfterAuthChange } from './services/analytics/growthbook.js';
 import { type DownloadResult, downloadSessionFiles, type FilesApiConfig, parseFileSpecs } from './services/api/filesApi.js';
 import { prefetchPassesEligibility } from './services/api/referral.js';
-import { isPolicyAllowed, loadPolicyLimits, refreshPolicyLimits, waitForPolicyLimitsToLoad } from './services/policyLimits/index.js';
+import { loadPolicyLimits, refreshPolicyLimits } from './services/policyLimits/index.js';
 import { loadRemoteManagedSettings, refreshRemoteManagedSettings } from './services/remoteManagedSettings/index.js';
 import type { ToolInputJSONSchema } from './Tool.js';
 import { getTools } from './tools.js';
@@ -139,29 +139,25 @@ import { createEmptyAttributionState } from 'src/utils/commitAttribution.js';
 import { countConcurrentSessions, registerSession, updateSessionName } from 'src/utils/concurrentSessions.js';
 import { getCwd } from 'src/utils/cwd.js';
 import { logForDebugging, setHasFormattedOutput } from 'src/utils/debug.js';
-import { errorMessage, getErrnoCode, isENOENT, TeleportOperationError, toError } from 'src/utils/errors.js';
+import { errorMessage, getErrnoCode, isENOENT, toError } from 'src/utils/errors.js';
 import { getFsImplementation, safeResolvePath } from 'src/utils/fsOperations.js';
 import { gracefulShutdown, gracefulShutdownSync } from 'src/utils/gracefulShutdown.js';
 import { setAllHookEventsEnabled } from 'src/utils/hooks/hookEvents.js';
 import { refreshProviderContextWindows } from 'src/utils/model/providerCatalog.js';
 import { peekForStdinData, writeToStderr } from 'src/utils/process.js';
 import { type ProcessedResume, processResumedConversation } from 'src/utils/sessionRestore.js';
-import type { ContentReplacementRecord } from 'src/utils/toolResultStorage.js';
 import { parseSettingSourcesFlag } from 'src/utils/settings/constants.js';
-import { setCwd } from 'src/utils/Shell.js';
 import { plural } from 'src/utils/stringUtils.js';
-import { getInitialMainLoopModel, getIsNonInteractiveSession, getSdkBetas, getSessionId, getUserMsgOptIn, onSessionSwitch, setAllowedSettingSources, setClientType, setCwdState, setFlagSettingsPath, setInitialMainLoopModel, setIsInteractive, setKairosActive, setOriginalCwd, setQuestionPreviewFormat, setSdkBetas, setSessionBypassPermissionsMode, setSessionPersistenceDisabled, setUserMsgOptIn, switchSession } from './bootstrap/state.js';
+import { getInitialMainLoopModel, getIsNonInteractiveSession, getSdkBetas, getSessionId, getUserMsgOptIn, onSessionSwitch, setAllowedSettingSources, setClientType, setCwdState, setFlagSettingsPath, setInitialMainLoopModel, setIsInteractive, setKairosActive, setQuestionPreviewFormat, setSdkBetas, setSessionBypassPermissionsMode, setSessionPersistenceDisabled, setUserMsgOptIn, switchSession } from './bootstrap/state.js';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER') ? require('./utils/permissions/autoModeState.js') as typeof import('./utils/permissions/autoModeState.js') : null;
 
-// TeleportRepoMismatchDialog, TeleportResumeWrapper dynamically imported at call sites
 import { migrateBypassPermissionsAcceptedToSettings } from './migrations/migrateBypassPermissionsAcceptedToSettings.js';
 import { migrateFennecToOpus } from './migrations/migrateFennecToOpus.js';
 import { migrateSonnet1mToSonnet45 } from './migrations/migrateSonnet1mToSonnet45.js';
 import { resetAutoModeOptInForDefaultOffer } from './migrations/resetAutoModeOptInForDefaultOffer.js';
 /* eslint-enable @typescript-eslint/no-require-imports */
-// teleportWithProgress dynamically imported at call site
 import { shouldEnablePromptSuggestion } from './services/PromptSuggestion/promptSuggestion.js';
 import { type AppState, getDefaultAppState, IDLE_SPECULATION_STATE } from './state/AppStateStore.js';
 import { onChangeAppState } from './state/onChangeAppState.js';
@@ -170,10 +166,7 @@ import { asSessionId } from './types/ids.js';
 import { filterAllowedSdkBetas } from './utils/betas.js';
 import { isInBundledMode, isRunningWithBun } from './utils/bundledMode.js';
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js';
-import { filterExistingPaths, getKnownPathsForRepo } from './utils/githubRepoPathMapping.js';
 import { migrateChangelogFromConfig } from './utils/releaseNotes.js';
-import { checkOutTeleportedSessionBranch, processMessagesForTeleportResume, validateGitState, validateSessionRepository } from './utils/teleport.js';
-import { fetchSession } from './utils/teleport/api.js';
 import { shouldEnableThinkingByDefault, type ThinkingConfig } from './utils/thinking.js';
 import { initUser, resetUserCache } from './utils/user.js';
 import { getTmuxInstallInstructions, isTmuxAvailable, parsePRReference } from './utils/worktree.js';
@@ -518,7 +511,6 @@ export async function main() {
   const cliArgs = process.argv.slice(2);
   const hasPrintFlag = cliArgs.includes('-p') || cliArgs.includes('--print');
   const hasInitOnlyFlag = cliArgs.includes('--init-only');
-  const hasSdkUrl = cliArgs.some(arg => arg.startsWith('--sdk-url'));
   trace('Detecting TTY...');
   const hasInteractiveTTY =
     !!process.stdout.isTTY ||
@@ -535,7 +527,7 @@ export async function main() {
     (!!process.env.TERM && process.env.TERM !== 'dumb');
   trace(`hasInteractiveTTY = ${hasInteractiveTTY}`);
 
-  const isNonInteractive = hasPrintFlag || hasInitOnlyFlag || hasSdkUrl || !hasInteractiveTTY;
+  const isNonInteractive = hasPrintFlag || hasInitOnlyFlag || !hasInteractiveTTY;
   trace(`isNonInteractive = ${isNonInteractive}`);
 
   // Stop capturing early input for non-interactive modes
@@ -919,11 +911,6 @@ async function run(): Promise<CommanderCommand> {
       }
     }
 
-    // Extract remote sdk options
-    const sdkUrl = (options as {
-      sdkUrl?: string;
-    }).sdkUrl ?? undefined;
-
     // Allow env var to enable partial messages (used by sandbox gateway for baku)
     const effectiveIncludePartialMessages = includePartialMessages || isEnvTruthy(process.env.CLAUDE_CODE_INCLUDE_PARTIAL_MESSAGES);
 
@@ -933,30 +920,6 @@ async function run(): Promise<CommanderCommand> {
     if (includeHookEvents || isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)) {
       setAllHookEventsEnabled(true);
     }
-
-    // Auto-set input/output formats, verbose mode, and print mode when SDK URL is provided
-    if (sdkUrl) {
-      // If SDK URL is provided, automatically use stream-json formats unless explicitly set
-      if (!inputFormat) {
-        inputFormat = 'stream-json';
-      }
-      if (!outputFormat) {
-        outputFormat = 'stream-json';
-      }
-      // Auto-enable verbose mode unless explicitly disabled or already set
-      if (options.verbose === undefined) {
-        verbose = true;
-      }
-      // Auto-enable print mode unless explicitly disabled
-      if (!options.print) {
-        print = true;
-      }
-    }
-
-    // Extract teleport option
-    const teleport = (options as {
-      teleport?: string | true;
-    }).teleport ?? null;
 
     // Validate session ID if provided
     if (sessionId) {
@@ -968,21 +931,15 @@ async function run(): Promise<CommanderCommand> {
         process.exit(1);
       }
 
-      // When --sdk-url is provided for remote mode, the session ID is a
-      // server-assigned tagged ID (e.g. "session_local_01...") rather than a
-      // UUID. Skip UUID validation and local existence checks in that case.
-      if (!sdkUrl) {
-        const validatedSessionId = validateUuid(sessionId);
-        if (!validatedSessionId) {
-          process.stderr.write(chalk.red('Error: Invalid session ID. Must be a valid UUID.\n'));
-          process.exit(1);
-        }
+      const validatedSessionId = validateUuid(sessionId);
+      if (!validatedSessionId) {
+        process.stderr.write(chalk.red('Error: Invalid session ID. Must be a valid UUID.\n'));
+        process.exit(1);
+      }
 
-        // Check if session ID already exists
-        if (sessionIdExists(validatedSessionId)) {
-          process.stderr.write(chalk.red(`Error: Session ID ${validatedSessionId} is already in use.\n`));
-          process.exit(1);
-        }
+      if (sessionIdExists(validatedSessionId)) {
+        process.stderr.write(chalk.red(`Error: Session ID ${validatedSessionId} is already in use.\n`));
+        process.exit(1);
       }
     }
 
@@ -1163,15 +1120,6 @@ async function run(): Promise<CommanderCommand> {
       // biome-ignore lint/suspicious/noConsole:: intentional console output
       console.error(`Error: --input-format=stream-json requires output-format=stream-json.`);
       process.exit(1);
-    }
-
-    // Validate sdkUrl is only used with appropriate formats (formats are auto-set above)
-    if (sdkUrl) {
-      if (inputFormat !== 'stream-json' || outputFormat !== 'stream-json') {
-        // biome-ignore lint/suspicious/noConsole:: intentional console output
-        console.error(`Error: --sdk-url requires both --input-format=stream-json and --output-format=stream-json.`);
-        process.exit(1);
-      }
     }
 
     // Validate replayUserMessages is only used with stream-json formats
@@ -1806,12 +1754,12 @@ async function run(): Promise<CommanderCommand> {
       // Kick SessionStart hooks now so the subprocess spawn overlaps with
       // print.ts import below. loadInitialMessages
       // joins this at print.ts:4397. Guarded same as loadInitialMessages —
-      // continue/resume/teleport paths don't fire startup hooks (or fire them
+      // continue/resume paths don't fire startup hooks (or fire them
       // conditionally inside the resume branch, where this promise is
       // undefined and the ?? fallback runs). Also skip when setupTrigger is
       // set — those paths run setup hooks first (print.ts:544), and session
       // start hooks must wait until setup completes.
-      const sessionStartHooksPromise = options.continue || options.resume || teleport || setupTrigger ? undefined : processSessionStartHooks('startup');
+      const sessionStartHooksPromise = options.continue || options.resume || setupTrigger ? undefined : processSessionStartHooks('startup');
       // Suppress transient unhandledRejection if this rejects before
       // loadInitialMessages awaits it. Downstream await still observes the
       // rejection — this just prevents the spurious global handler fire.
@@ -1914,8 +1862,6 @@ async function run(): Promise<CommanderCommand> {
         appendSystemPrompt,
         userSpecifiedModel: effectiveModel,
         fallbackModel: userSpecifiedFallbackModel,
-        teleport,
-        sdkUrl,
         replayUserMessages: effectiveReplayUserMessages,
         includePartialMessages: effectiveIncludePartialMessages,
         forkSession: options.forkSession || false,
@@ -2171,7 +2117,7 @@ async function run(): Promise<CommanderCommand> {
         logError(error);
         process.exit(1);
       }
-    } else if (options.resume || options.fromPr || teleport) {
+    } else if (options.resume || options.fromPr) {
       // Handle resume flow - from file (ant-only), session ID, or interactive selector
 
       // Clear stale caches before resuming to ensure fresh file/skill discovery
@@ -2179,8 +2125,6 @@ async function run(): Promise<CommanderCommand> {
         clearSessionCaches
       } = await import('./commands/clear/caches.js');
       clearSessionCaches();
-      let messages: MessageType[] | null = null;
-      let teleportContentReplacements: ContentReplacementRecord[] | undefined = undefined;
       let processedResume: ProcessedResume | undefined = undefined;
       let maybeSessionId = validateUuid(options.resume);
       let searchTerm: string | undefined = undefined;
@@ -2218,91 +2162,6 @@ async function run(): Promise<CommanderCommand> {
         }
       }
 
-      if (teleport) {
-        await waitForPolicyLimitsToLoad();
-        if (!isPolicyAllowed('allow_remote_sessions')) {
-          return await exitWithError(root, "Error: Remote sessions are disabled by your organization's policy.", () => gracefulShutdown(1));
-        }
-      }
-      if (teleport) {
-        if (teleport === true || teleport === '') {
-          // Interactive mode: show task selector and handle resume
-          logEvent('tengu_teleport_interactive_mode', {});
-          logForDebugging('selectAndResumeTeleportTask: Starting teleport flow...');
-          const teleportResult = await launchTeleportResumeWrapper(root);
-          if (!teleportResult) {
-            // User cancelled or error occurred
-            await gracefulShutdown(0);
-            process.exit(0);
-          }
-          const {
-            branchError
-          } = await checkOutTeleportedSessionBranch(teleportResult.branch);
-          messages = processMessagesForTeleportResume(teleportResult.log, branchError);
-          teleportContentReplacements = teleportResult.contentReplacements;
-        } else if (typeof teleport === 'string') {
-          logEvent('tengu_teleport_resume_session', {
-            mode: 'direct' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-          });
-          try {
-            // First, fetch session and validate repository before checking git state
-            const sessionData = await fetchSession(teleport);
-            const repoValidation = await validateSessionRepository(sessionData);
-
-            // Handle repo mismatch or not in repo cases
-            if (repoValidation.status === 'mismatch' || repoValidation.status === 'not_in_repo') {
-              const sessionRepo = repoValidation.sessionRepo;
-              if (sessionRepo) {
-                // Check for known paths
-                const knownPaths = getKnownPathsForRepo(sessionRepo);
-                const existingPaths = await filterExistingPaths(knownPaths);
-                if (existingPaths.length > 0) {
-                  // Show directory switch dialog
-                  const selectedPath = await launchTeleportRepoMismatchDialog(root, {
-                    targetRepo: sessionRepo,
-                    initialPaths: existingPaths
-                  });
-                  if (selectedPath) {
-                    // Change to the selected directory
-                    process.chdir(selectedPath);
-                    setCwd(selectedPath);
-                    setOriginalCwd(selectedPath);
-                  } else {
-                    // User cancelled
-                    await gracefulShutdown(0);
-                  }
-                } else {
-                  // No known paths - show original error
-                  throw new TeleportOperationError(`You must run tau --teleport ${teleport} from a checkout of ${sessionRepo}.`, chalk.red(`You must run tau --teleport ${teleport} from a checkout of ${chalk.bold(sessionRepo)}.\n`));
-                }
-              }
-            } else if (repoValidation.status === 'error') {
-              throw new TeleportOperationError(repoValidation.errorMessage || 'Failed to validate session', chalk.red(`Error: ${repoValidation.errorMessage || 'Failed to validate session'}\n`));
-            }
-            await validateGitState();
-
-            // Use progress UI for teleport
-            const {
-              teleportWithProgress
-            } = await import('./components/TeleportProgress.js');
-            const result = await teleportWithProgress(root, teleport);
-            // Track teleported session for reliability logging
-            setTeleportedSessionInfo({
-              sessionId: teleport
-            });
-            messages = result.messages;
-            teleportContentReplacements = result.contentReplacements;
-          } catch (error) {
-            if (error instanceof TeleportOperationError) {
-              process.stderr.write(error.formattedMessage + '\n');
-            } else {
-              logError(error);
-              process.stderr.write(chalk.red(`Error: ${errorMessage(error)}\n`));
-            }
-            await gracefulShutdown(1);
-          }
-        }
-      }
       if ("external" === 'ant') {
         if (options.resume && typeof options.resume === 'string' && !maybeSessionId) {
           // Check for ccshare URL (e.g. https://go/ccshare/boris-20260311-211036)
@@ -2442,16 +2301,7 @@ async function run(): Promise<CommanderCommand> {
         }
       }
 
-      // If we have a processed resume or teleport messages, render the REPL
-      const resumeData = processedResume ?? (Array.isArray(messages) ? {
-        messages,
-        fileHistorySnapshots: undefined,
-        agentName: undefined,
-        agentColor: undefined as AgentColorName | undefined,
-        restoredAgentDef: mainThreadAgentDefinition,
-        initialState,
-        contentReplacements: teleportContentReplacements
-      } : undefined);
+      const resumeData = processedResume;
       if (resumeData) {
         maybeActivateProactive(options);
         maybeActivateBrief(options);
@@ -2550,10 +2400,6 @@ async function run(): Promise<CommanderCommand> {
   program.addOption(new Option('--teammate-mode <mode>', 'How to spawn teammates: "tmux", "in-process", or "auto"').choices(['auto', 'tmux', 'in-process']).hideHelp());
   program.addOption(new Option('--agent-type <type>', 'Custom agent type for this teammate').hideHelp());
 
-  // Enable SDK URL for all builds but hide from help
-  program.addOption(new Option('--sdk-url <url>', 'Use remote WebSocket endpoint for SDK I/O streaming (only with -p and stream-json format)').hideHelp());
-
-  program.addOption(new Option('--teleport [session]', 'Resume a teleport session, optionally specify session ID').hideHelp());
   if (feature('HARD_FAIL')) {
     program.addOption(new Option('--hard-fail', 'Crash on logError calls instead of silently logging').hideHelp());
   }

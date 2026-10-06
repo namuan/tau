@@ -4,7 +4,6 @@ import { readFile, stat } from 'fs/promises'
 import { dirname } from 'path'
 import { downloadUserSettings } from 'src/services/settingsSync/index.js'
 import { StructuredIO } from 'src/cli/structuredIO.js'
-import { RemoteIO } from 'src/cli/remoteIO.js'
 import {
   type Command,
   formatDescriptionWithSource,
@@ -49,9 +48,7 @@ import {
   notifySessionMetadataChanged,
   setPermissionModeChangedListener,
   type RequiresActionDetails,
-  type SessionExternalMetadata,
 } from 'src/utils/sessionState.js'
-import { externalMetadataToAppState } from 'src/state/onChangeAppState.js'
 import { getInMemoryErrors, logError } from 'src/utils/log.js'
 import {
   writeToStdout,
@@ -108,9 +105,7 @@ import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk'
 import type { PermissionMode as InternalPermissionMode } from 'src/types/permissions.js'
 import { cwd } from 'process'
 import { getCwd } from 'src/utils/cwd.js'
-import { isPolicyAllowed } from 'src/services/policyLimits/index.js'
 import type { CanUseToolFn } from 'src/hooks/useCanUseTool.js'
-import { resolveAndPrepend } from 'src/cli/transports/inboundAttachments.js'
 import { hasPermissionsToUseTool } from 'src/utils/permissions/permissions.js'
 import { safeParseJSON } from 'src/utils/json.js'
 import { createAbortController } from 'src/utils/abortController.js'
@@ -167,10 +162,7 @@ import {
   setSdkAgentProgressSummariesEnabled,
 } from 'src/bootstrap/state.js'
 import { createSyntheticOutputTool } from 'src/tools/SyntheticOutputTool/SyntheticOutputTool.js'
-import { parseSessionIdentifier } from 'src/utils/sessionUrl.js'
 import {
-  hydrateRemoteSession,
-  hydrateFromCCRv2InternalEvents,
   resetSessionFilePointer,
   doesMessageExistInSession,
   findUnresolvedToolUse,
@@ -406,8 +398,6 @@ export async function runHeadless(
     appendSystemPrompt: string | undefined
     userSpecifiedModel: string | undefined
     fallbackModel: string | undefined
-    teleport: string | true | null | undefined
-    sdkUrl: string | undefined
     replayUserMessages: boolean | undefined
     includePartialMessages: boolean | undefined
     forkSession: boolean | undefined
@@ -583,13 +573,11 @@ export async function runHeadless(
     agentSetting: resumedAgentSetting,
   } = await loadInitialMessages(setAppState, {
     continue: options.continue,
-    teleport: options.teleport,
     resume: options.resume,
     resumeSessionAt: options.resumeSessionAt,
     forkSession: options.forkSession,
     outputFormat: options.outputFormat,
     sessionStartHooksPromise: options.sessionStartHooksPromise,
-    restoredWorkerState: structuredIO.restoredWorkerState,
   })
 
   // A fork keeps the fresh startup session ID. Source messages are copied
@@ -681,9 +669,7 @@ export async function runHeadless(
   const hasValidResumeSessionId =
     typeof options.resume === 'string' &&
     (Boolean(validateUuid(options.resume)) || options.resume.endsWith('.jsonl'))
-  const isUsingSdkUrl = Boolean(options.sdkUrl)
-
-  if (!inputPrompt && !hasValidResumeSessionId && !isUsingSdkUrl) {
+  if (!inputPrompt && !hasValidResumeSessionId) {
     process.stderr.write(
       `Error: Input must be provided either through stdin or as a prompt argument when using --print\n`,
     )
@@ -704,10 +690,7 @@ export async function runHeadless(
     appState.toolPermissionContext,
   )
 
-  // When using SDK URL, always use stdio permission prompting to delegate to the SDK
-  const effectivePermissionPromptToolName = options.sdkUrl
-    ? 'stdio'
-    : options.permissionPromptToolName
+  const effectivePermissionPromptToolName = options.permissionPromptToolName
 
   // Callback for when a permission prompt is shown
   const onPermissionPrompt = (details: RequiresActionDetails) => {
@@ -944,7 +927,6 @@ function runHeadlessStreaming(
       run_active: running,
       run_phase: runPhase,
       worker_status: getSessionState(),
-      internal_events_pending: structuredIO.internalEventsPending,
       bg_tasks: bg,
     })
   })
@@ -1670,8 +1652,6 @@ function runHeadlessStreaming(
       return
     } finally {
       runPhase = 'finally_flush'
-      // Flush pending internal events before going idle
-      await structuredIO.flushInternalEvents()
       runPhase = 'finally_post_flush'
       if (!isShuttingDown()) {
         notifySessionStateChanged('idle')
@@ -2623,7 +2603,7 @@ function runHeadlessStreaming(
         mode: 'prompt' as const,
         // file_attachments rides the protobuf catchall from the web composer.
         // Same-ref no-op when absent (no 'file_attachments' key).
-        value: await resolveAndPrepend(message, message.message.content),
+        value: message.message.content,
         uuid: message.uuid,
         priority: message.priority,
       })
@@ -3061,13 +3041,11 @@ async function loadInitialMessages(
   setAppState: (f: (prev: AppState) => AppState) => void,
   options: {
     continue: boolean | undefined
-    teleport: string | true | null | undefined
     resume: string | boolean | undefined
     resumeSessionAt: string | undefined
     forkSession: boolean | undefined
     outputFormat: string | undefined
     sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
-    restoredWorkerState: Promise<SessionExternalMetadata | null>
   },
 ): Promise<LoadInitialMessagesResult> {
   const persistSession = !isSessionPersistenceDisabled()
@@ -3153,122 +3131,36 @@ async function loadInitialMessages(
     }
   }
 
-  // Handle teleport in print mode
-  if (options.teleport) {
-    try {
-      if (!isPolicyAllowed('allow_remote_sessions')) {
-        throw new Error(
-          "Remote sessions are disabled by your organization's policy.",
-        )
-      }
-
-      logEvent('tengu_teleport_print', {})
-
-      if (typeof options.teleport !== 'string') {
-        throw new Error('No session ID provided for teleport')
-      }
-
-      const {
-        checkOutTeleportedSessionBranch,
-        processMessagesForTeleportResume,
-        teleportResumeCodeSession,
-        validateGitState,
-      } = await import('src/utils/teleport.js')
-      await validateGitState()
-      const teleportResult = await teleportResumeCodeSession(options.teleport)
-      const { branchError } = await checkOutTeleportedSessionBranch(
-        teleportResult.branch,
-      )
-      return {
-        messages: processMessagesForTeleportResume(
-          teleportResult.log,
-          branchError,
-        ),
-        contentReplacements: teleportResult.contentReplacements,
-      }
-    } catch (error) {
-      logError(error)
-      gracefulShutdownSync(1)
-      return { messages: [] }
-    }
-  }
-
-  // Handle resume in print mode (accepts session ID or URL)
-  // URLs are [ANT-ONLY]
+  // Handle resume in print mode
   if (options.resume) {
     try {
       logEvent('tengu_resume_print', {})
 
-      // In print mode - we require a valid session ID, JSONL file or URL
-      const parsedSessionId = parseSessionIdentifier(
-        typeof options.resume === 'string' ? options.resume : '',
-      )
-      if (!parsedSessionId) {
-        let errorMessage =
-          'Error: --resume requires a valid session ID when used with --print. Usage: tau -p --resume <session-id>'
-        if (typeof options.resume === 'string') {
-          errorMessage += `. Session IDs must be in UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000). Provided value "${options.resume}" is not a valid UUID`
-        }
-        emitLoadError(errorMessage, options.outputFormat)
+      const resumeValue = typeof options.resume === 'string' ? options.resume : ''
+      const jsonlFile = resumeValue.toLowerCase().endsWith('.jsonl')
+      const resumeSessionId = validateUuid(resumeValue) ?? (jsonlFile ? randomUUID() : null)
+      if (!resumeSessionId) {
+        emitLoadError(
+          `Error: --resume requires a valid session ID or JSONL file when used with --print. Usage: tau -p --resume <session-id>`,
+          options.outputFormat,
+        )
         gracefulShutdownSync(1)
         return { messages: [] }
       }
 
-      // Hydrate local transcript from remote before loading
-      if (isEnvTruthy(process.env.CLAUDE_CODE_USE_CCR_V2)) {
-        // Await restore alongside hydration so SSE catchup lands on
-        // restored state, not a fresh default.
-        const [, metadata] = await Promise.all([
-          hydrateFromCCRv2InternalEvents(parsedSessionId.sessionId),
-          options.restoredWorkerState,
-        ])
-        if (metadata) {
-          setAppState(externalMetadataToAppState(metadata))
-          if (typeof metadata.model === 'string') {
-            setMainLoopModelOverride(metadata.model)
-          }
-        }
-      } else if (
-        parsedSessionId.isUrl &&
-        parsedSessionId.ingressUrl &&
-        isEnvTruthy(process.env.ENABLE_SESSION_PERSISTENCE)
-      ) {
-        // v1: fetch session logs from Session Ingress
-        await hydrateRemoteSession(
-          parsedSessionId.sessionId,
-          parsedSessionId.ingressUrl,
-        )
-      }
-
       // Load the conversation with the specified session ID
       const result = await loadConversationForResume(
-        parsedSessionId.sessionId,
-        parsedSessionId.jsonlFile || undefined,
+        resumeSessionId,
+        jsonlFile ? resumeValue : undefined,
       )
 
-      // hydrateFromCCRv2InternalEvents writes an empty transcript file for
-      // fresh sessions (writeFile(sessionFile, '') with zero events), so
-      // loadConversationForResume returns {messages: []} not null. Treat
-      // empty the same as null so SessionStart still fires.
       if (!result || result.messages.length === 0) {
-        // For URL-based or CCR v2 resume, start with empty session (it was hydrated but empty)
-        if (
-          parsedSessionId.isUrl ||
-          isEnvTruthy(process.env.CLAUDE_CODE_USE_CCR_V2)
-        ) {
-          // Execute SessionStart hooks for startup since we're starting a new session
-          return {
-            messages: await (options.sessionStartHooksPromise ??
-              processSessionStartHooks('startup')),
-          }
-        } else {
-          emitLoadError(
-            `No conversation found with session ID: ${parsedSessionId.sessionId}`,
-            options.outputFormat,
-          )
-          gracefulShutdownSync(1)
-          return { messages: [] }
-        }
+        emitLoadError(
+          `No conversation found with session ID: ${resumeSessionId}`,
+          options.outputFormat,
+        )
+        gracefulShutdownSync(1)
+        return { messages: [] }
       }
 
       // Handle resumeSessionAt feature
@@ -3369,7 +3261,6 @@ async function loadInitialMessages(
 function getStructuredIO(
   inputPrompt: string | AsyncIterable<string>,
   options: {
-    sdkUrl: string | undefined
     replayUserMessages?: boolean
   },
 ): StructuredIO {
@@ -3396,10 +3287,7 @@ function getStructuredIO(
     inputStream = inputPrompt
   }
 
-  // Use RemoteIO if sdkUrl is provided, otherwise use regular StructuredIO
-  return options.sdkUrl
-    ? new RemoteIO(options.sdkUrl, inputStream, options.replayUserMessages)
-    : new StructuredIO(inputStream, options.replayUserMessages)
+  return new StructuredIO(inputStream, options.replayUserMessages)
 }
 
 /**

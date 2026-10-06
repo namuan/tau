@@ -1695,15 +1695,13 @@ export async function applyToolResultBudget(
   state: ContentReplacementState | undefined,
   writeToTranscript?: (records: ToolResultReplacementRecord[]) => void,
   skipToolNames?: ReadonlySet<string>,
-  allowFreshReplacements = true,
 ): Promise<Message[]> {
   if (!state) return messages
   const result = await enforceToolResultBudget(
     messages,
     state,
     skipToolNames,
-    allowFreshReplacements &&
-      (isCheapPowerMode() || state.enabledOutsideCheap),
+    isCheapPowerMode() || state.enabledOutsideCheap,
   )
   if (result.newlyReplaced.length > 0) {
     writeToTranscript?.(result.newlyReplaced)

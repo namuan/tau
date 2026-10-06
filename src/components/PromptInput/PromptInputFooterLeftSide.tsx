@@ -23,7 +23,6 @@ import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js';
 import { TeamStatus } from '../teams/TeamStatus.js';
 import { isInProcessEnabled } from '../../utils/swarm/backends/registry.js';
 import { useAppState } from 'src/state/AppState.js';
-import { getIsRemoteMode } from '../../bootstrap/state.js';
 import HistorySearchInput from './HistorySearchInput.js';
 import { usePrStatus } from '../../hooks/usePrStatus.js';
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js';
@@ -309,12 +308,10 @@ function ModeIndicator({
   const hasInProcessTeammates = !showSpinnerTree && hasBackgroundTasks && Object.values(tasks).some(t_1 => t_1.type === 'in_process_teammate');
   const hasTeammatePills = hasInProcessTeammates || !showSpinnerTree && isViewingTeammate;
 
-  // In remote mode (`tau assistant`, --teleport) the agent runs elsewhere;
-  // the local permission mode shown here doesn't reflect the agent's state.
   // Rendered before the tasks pill so a long task label
   // doesn't push the mode indicator off-screen.
   const modeLabel = currentMode === 'bypassPermissions' ? 'dangerously skipping permissions activated' : currentMode ? `${permissionModeTitle(currentMode).toLowerCase()} on` : '';
-  const modePart = currentMode && hasActiveMode && !getIsRemoteMode() ? <Text color={getModeColor(currentMode)} key="mode">
+  const modePart = currentMode && hasActiveMode ? <Text color={getModeColor(currentMode)} key="mode">
         {permissionModeSymbol(currentMode)}{' '}
         {modeLabel}
         {shouldShowModeHint && <Text dimColor>

@@ -8,7 +8,6 @@ import type {
   AttributionSnapshotMessage,
   ContextCollapseCommitEntry,
   ContextCollapseSnapshotEntry,
-  Entry,
   LogOption,
   PersistedWorktreeSession,
   SerializedMessage,
@@ -42,7 +41,6 @@ import {
   checkResumeConsistency,
   getLastSessionLog,
   getSessionIdFromLog,
-  isTranscriptMessage,
   isLiteLog,
   loadFullLog,
   loadMessageLogs,
@@ -126,44 +124,6 @@ function migrateLegacyAttachmentTypes(message: Message): Message {
   }
 
   return message
-}
-
-export type TeleportRemoteResponse = {
-  log: Message[]
-  contentReplacements: ContentReplacementRecord[]
-  branch?: string
-}
-
-/**
- * Split the opaque Entry payload returned by both CCR teleport-events and
- * legacy session-ingress. Metadata entries are deliberately not transcript
- * messages, so teleport must collect replacement records before filtering.
- * Agent-scoped records belong to sidechains and are excluded with their
- * sidechain messages.
- */
-export function extractTeleportResumeData(
-  entries: readonly Entry[],
-): Pick<TeleportRemoteResponse, 'log' | 'contentReplacements'> {
-  const log: Message[] = []
-  const contentReplacements: ContentReplacementRecord[] = []
-  for (const entry of entries) {
-    if (isTranscriptMessage(entry)) {
-      if (!entry.isSidechain) log.push(entry)
-      continue
-    }
-    if (entry.type === 'content-replacement' && !entry.agentId) {
-      for (const replacement of entry.replacements) {
-        if (
-          replacement.kind === 'tool-result' &&
-          typeof replacement.toolUseId === 'string' &&
-          typeof replacement.replacement === 'string'
-        ) {
-          contentReplacements.push(replacement)
-        }
-      }
-    }
-  }
-  return { log, contentReplacements }
 }
 
 export type TurnInterruptionState =

@@ -53,7 +53,7 @@ export function onChangeAppState({
   // of sync with the CLI's actual mode.
   //
   // Hooking the diff here means ANY setAppState call that changes the mode
-  // notifies CCR (via notifySessionMetadataChanged → ccrClient.reportMetadata)
+  // notifies registered session metadata listeners
   // and the SDK status stream (via notifyPermissionModeChanged → registered
   // in print.ts). The scattered callsites above need zero changes.
   const prevMode = oldState.toolPermissionContext.mode

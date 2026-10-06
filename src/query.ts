@@ -130,10 +130,7 @@ import {
   applyToolResultBudget,
   provisionCheapContentReplacementStateForQuery,
 } from './utils/toolResultStorage.js'
-import {
-  allowsFreshContentReplacements,
-  createContentReplacementRecorder,
-} from './utils/sessionStorage.js'
+import { createContentReplacementRecorder } from './utils/sessionStorage.js'
 import { handleStopHooks } from './query/stopHooks.js'
 import { buildQueryConfig } from './query/config.js'
 import { productionDeps, type QueryDeps } from './query/deps.js'
@@ -437,7 +434,6 @@ async function* queryLoop(
           .filter(t => !Number.isFinite(t.maxResultSizeChars))
           .map(t => t.name),
       ),
-      allowsFreshContentReplacements(),
     )
 
     // Apply snip before microcompact (both may run — they are not mutually exclusive).
