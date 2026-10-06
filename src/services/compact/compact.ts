@@ -67,10 +67,6 @@ import {
 } from '../../utils/messages.js'
 import { expandPath } from '../../utils/path.js'
 import { getPlan, getPlanFilePath } from '../../utils/plans.js'
-import {
-  isSessionActivityTrackingActive,
-  sendSessionActivitySignal,
-} from '../../utils/sessionActivity.js'
 import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import {
   cleanMessagesForLogging,
@@ -1242,25 +1238,6 @@ async function streamCompactSummary({
     'tengu_compact_cache_prefix',
     true,
   )
-  // Send keep-alive signals during compaction to prevent remote session
-  // WebSocket idle timeouts from dropping bridge connections. Compaction
-  // API calls can take 5-10+ seconds, during which no other messages
-  // flow through the transport — without keep-alives, the server may
-  // close the WebSocket for inactivity.
-  // Two signals: (1) PUT /worker heartbeat via sessionActivity, and
-  // (2) re-emit 'compacting' status so the SDK event stream stays active
-  // and the server doesn't consider the session stale.
-  const activityInterval = isSessionActivityTrackingActive()
-    ? setInterval(
-        (statusSetter?: (status: 'compacting' | null) => void) => {
-          sendSessionActivitySignal()
-          statusSetter?.('compacting')
-        },
-        30_000,
-        context.setSDKStatus,
-      )
-    : undefined
-
   // Progress denominator, shared by both paths so the bar paces identically
   // whether or not cache sharing is in play. ~4 characters per token is the
   // standard rough conversion and only needs to be good enough to pace a bar.
@@ -1284,210 +1261,206 @@ async function streamCompactSummary({
     }
   }
 
-  try {
-    if (promptCacheSharingEnabled) {
-      try {
-        // DO NOT set maxOutputTokens here. The fork piggybacks on the main thread's
-        // prompt cache by sending identical cache-key params (system, tools, model,
-        // messages prefix, thinking config). Setting maxOutputTokens would clamp
-        // budget_tokens via Math.min(budget, maxOutputTokens-1) in claude.ts,
-        // creating a thinking config mismatch that invalidates the cache.
-        // The streaming fallback path (below) can safely set maxOutputTokensOverride
-        // since it doesn't share cache with the main thread.
-        const result = await runForkedAgent({
-          promptMessages: [summaryRequest],
-          cacheSafeParams,
-          canUseTool: createCompactCanUseTool(),
-          querySource: 'compact',
-          forkLabel: 'compact',
-          maxTurns: 1,
-          skipCacheWrite: true,
-          // Pass the compact context's abortController so user Esc aborts the
-          // fork — same signal the streaming fallback uses at
-          // `signal: context.abortController.signal` below.
-          overrides: { abortController: context.abortController },
-          onTextDelta: reportSummaryProgress,
-        })
-        const assistantMsg = getLastAssistantMessage(result.messages)
-        const assistantText = assistantMsg
-          ? getAssistantMessageText(assistantMsg)
-          : null
-        // Guard isApiErrorMessage: query() catches API errors (including
-        // APIUserAbortError on ESC) and yields them as synthetic assistant
-        // messages. Without this check, an aborted compact "succeeds" with
-        // "Request was aborted." as the summary — the text doesn't start with
-        // "API Error" so the caller's startsWithApiErrorPrefix guard misses it.
-        if (assistantMsg && assistantText && !assistantMsg.isApiErrorMessage) {
-          // Skip success logging for PTL error text — it's returned so the
-          // caller's retry loop catches it, but it's not a successful summary.
-          if (!assistantText.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)) {
-            logEvent('tengu_compact_cache_sharing_success', {
-              preCompactTokenCount,
-              outputTokens: result.totalUsage.output_tokens,
-              cacheReadInputTokens: result.totalUsage.cache_read_input_tokens,
-              cacheCreationInputTokens:
-                result.totalUsage.cache_creation_input_tokens,
-              cacheHitRate:
-                result.totalUsage.cache_read_input_tokens > 0
-                  ? result.totalUsage.cache_read_input_tokens /
-                    (result.totalUsage.cache_read_input_tokens +
-                      result.totalUsage.cache_creation_input_tokens +
-                      result.totalUsage.input_tokens)
-                  : 0,
-            })
-          }
-          return assistantMsg
+  if (promptCacheSharingEnabled) {
+    try {
+      // DO NOT set maxOutputTokens here. The fork piggybacks on the main thread's
+      // prompt cache by sending identical cache-key params (system, tools, model,
+      // messages prefix, thinking config). Setting maxOutputTokens would clamp
+      // budget_tokens via Math.min(budget, maxOutputTokens-1) in claude.ts,
+      // creating a thinking config mismatch that invalidates the cache.
+      // The streaming fallback path (below) can safely set maxOutputTokensOverride
+      // since it doesn't share cache with the main thread.
+      const result = await runForkedAgent({
+        promptMessages: [summaryRequest],
+        cacheSafeParams,
+        canUseTool: createCompactCanUseTool(),
+        querySource: 'compact',
+        forkLabel: 'compact',
+        maxTurns: 1,
+        skipCacheWrite: true,
+        // Pass the compact context's abortController so user Esc aborts the
+        // fork — same signal the streaming fallback uses at
+        // `signal: context.abortController.signal` below.
+        overrides: { abortController: context.abortController },
+        onTextDelta: reportSummaryProgress,
+      })
+      const assistantMsg = getLastAssistantMessage(result.messages)
+      const assistantText = assistantMsg
+        ? getAssistantMessageText(assistantMsg)
+        : null
+      // Guard isApiErrorMessage: query() catches API errors (including
+      // APIUserAbortError on ESC) and yields them as synthetic assistant
+      // messages. Without this check, an aborted compact "succeeds" with
+      // "Request was aborted." as the summary — the text doesn't start with
+      // "API Error" so the caller's startsWithApiErrorPrefix guard misses it.
+      if (assistantMsg && assistantText && !assistantMsg.isApiErrorMessage) {
+        // Skip success logging for PTL error text — it's returned so the
+        // caller's retry loop catches it, but it's not a successful summary.
+        if (!assistantText.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)) {
+          logEvent('tengu_compact_cache_sharing_success', {
+            preCompactTokenCount,
+            outputTokens: result.totalUsage.output_tokens,
+            cacheReadInputTokens: result.totalUsage.cache_read_input_tokens,
+            cacheCreationInputTokens:
+              result.totalUsage.cache_creation_input_tokens,
+            cacheHitRate:
+              result.totalUsage.cache_read_input_tokens > 0
+                ? result.totalUsage.cache_read_input_tokens /
+                  (result.totalUsage.cache_read_input_tokens +
+                    result.totalUsage.cache_creation_input_tokens +
+                    result.totalUsage.input_tokens)
+                : 0,
+          })
         }
-        logForDebugging(
-          `Compact cache sharing: no text in response, falling back. Response: ${jsonStringify(assistantMsg)}`,
-          { level: 'warn' },
-        )
-        logEvent('tengu_compact_cache_sharing_fallback', {
-          reason:
-            'no_text_response' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          preCompactTokenCount,
-        })
-      } catch (error) {
-        logError(error)
-        logEvent('tengu_compact_cache_sharing_fallback', {
-          reason:
-            'error' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          preCompactTokenCount,
-        })
+        return assistantMsg
       }
+      logForDebugging(
+        `Compact cache sharing: no text in response, falling back. Response: ${jsonStringify(assistantMsg)}`,
+        { level: 'warn' },
+      )
+      logEvent('tengu_compact_cache_sharing_fallback', {
+        reason:
+          'no_text_response' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        preCompactTokenCount,
+      })
+    } catch (error) {
+      logError(error)
+      logEvent('tengu_compact_cache_sharing_fallback', {
+        reason:
+          'error' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        preCompactTokenCount,
+      })
+    }
+  }
+
+  // Regular streaming path (fallback when cache sharing fails or is disabled)
+  const retryEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_compact_streaming_retry',
+    false,
+  )
+  const maxAttempts = retryEnabled ? MAX_COMPACT_STREAMING_RETRIES : 1
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Reset state for retry
+    let hasStartedStreaming = false
+    let response: AssistantMessage | undefined
+    context.setResponseLength?.(() => 0)
+
+    // Check if tool search is enabled using the main loop's tools list.
+    const useToolSearch = await isToolSearchEnabled(
+      context.options.mainLoopModel,
+      context.options.tools,
+      async () => appState.toolPermissionContext,
+      context.options.agentDefinitions.activeAgents,
+      'compact',
+    )
+
+    const tools: Tool[] = useToolSearch
+      ? [FileReadTool, ToolSearchTool]
+      : [FileReadTool]
+
+    const streamingGen = queryModelWithStreaming({
+      messages: normalizeMessagesForAPI(
+        stripImagesFromMessages(
+          stripReinjectedAttachments([
+            ...getMessagesAfterCompactBoundary(messages),
+            summaryRequest,
+          ]),
+        ),
+        context.options.tools,
+      ),
+      systemPrompt: asSystemPrompt([
+        'You are a helpful AI assistant tasked with summarizing conversations.',
+      ]),
+      thinkingConfig: { type: 'disabled' as const },
+      tools,
+      signal: context.abortController.signal,
+      options: {
+        async getToolPermissionContext() {
+          const appState = context.getAppState()
+          return appState.toolPermissionContext
+        },
+        model: context.options.mainLoopModel,
+        toolChoice: undefined,
+        isNonInteractiveSession: context.options.isNonInteractiveSession,
+        hasAppendSystemPrompt: !!context.options.appendSystemPrompt,
+        maxOutputTokensOverride: Math.min(
+          COMPACT_MAX_OUTPUT_TOKENS,
+          getMaxOutputTokensForModel(context.options.mainLoopModel),
+        ),
+        querySource: 'compact',
+        agents: context.options.agentDefinitions.activeAgents,
+        effortValue: appState.effortValue,
+      },
+    })
+    const streamIter = streamingGen[Symbol.asyncIterator]()
+    let next = await streamIter.next()
+
+    while (!next.done) {
+      const event = next.value
+
+      if (
+        !hasStartedStreaming &&
+        event.type === 'stream_event' &&
+        event.event.type === 'content_block_start' &&
+        event.event.content_block.type === 'text'
+      ) {
+        hasStartedStreaming = true
+        context.setStreamMode?.('responding')
+      }
+
+      if (
+        event.type === 'stream_event' &&
+        event.event.type === 'content_block_delta' &&
+        event.event.delta.type === 'text_delta'
+      ) {
+        const charactersStreamed = event.event.delta.text.length
+        context.setResponseLength?.(length => length + charactersStreamed)
+
+        reportSummaryProgress(charactersStreamed)
+      }
+
+      if (event.type === 'assistant') {
+        response = event
+      }
+
+      next = await streamIter.next()
     }
 
-    // Regular streaming path (fallback when cache sharing fails or is disabled)
-    const retryEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
-      'tengu_compact_streaming_retry',
-      false,
-    )
-    const maxAttempts = retryEnabled ? MAX_COMPACT_STREAMING_RETRIES : 1
+    if (response) {
+      return response
+    }
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      // Reset state for retry
-      let hasStartedStreaming = false
-      let response: AssistantMessage | undefined
-      context.setResponseLength?.(() => 0)
-
-      // Check if tool search is enabled using the main loop's tools list.
-      const useToolSearch = await isToolSearchEnabled(
-        context.options.mainLoopModel,
-        context.options.tools,
-        async () => appState.toolPermissionContext,
-        context.options.agentDefinitions.activeAgents,
-        'compact',
-      )
-
-      const tools: Tool[] = useToolSearch
-        ? [FileReadTool, ToolSearchTool]
-        : [FileReadTool]
-
-      const streamingGen = queryModelWithStreaming({
-        messages: normalizeMessagesForAPI(
-          stripImagesFromMessages(
-            stripReinjectedAttachments([
-              ...getMessagesAfterCompactBoundary(messages),
-              summaryRequest,
-            ]),
-          ),
-          context.options.tools,
-        ),
-        systemPrompt: asSystemPrompt([
-          'You are a helpful AI assistant tasked with summarizing conversations.',
-        ]),
-        thinkingConfig: { type: 'disabled' as const },
-        tools,
-        signal: context.abortController.signal,
-        options: {
-          async getToolPermissionContext() {
-            const appState = context.getAppState()
-            return appState.toolPermissionContext
-          },
-          model: context.options.mainLoopModel,
-          toolChoice: undefined,
-          isNonInteractiveSession: context.options.isNonInteractiveSession,
-          hasAppendSystemPrompt: !!context.options.appendSystemPrompt,
-          maxOutputTokensOverride: Math.min(
-            COMPACT_MAX_OUTPUT_TOKENS,
-            getMaxOutputTokensForModel(context.options.mainLoopModel),
-          ),
-          querySource: 'compact',
-          agents: context.options.agentDefinitions.activeAgents,
-          effortValue: appState.effortValue,
-        },
-      })
-      const streamIter = streamingGen[Symbol.asyncIterator]()
-      let next = await streamIter.next()
-
-      while (!next.done) {
-        const event = next.value
-
-        if (
-          !hasStartedStreaming &&
-          event.type === 'stream_event' &&
-          event.event.type === 'content_block_start' &&
-          event.event.content_block.type === 'text'
-        ) {
-          hasStartedStreaming = true
-          context.setStreamMode?.('responding')
-        }
-
-        if (
-          event.type === 'stream_event' &&
-          event.event.type === 'content_block_delta' &&
-          event.event.delta.type === 'text_delta'
-        ) {
-          const charactersStreamed = event.event.delta.text.length
-          context.setResponseLength?.(length => length + charactersStreamed)
-
-          reportSummaryProgress(charactersStreamed)
-        }
-
-        if (event.type === 'assistant') {
-          response = event
-        }
-
-        next = await streamIter.next()
-      }
-
-      if (response) {
-        return response
-      }
-
-      if (attempt < maxAttempts) {
-        logEvent('tengu_compact_streaming_retry', {
-          attempt,
-          preCompactTokenCount,
-          hasStartedStreaming,
-        })
-        await sleep(getRetryDelay(attempt), context.abortController.signal, {
-          abortError: () => new APIUserAbortError(),
-        })
-        continue
-      }
-
-      logForDebugging(
-        `Compact streaming failed after ${attempt} attempts. hasStartedStreaming=${hasStartedStreaming}`,
-        { level: 'error' },
-      )
-      logEvent('tengu_compact_failed', {
-        reason:
-          'no_streaming_response' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    if (attempt < maxAttempts) {
+      logEvent('tengu_compact_streaming_retry', {
+        attempt,
         preCompactTokenCount,
         hasStartedStreaming,
-        retryEnabled,
-        attempts: attempt,
-        promptCacheSharingEnabled,
       })
-      throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
+      await sleep(getRetryDelay(attempt), context.abortController.signal, {
+        abortError: () => new APIUserAbortError(),
+      })
+      continue
     }
 
-    // This should never be reached due to the throw above, but TypeScript needs it
+    logForDebugging(
+      `Compact streaming failed after ${attempt} attempts. hasStartedStreaming=${hasStartedStreaming}`,
+      { level: 'error' },
+    )
+    logEvent('tengu_compact_failed', {
+      reason:
+        'no_streaming_response' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      preCompactTokenCount,
+      hasStartedStreaming,
+      retryEnabled,
+      attempts: attempt,
+      promptCacheSharingEnabled,
+    })
     throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
-  } finally {
-    clearInterval(activityInterval)
   }
+
+  // This should never be reached due to the throw above, but TypeScript needs it
+  throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
 }
 
 /**

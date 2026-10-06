@@ -775,11 +775,9 @@ export function REPL({
   // This is the single source of truth for "is a local query in flight".
   const isQueryActive = React.useSyncExternalStore(queryGuard.subscribe, queryGuard.getSnapshot);
 
-  // Separate loading flag for operations outside the local query guard:
-  // remote sessions (useRemoteSession) and foregrounded
-  // background tasks (useSessionBackgrounding). These don't route through
+  // Separate loading flag for foregrounded background tasks
+  // (useSessionBackgrounding). These don't route through
   // onQuery / queryGuard, so they need their own spinner-visibility state.
-  // Initialize true if remote mode with initial prompt (CCR processing it).
   const [isExternalLoading, setIsExternalLoadingRaw] = React.useState(false);
 
   // Derived: any loading source active. Read-only — no setter. Local query
@@ -826,9 +824,9 @@ export function REPL({
 
   // Wrapper for setIsExternalLoading that resets timing refs on transition
   // to true — SpinnerWithVerb reads these for elapsed time, so they must be
-  // reset for remote sessions / foregrounded tasks too (not just local
-  // queries, which reset them in onQuery). Without this, a remote-only
-  // session would show ~56 years elapsed (Date.now() - 0).
+  // reset for foregrounded tasks too (not just local queries, which reset
+  // them in onQuery). Without this, an external task would show ~56 years
+  // elapsed (Date.now() - 0).
   const setIsExternalLoading = React.useCallback((value: boolean) => {
     setIsExternalLoadingRaw(value);
     if (value) resetTimingRefs();

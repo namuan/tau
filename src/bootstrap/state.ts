@@ -80,7 +80,6 @@ type State = {
   flagSettingsPath: string | undefined
   flagSettingsInline: Record<string, unknown> | null
   allowedSettingSources: SettingSource[]
-  sessionIngressToken: string | null | undefined
   oauthTokenFromFd: string | null | undefined
   apiKeyFromFd: string | null | undefined
   // Telemetry state
@@ -181,8 +180,6 @@ type State = {
   sdkBetas: string[] | undefined
   // Main thread agent type (from --agent flag or settings)
   mainThreadAgentType: string | undefined
-  // Remote mode (--remote flag)
-  isRemoteMode: boolean
   // System prompt section cache state
   systemPromptSectionCache: Map<string, string | null>
   // Last date emitted to the model (for detecting midnight date changes)
@@ -262,7 +259,6 @@ function getInitialState(): State {
     userMsgOptIn: false,
     clientType: 'cli',
     questionPreviewFormat: undefined,
-    sessionIngressToken: undefined,
     oauthTokenFromFd: undefined,
     apiKeyFromFd: undefined,
     flagSettingsPath: undefined,
@@ -334,8 +330,6 @@ function getInitialState(): State {
     sdkBetas: undefined,
     // Main thread agent type
     mainThreadAgentType: undefined,
-    // Remote mode
-    isRemoteMode: false,
     ...(process.env.USER_TYPE === 'ant'
       ? {
         }
@@ -1127,14 +1121,6 @@ export function setFlagSettingsInline(
   STATE.flagSettingsInline = settings
 }
 
-export function getSessionIngressToken(): string | null | undefined {
-  return STATE.sessionIngressToken
-}
-
-export function setSessionIngressToken(token: string | null): void {
-  STATE.sessionIngressToken = token
-}
-
 export function getOauthTokenFromFd(): string | null | undefined {
   return STATE.oauthTokenFromFd
 }
@@ -1529,14 +1515,6 @@ export function getMainThreadAgentType(): string | undefined {
 
 export function setMainThreadAgentType(agentType: string | undefined): void {
   STATE.mainThreadAgentType = agentType
-}
-
-export function getIsRemoteMode(): boolean {
-  return STATE.isRemoteMode
-}
-
-export function setIsRemoteMode(value: boolean): void {
-  STATE.isRemoteMode = value
 }
 
 // System prompt section accessors

@@ -2,7 +2,6 @@
 import { feature } from 'bun:bundle'
 import { readFile, stat } from 'fs/promises'
 import { dirname } from 'path'
-import { downloadUserSettings } from 'src/services/settingsSync/index.js'
 import { StructuredIO } from 'src/cli/structuredIO.js'
 import {
   type Command,
@@ -45,7 +44,6 @@ import { notifyCommandLifecycle } from 'src/utils/commandLifecycle.js'
 import {
   getSessionState,
   notifySessionStateChanged,
-  notifySessionMetadataChanged,
   setPermissionModeChangedListener,
   type RequiresActionDetails,
 } from 'src/utils/sessionState.js'
@@ -76,7 +74,6 @@ import {
 import { expandPath } from 'src/utils/path.js'
 import { extractReadFilesFromMessages } from 'src/utils/queryHelpers.js'
 import { registerHookEventHandler } from 'src/utils/hooks/hookEvents.js'
-import { executeFilePersistence } from 'src/utils/filePersistence/filePersistence.js'
 import { finalizePendingAsyncHooks } from 'src/utils/hooks/AsyncHookRegistry.js'
 import {
   gracefulShutdown,
@@ -213,7 +210,6 @@ import {
   setMainThreadAgentType,
   switchSession,
   isSessionPersistenceDisabled,
-  getIsRemoteMode,
   getFlagSettingsInline,
   setFlagSettingsInline,
   getMainThreadAgentType,
@@ -419,16 +415,6 @@ export async function runHeadless(
     )
     // eslint-disable-next-line custom-rules/no-process-exit
     process.exit(0)
-  }
-
-  // Fire the user settings download early to overlap with later startup work.
-  // Managed settings already started in main.tsx preAction; this gives user
-  // settings a similar head start. Later settings consumers join this promise.
-  if (
-    feature('DOWNLOAD_USER_SETTINGS') &&
-    (isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) || getIsRemoteMode())
-  ) {
-    void downloadUserSettings()
   }
 
   // In headless mode there is no React tree, so the useSettingsChange hook
@@ -703,7 +689,7 @@ export async function runHeadless(
         },
       }))
     }
-    notifySessionStateChanged('requires_action', details)
+    notifySessionStateChanged('requires_action')
   }
 
   const canUseTool = getCanUseToolFn(
@@ -731,7 +717,7 @@ export async function runHeadless(
   // so we can pass `run` as the onEnqueue callback (see below).
 
   // Only `json` + `verbose` needs the full array (jsonStringify(messages) below).
-  // For stream-json (SDK/CCR) and default text output, only the last message is
+  // For stream-json SDK output and default text output, only the last message is
   // read for the exit code / final result. Avoid accumulating every message in
   // memory for the entire session.
   const needsFullArray = options.outputFormat === 'json' && options.verbose
@@ -936,9 +922,7 @@ function runHeadlessStreaming(
   // Shift+Tab, ExitPlanMode dialog, /plan slash command, rewind, bridge
   // set_permission_mode, the query loop, stop_task — rather than the two
   // paths that previously went through a bespoke wrapper.
-  // The wrapper's body was fully redundant (it enqueued here AND called
-  // notifySessionMetadataChanged, both of which onChangeAppState now covers);
-  // keeping it would double-emit status messages.
+  // Keeping the status filter here ensures only SDK-exposed modes are sent.
   setPermissionModeChangedListener(newMode => {
     // Only emit for SDK-exposed modes.
     if (
@@ -1274,8 +1258,8 @@ function runHeadlessStreaming(
 
           // QueryEngine will emit a replay for command.uuid (the last uuid in
           // the batch) via its messagesToAck path. Emit replays here for the
-          // rest so consumers that track per-uuid delivery (clank's
-          // asyncMessages footer, CCR) see an ack for every message they sent,
+          // rest so SDK consumers that track per-uuid delivery see an ack for
+          // every message they sent,
           // not just the one that survived the merge.
           if (options.replayUserMessages && batch.length > 1) {
             for (const c of batch) {
@@ -1353,9 +1337,6 @@ function runHeadlessStreaming(
           }
 
           abortController = createAbortController()
-          const turnStartTime = feature('FILE_PERSISTENCE')
-            ? Date.now()
-            : undefined
 
           headlessProfilerCheckpoint('before_ask')
           startQueryProfile()
@@ -1451,24 +1432,6 @@ function runHeadlessStreaming(
 
           for (const uuid of batchUuids) {
             notifyCommandLifecycle(uuid, 'completed')
-          }
-
-          if (feature('FILE_PERSISTENCE') && turnStartTime !== undefined) {
-            void executeFilePersistence(
-              turnStartTime,
-              abortController.signal,
-              result => {
-                output.enqueue({
-                  type: 'system' as const,
-                  subtype: 'files_persisted' as const,
-                  files: result.files,
-                  failed: result.failed,
-                  processed_at: new Date().toISOString(),
-                  uuid: randomUUID(),
-                  session_id: getSessionId(),
-                })
-              },
-            )
           }
 
           // Generate and emit prompt suggestion for SDK consumers
@@ -2091,9 +2054,6 @@ function runHeadlessStreaming(
               output,
             ),
           }))
-          // handleSetPermissionMode sends the control_response; the
-          // notifySessionMetadataChanged that used to follow here is
-          // now fired by onChangeAppState (with externalized mode name).
         } else if (message.request.subtype === 'set_model') {
           const requestedModel = message.request.model ?? 'default'
           const model =
@@ -2102,7 +2062,6 @@ function runHeadlessStreaming(
               : requestedModel
           activeUserSpecifiedModel = model
           setMainLoopModelOverride(model)
-          notifySessionMetadataChanged({ model })
           injectModelSwitchBreadcrumbs(requestedModel, model)
 
           sendControlResponseSuccess(message)
@@ -2377,12 +2336,11 @@ function runHeadlessStreaming(
           }
 
           // If the model changed, inject breadcrumbs so the model sees the
-          // mid-conversation switch, and notify metadata listeners (CCR).
+          // mid-conversation switch.
           const newModel = getMainLoopModel()
           if (newModel !== prevModel) {
             activeUserSpecifiedModel = newModel
             const modelArg = incoming.model ? String(incoming.model) : 'default'
-            notifySessionMetadataChanged({ model: newModel })
             injectModelSwitchBreadcrumbs(modelArg, newModel)
           }
 
@@ -2540,11 +2498,11 @@ function runHeadlessStreaming(
         // Handled in structuredIO.ts, but TypeScript needs the type guard
         continue
       } else if (message.type === 'assistant' || message.type === 'system') {
-        // History replay from the remote session: inject into mutableMessages as
-        // conversation context so the model sees prior turns.
+        // Inject replayed messages into mutableMessages as conversation
+        // context so the model sees prior turns.
         const internalMsgs = toInternalMessages([message])
         mutableMessages.push(...internalMsgs)
-        // Echo assistant messages back so CCR displays them
+        // Echo assistant messages back when replay mode is enabled.
         if (message.type === 'assistant' && options.replayUserMessages) {
           output.enqueue(message)
         }

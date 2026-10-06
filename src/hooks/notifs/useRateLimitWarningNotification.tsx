@@ -7,7 +7,6 @@ import { getRateLimitWarning, getUsingOverageText } from 'src/services/claudeAiL
 import { useClaudeAiLimits } from 'src/services/claudeAiLimitsHook.js';
 import { getSubscriptionType } from 'src/utils/auth.js';
 import { hasClaudeAiBillingAccess } from 'src/utils/billing.js';
-import { getIsRemoteMode } from '../../bootstrap/state.js';
 export function useRateLimitWarningNotification(model) {
   const $ = _c(17);
   const {
@@ -56,9 +55,6 @@ export function useRateLimitWarningNotification(model) {
   let t5;
   if ($[7] !== addNotification || $[8] !== claudeAiLimits.isUsingOverage || $[9] !== hasShownOverageNotification || $[10] !== usingOverageText) {
     t4 = () => {
-      if (getIsRemoteMode()) {
-        return;
-      }
       if (claudeAiLimits.isUsingOverage && !hasShownOverageNotification && (!isTeamOrEnterprise || hasBillingAccess)) {
         addNotification({
           key: "limit-reached",
@@ -88,9 +84,6 @@ export function useRateLimitWarningNotification(model) {
   let t7;
   if ($[13] !== addNotification || $[14] !== rateLimitWarning) {
     t6 = () => {
-      if (getIsRemoteMode()) {
-        return;
-      }
       if (rateLimitWarning && rateLimitWarning !== shownWarningRef.current) {
         shownWarningRef.current = rateLimitWarning;
         addNotification({

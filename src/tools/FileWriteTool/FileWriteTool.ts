@@ -3,7 +3,6 @@ import { existsSync } from 'fs'
 import { dirname, sep } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
 import { z } from 'zod/v4'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
 import {
   activateConditionalSkillsForPaths,
@@ -16,7 +15,6 @@ import { getCwd } from '../../utils/cwd.js'
 import { recordVisitedDir } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { countLinesChanged, getPatchForDisplay } from '../../utils/diff.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import { getFileModificationTime, writeTextContent } from '../../utils/file.js'
 import {
@@ -26,10 +24,6 @@ import {
 import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
-import {
-  fetchSingleFileGitDiff,
-  type ToolUseDiff,
-} from '../../utils/gitDiff.js'
 import { validateBuiltinImports } from '../../utils/importCheck.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
@@ -434,21 +428,6 @@ export const FileWriteTool = buildTool({
       logEvent('tengu_write_agents_md', {})
     }
 
-    let gitDiff: ToolUseDiff | undefined
-    if (
-      isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
-      getFeatureValue_CACHED_MAY_BE_STALE('tengu_quartz_lantern', false)
-    ) {
-      const startTime = Date.now()
-      const diff = await fetchSingleFileGitDiff(fullFilePath)
-      if (diff) gitDiff = diff
-      logEvent('tengu_tool_use_diff_computed', {
-        isWriteTool: true,
-        durationMs: Date.now() - startTime,
-        hasDiff: !!diff,
-      })
-    }
-
     // Best-effort post-write checks, warn-only (same contract as
     // FileEditTool): only report problems this write introduced compared to
     // the previous content ('' for new files). Runs AFTER the write, so it
@@ -489,7 +468,6 @@ export const FileWriteTool = buildTool({
         content,
         structuredPatch: patch,
         originalFile: oldContent,
-        ...(gitDiff && { gitDiff }),
         ...(syntaxWarning && { syntaxWarning }),
         ...(importWarning && { importWarning }),
       }
@@ -514,7 +492,6 @@ export const FileWriteTool = buildTool({
       content,
       structuredPatch: [],
       originalFile: null,
-      ...(gitDiff && { gitDiff }),
       ...(syntaxWarning && { syntaxWarning }),
       ...(importWarning && { importWarning }),
     }

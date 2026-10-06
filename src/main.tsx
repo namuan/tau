@@ -20,7 +20,6 @@ import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEve
 import { initializeAnalyticsGates } from 'src/services/analytics/sink.js';
 import { getOriginalCwd, setAdditionalDirectoriesForClaudeMd, setMainLoopModelOverride, setMainThreadAgentType } from './bootstrap/state.js';
 import { getCommands } from './commands.js';
-import { getOauthConfig } from './constants/oauth.js';
 import { PRODUCT_COMMAND } from './constants/product.js';
 import { getSystemContext, getUserContext } from './context.js';
 import type { StatsStore } from './context/stats.js';
@@ -32,7 +31,6 @@ import { SHOW_CURSOR } from './ink/termio/dec.js';
 import { exitWithError, exitWithMessage, getRenderContext, renderAndRun, showSetupScreens } from './interactiveHelpers.js';
 import { launchRepl } from './replLauncher.js';
 import { hasGrowthBookEnvOverride, initializeGrowthBook, refreshGrowthBookAfterAuthChange } from './services/analytics/growthbook.js';
-import { type DownloadResult, downloadSessionFiles, type FilesApiConfig, parseFileSpecs } from './services/api/filesApi.js';
 import { prefetchPassesEligibility } from './services/api/referral.js';
 import { loadPolicyLimits, refreshPolicyLimits } from './services/policyLimits/index.js';
 import { loadRemoteManagedSettings, refreshRemoteManagedSettings } from './services/remoteManagedSettings/index.js';
@@ -40,7 +38,7 @@ import type { ToolInputJSONSchema } from './Tool.js';
 import { getTools } from './tools.js';
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from './tools/SyntheticOutputTool/SyntheticOutputTool.js';
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js';
-import { count, uniq } from './utils/array.js';
+import { uniq } from './utils/array.js';
 import { installAsciicastRecorder } from './utils/asciicast.js';
 import { getSubscriptionType, validateForceLoginOrg } from './utils/auth.js';
 import { checkHasTrustDialogAccepted, getGlobalConfig, saveGlobalConfig } from './utils/config.js';
@@ -52,7 +50,6 @@ import { createSystemMessage, createUserMessage } from './utils/messages.js';
 import { getPlatform } from './utils/platform.js';
 import { getBaseRenderOptions } from './utils/renderOptions.js';
 import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/secureStorage/keychainPrefetch.js';
-import { getSessionIngressAuthToken } from './utils/sessionIngressAuth.js';
 import { settingsChangeDetector } from './utils/settings/changeDetector.js';
 import { startMdmRawRead } from './utils/settings/mdm/rawRead.js';
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js';
@@ -552,11 +549,6 @@ export async function main() {
     if (process.env.CLAUDE_CODE_ENTRYPOINT === 'local-agent') return 'local-agent';
     if (process.env.CLAUDE_CODE_ENTRYPOINT === 'claude-desktop') return 'claude-desktop';
 
-    // Check if session-ingress token is provided (indicates remote session)
-    const hasSessionIngressToken = process.env.CLAUDE_CODE_SESSION_ACCESS_TOKEN || process.env.CLAUDE_CODE_WEBSOCKET_AUTH_FILE_DESCRIPTOR;
-    if (process.env.CLAUDE_CODE_ENTRYPOINT === 'remote' || hasSessionIngressToken) {
-      return 'remote';
-    }
     return 'cli';
   })();
   setClientType(clientType);
@@ -564,9 +556,9 @@ export async function main() {
   if (previewFormat === 'markdown' || previewFormat === 'html') {
     setQuestionPreviewFormat(previewFormat);
   } else if (!clientType.startsWith('sdk-') &&
-  // Desktop and CCR pass previewFormat via toolConfig; when the feature is
-  // gated off they pass undefined — don't override that with markdown.
-  clientType !== 'claude-desktop' && clientType !== 'local-agent' && clientType !== 'remote') {
+  // Desktop passes previewFormat via toolConfig; when the feature is gated
+  // off it passes undefined — don't override that with markdown.
+  clientType !== 'claude-desktop' && clientType !== 'local-agent') {
     setQuestionPreviewFormat('markdown');
   }
 
@@ -670,13 +662,6 @@ async function run(): Promise<CommanderCommand> {
     void loadRemoteManagedSettings();
     void loadPolicyLimits();
     profileCheckpoint('preAction_after_remote_settings');
-
-    // Load settings sync (non-blocking, fail-open)
-    // CLI: uploads local settings to remote (CCR download is handled by print.ts)
-    if (feature('UPLOAD_USER_SETTINGS')) {
-      void import('./services/settingsSync/index.js').then(m => m.uploadUserSettingsInBackground());
-    }
-    profileCheckpoint('preAction_after_settings_sync');
   });
   program.name(PRODUCT_COMMAND).description(`Tau - starts an interactive session by default, use -p/--print for non-interactive output`).argument('[prompt]', 'Your prompt', String)
   // Subcommands inherit helpOption via commander's copyInheritedSettings —
@@ -702,7 +687,7 @@ async function run(): Promise<CommanderCommand> {
     }
     return value;
   })).option('--agent <agent>', `Agent for the current session. Overrides the 'agent' setting.`).option('--betas <betas...>', 'Beta headers to include in API requests (API key users only)').option('--fallback-model <model>', 'Enable automatic fallback to specified model when default model is overloaded (only works with --print)').addOption(new Option('--workload <tag>', 'Workload tag for billing-header attribution (cc_workload). Process-scoped; set by SDK daemon callers that spawn subprocesses for cron work. (only works with --print)').hideHelp()).option('--settings <file-or-json>', 'Path to a settings JSON file or a JSON string to load additional settings from').option('--add-dir <directories...>', 'Additional directories to allow tool access to').option('--session-id <uuid>', 'Use a specific session ID for the conversation (must be a valid UUID)').option('-n, --name <name>', 'Set a display name for this session (shown in /resume and terminal title)').option('--agents <json>', 'JSON object defining custom agents (e.g. \'{"reviewer": {"description": "Reviews code", "prompt": "You are a code reviewer"}}\')').option('--setting-sources <sources>', 'Comma-separated list of setting sources to load (user, project, local).')
-  .option('--disable-slash-commands', 'Disable all skills', () => true).option('--file <specs...>', 'File resources to download at startup. Format: file_id:relative_path (e.g., --file file_abc:doc.txt file_def:img.png)').action(async (prompt, options) => {
+  .option('--disable-slash-commands', 'Disable all skills', () => true).action(async (prompt, options) => {
     trace('action_handler_start');
     profileCheckpoint('action_handler_start');
 
@@ -808,7 +793,6 @@ async function run(): Promise<CommanderCommand> {
     }
 
     // Promise for file downloads - started early, awaited before REPL renders
-    let fileDownloadPromise: Promise<DownloadResult[]> | undefined;
     const agentsJson = options.agents;
     const agentCli = options.agent;
     if (feature('BG_SESSIONS') && agentCli) {
@@ -914,10 +898,9 @@ async function run(): Promise<CommanderCommand> {
     // Allow env var to enable partial messages (used by sandbox gateway for baku)
     const effectiveIncludePartialMessages = includePartialMessages || isEnvTruthy(process.env.CLAUDE_CODE_INCLUDE_PARTIAL_MESSAGES);
 
-    // Enable all hook event types when explicitly requested via SDK option
-    // or when running in CLAUDE_CODE_REMOTE mode (CCR needs them).
+    // Enable all hook event types when explicitly requested via SDK option.
     // Without this, only SessionStart and Setup events are emitted.
-    if (includeHookEvents || isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)) {
+    if (includeHookEvents) {
       setAllHookEventsEnabled(true);
     }
 
@@ -940,35 +923,6 @@ async function run(): Promise<CommanderCommand> {
       if (sessionIdExists(validatedSessionId)) {
         process.stderr.write(chalk.red(`Error: Session ID ${validatedSessionId} is already in use.\n`));
         process.exit(1);
-      }
-    }
-
-    // Download file resources if specified via --file flag
-    const fileSpecs = (options as {
-      file?: string[];
-    }).file;
-    if (fileSpecs && fileSpecs.length > 0) {
-      // Get session ingress token (provided by EnvManager via CLAUDE_CODE_SESSION_ACCESS_TOKEN)
-      const sessionToken = getSessionIngressAuthToken();
-      if (!sessionToken) {
-        process.stderr.write(chalk.red('Error: Session token required for file downloads. CLAUDE_CODE_SESSION_ACCESS_TOKEN must be set.\n'));
-        process.exit(1);
-      }
-
-      // Resolve session ID: prefer remote session ID, fall back to internal session ID
-      const fileSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID || getSessionId();
-      const files = parseFileSpecs(fileSpecs);
-      if (files.length > 0) {
-        // Use ANTHROPIC_BASE_URL if set (by EnvManager), otherwise use OAuth config
-        // This ensures consistency with session ingress API in all environments
-        const config: FilesApiConfig = {
-          baseUrl: process.env.ANTHROPIC_BASE_URL || getOauthConfig().BASE_API_URL,
-          oauthToken: sessionToken,
-          sessionId: fileSessionId
-        };
-
-        // Start download without blocking startup - await before REPL renders
-        fileDownloadPromise = downloadSessionFiles(files, config);
       }
     }
 
@@ -1960,7 +1914,6 @@ async function run(): Promise<CommanderCommand> {
         queue: initialNotifications
       },
       todos: {},
-      remoteAgentTaskSuggestions: [],
       fileHistory: {
         snapshots: [],
         trackedFiles: new Set(),
@@ -2285,19 +2238,6 @@ async function run(): Promise<CommanderCommand> {
           });
           logError(error);
           await exitWithError(root, `Failed to resume session ${sessionId}`);
-        }
-      }
-
-      // Await file downloads before rendering REPL (files must be available)
-      if (fileDownloadPromise) {
-        try {
-          const results = await fileDownloadPromise;
-          const failedCount = count(results, r => !r.success);
-          if (failedCount > 0) {
-            process.stderr.write(chalk.yellow(`Warning: ${failedCount}/${results.length} file(s) failed to download.\n`));
-          }
-        } catch (error) {
-          return await exitWithError(root, `Error downloading files: ${errorMessage(error)}`);
         }
       }
 

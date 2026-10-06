@@ -738,7 +738,7 @@ export async function getAttachments(
     // query.ts:removeFromQueue dequeues these unconditionally after
     // getAttachmentMessages runs — returning [] here silently drops them.
     // Coworker runs with --bare and depends on task-notification for
-    // mid-tool-call notifications from Local*Task/Remote*Task.
+    // mid-tool-call notifications from local tasks.
     return getQueuedCommandAttachments(queuedCommands)
   }
 
@@ -3201,7 +3201,7 @@ async function getTaskReminderAttachments(
 
 /**
  * Get attachments for all unified tasks using the Task framework.
- * Replaces the old getBackgroundShellAttachments, getBackgroundRemoteSessionAttachments,
+ * Replaces the old background-task attachment helpers,
  * and getAsyncAgentAttachments functions.
  */
 async function getUnifiedTaskAttachments(

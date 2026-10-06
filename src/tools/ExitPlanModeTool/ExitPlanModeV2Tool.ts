@@ -25,11 +25,7 @@ import {
 } from '../../utils/inProcessTeammateHelpers.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
-import {
-  getPlan,
-  getPlanFilePath,
-  persistFileSnapshotIfRemote,
-} from '../../utils/plans.js'
+import { getPlan, getPlanFilePath } from '../../utils/plans.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import {
   getAgentName,
@@ -125,7 +121,7 @@ export const outputSchema = lazySchema(() =>
       .boolean()
       .optional()
       .describe(
-        'True when the user edited the plan (CCR web UI or Ctrl+G); determines whether the plan is echoed back in tool_result',
+        'True when the user edited the plan in an external approval flow or with Ctrl+G; determines whether the plan is echoed back in tool_result',
       ),
     awaitingLeaderApproval: z
       .boolean()
@@ -254,20 +250,15 @@ export const ExitPlanModeV2Tool: Tool<InputSchema, Output> = buildTool({
     const isAgent = !!context.agentId
 
     const filePath = getPlanFilePath(context.agentId)
-    // CCR web UI may send an edited plan via permissionResult.updatedInput.
-    // queryHelpers.ts full-replaces finalInput, so when CCR sends {} (no edit)
-    // input.plan is undefined -> disk fallback. The internal inputSchema omits
-    // `plan` (normally injected by normalizeToolInput), hence the narrowing.
+    // The internal inputSchema omits `plan` (normally injected by
+    // normalizeToolInput), hence the narrowing.
     const inputPlan =
       'plan' in input && typeof input.plan === 'string' ? input.plan : undefined
     const plan = inputPlan ?? getPlan(context.agentId)
 
-    // Sync disk so VerifyPlanExecution / Read see the edit. Re-snapshot
-    // after: the only other persistFileSnapshotIfRemote call (api.ts) runs
-    // in normalizeToolInput, pre-permission — it captured the old plan.
+    // Sync disk so VerifyPlanExecution and Read see the edit.
     if (inputPlan !== undefined && filePath) {
       await writeFile(filePath, inputPlan, 'utf-8').catch(e => logError(e))
-      void persistFileSnapshotIfRemote()
     }
 
     // Check if this is a teammate that requires leader approval
@@ -477,8 +468,7 @@ Request ID: ${requestId}`,
       }
     }
 
-    // Always include the plan — extractApprovedPlan() in the Ultraplan CCR
-    // flow parses the tool_result to retrieve the plan text for the local CLI.
+    // Always include the plan so external approval flows can retrieve it.
     // Label edited plans so the model knows the user changed something.
     const planLabel = planWasEdited
       ? 'Approved Plan (edited by user)'

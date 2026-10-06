@@ -239,7 +239,7 @@ export const TaskOutputTool: Tool<InputSchema, TaskOutputToolOutput> = buildTool
     return input.task_id;
   },
   async prompt() {
-    return `Deprecated compatibility path for background shell/agent/remote output. Prefer Read on the output path from the task result or <task-notification>. Set block=false for a status check; the default waits up to timeout. Task IDs come from a Bash run_in_background result or /tasks — never a TaskCreate item number.`;
+    return `Deprecated compatibility path for background shell/agent output. Prefer Read on the output path from the task result or <task-notification>. Set block=false for a status check; the default waits up to timeout. Task IDs come from a Bash run_in_background result or /tasks — never a TaskCreate item number.`;
   },
   async validateInput({
     task_id

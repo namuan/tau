@@ -72,7 +72,7 @@ import { clearToolSchemaCache } from './toolSchemaCache.js'
 const DEFAULT_API_KEY_HELPER_TTL = 5 * 60 * 1000
 
 /**
- * CCR and Claude Desktop spawn the CLI with OAuth and should never fall back
+ * Claude Desktop spawns the CLI with OAuth and should never fall back
  * to the user's ~/.claude/settings.json API-key config (apiKeyHelper,
  * env.ANTHROPIC_API_KEY, env.ANTHROPIC_AUTH_TOKEN). Those settings exist for
  * the user's terminal CLI, not managed sessions. Without this guard, a user
@@ -80,10 +80,7 @@ const DEFAULT_API_KEY_HELPER_TTL = 5 * 60 * 1000
  * also use that key — and fail if it's stale/wrong-org.
  */
 function isManagedOAuthContext(): boolean {
-  return (
-    isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ||
-    process.env.CLAUDE_CODE_ENTRYPOINT === 'claude-desktop'
-  )
+  return process.env.CLAUDE_CODE_ENTRYPOINT === 'claude-desktop'
 }
 
 /** Whether we are supporting direct 1P auth. */
@@ -165,23 +162,10 @@ export function getAuthTokenSource() {
     return { source: 'CLAUDE_CODE_OAUTH_TOKEN' as const, hasToken: true }
   }
 
-  // Check for OAuth token from file descriptor (or its CCR disk fallback)
   const oauthTokenFromFd = getOAuthTokenFromFileDescriptor()
   if (oauthTokenFromFd) {
-    // getOAuthTokenFromFileDescriptor has a disk fallback for CCR subprocesses
-    // that can't inherit the pipe FD. Distinguish by env var presence so the
-    // org-mismatch message doesn't tell the user to unset a variable that
-    // doesn't exist. Call sites fall through correctly — the new source is
-    // !== 'none' (cli/handlers/auth.ts → oauth_token) and not in the
-    // isEnvVarToken set (auth.ts:1844 → generic re-login message).
-    if (process.env.CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR) {
-      return {
-        source: 'CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR' as const,
-        hasToken: true,
-      }
-    }
     return {
-      source: 'CCR_OAUTH_TOKEN_FILE' as const,
+      source: 'CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR' as const,
       hasToken: true,
     }
   }

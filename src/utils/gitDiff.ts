@@ -483,7 +483,7 @@ function parseRawDiffToToolUseDiff(
 /**
  * Determine the best ref to diff against for a PR-like diff.
  * Priority:
- * 1. CLAUDE_CODE_BASE_REF env var (set externally, e.g. by CCR managed containers)
+ * 1. CLAUDE_CODE_BASE_REF env var (set externally, e.g. by a managed container)
  * 2. Merge base with the default branch (best guess)
  * 3. HEAD (fallback if merge-base fails)
  */

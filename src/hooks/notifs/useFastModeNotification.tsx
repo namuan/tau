@@ -4,7 +4,6 @@ import { useNotifications } from 'src/context/notifications.js';
 import { useAppState, useSetAppState } from 'src/state/AppState.js';
 import { type CooldownReason, isFastModeEnabled, onCooldownExpired, onCooldownTriggered, onFastModeOverageRejection, onOrgFastModeChanged } from 'src/utils/fastMode.js';
 import { formatDuration } from 'src/utils/format.js';
-import { getIsRemoteMode } from '../../bootstrap/state.js';
 const COOLDOWN_STARTED_KEY = 'fast-mode-cooldown-started';
 const COOLDOWN_EXPIRED_KEY = 'fast-mode-cooldown-expired';
 const ORG_CHANGED_KEY = 'fast-mode-org-changed';
@@ -20,9 +19,6 @@ export function useFastModeNotification() {
   let t1;
   if ($[0] !== addNotification || $[1] !== isFastMode || $[2] !== setAppState) {
     t0 = () => {
-      if (getIsRemoteMode()) {
-        return;
-      }
       if (!isFastModeEnabled()) {
         return;
       }
@@ -62,9 +58,6 @@ export function useFastModeNotification() {
   let t3;
   if ($[5] !== addNotification || $[6] !== setAppState) {
     t2 = () => {
-      if (getIsRemoteMode()) {
-        return;
-      }
       if (!isFastModeEnabled()) {
         return;
       }
@@ -92,9 +85,6 @@ export function useFastModeNotification() {
   let t5;
   if ($[9] !== addNotification || $[10] !== isFastMode) {
     t4 = () => {
-      if (getIsRemoteMode()) {
-        return;
-      }
       if (!isFastMode) {
         return;
       }

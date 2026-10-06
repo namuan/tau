@@ -258,10 +258,8 @@ export class StructuredIO {
         return undefined
       }
       if (message.type === 'update_environment_variables') {
-        // Apply environment variable updates directly to process.env.
-        // Used for session auth token refresh
-        // (CLAUDE_CODE_SESSION_ACCESS_TOKEN) which must be readable
-        // by the REPL process itself, not just child Bash commands.
+        // Apply environment variable updates directly to process.env so
+        // updates are visible to the current process and its child commands.
         const keys = Object.keys(message.variables)
         for (const [key, value] of Object.entries(message.variables)) {
           process.env[key] = value

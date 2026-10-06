@@ -39,36 +39,6 @@ export const DEFAULT_UPLOAD_CONCURRENCY = 1;
 export const FILE_COUNT_LIMIT = 100;
 export const OUTPUTS_SUBDIR = 'outputs';
 export const isCoordinatorMode = () => false;
-export class SandboxManager {
-  constructor() {}
-  start() {}
-  stop() {}
-  isEnabled() { return false; }
-  getViolations() { return []; }
-  static isSupportedPlatform() { return false; }
-  static checkDependencies() { return { supported: false }; }
-  static wrapWithSandbox(command) { return command; }
-  static async initialize() {}
-  static updateConfig() {}
-  static reset() {}
-  static getFsReadConfig() { return {}; }
-  static getFsWriteConfig() { return {}; }
-  static getNetworkRestrictionConfig() { return {}; }
-  static getIgnoreViolations() { return false; }
-  static getAllowUnixSockets() { return true; }
-  static getAllowLocalBinding() { return true; }
-  static getEnableWeakerNestedSandbox() { return false; }
-  static getProxyPort() { return 0; }
-  static getSocksProxyPort() { return 0; }
-  static getLinuxHttpSocketPath() { return ''; }
-  static getLinuxSocksSocketPath() { return ''; }
-  static async waitForNetworkInitialization() {}
-  static getSandboxViolationStore() { return new SandboxViolationStore(); }
-  static annotateStderrWithSandboxFailures(stderr) { return stderr; }
-  static cleanupAfterCommand() {}
-}
-export class SandboxViolationStore { constructor() {} getViolations() { return []; } clear() {} }
-export const SandboxRuntimeConfigSchema = { parse: (v) => v, safeParse: (v) => ({ success: true, data: v }) };
 export const runDaemonWorker = () => {};
 export const daemonMain = () => {};
 export const templatesMain = () => {};

@@ -7,7 +7,6 @@ import {
   useSetAppState,
 } from 'src/state/AppState.js'
 import type { ToolPermissionContext } from 'src/Tool.js'
-import { getIsRemoteMode } from '../../bootstrap/state.js'
 import {
   createDisabledBypassPermissionsContext,
   shouldDisableBypassPermissions,
@@ -60,7 +59,6 @@ export function useKickOffCheckAndDisableBypassPermissionsIfNeeded(): void {
 
   // Run once, when the component mounts
   useEffect(() => {
-    if (getIsRemoteMode()) return
     void checkAndDisableBypassPermissionsIfNeeded(
       toolPermissionContext,
       setAppState,
@@ -139,7 +137,6 @@ export function useKickOffCheckAndDisableAutoModeIfNeeded(): void {
   // breaker. The print.ts headless paths are covered by the sync
   // isAutoModeGateEnabled() check.
   useEffect(() => {
-    if (getIsRemoteMode()) return
     if (isFirstRunRef.current) {
       isFirstRunRef.current = false
     } else {

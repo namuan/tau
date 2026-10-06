@@ -160,13 +160,8 @@ function handleInteractivePermission(
       )
       if (freshResult.behavior === 'allow') {
         // claim() (atomic check-and-mark), not isResolved() — the async
-        // hasPermissionsToUseTool call above opens a window where CCR
-        // could have responded in flight. Matches onAllow/onReject/hook
-        // paths. cancelRequest tells CCR to dismiss its prompt — without
-        // it, the web UI shows a stale prompt for a tool that's already
-        // executing (particularly visible when recheck is triggered by
-        // a CCR-initiated mode switch, the very case this callback exists
-        // for after useReplBridge started calling it).
+        // hasPermissionsToUseTool call above opens a window where the user
+        // could have responded in flight. Matches onAllow/onReject/hook paths.
         if (!claim()) return
         ctx.removeFromQueue()
         ctx.logDecision({ decision: 'accept', source: 'config' })

@@ -19,7 +19,6 @@ import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import type { Message } from '../types/message.js'
 import type { OrphanedPermission } from '../types/textInputTypes.js'
 import { logForDebugging } from './debug.js'
-import { isEnvTruthy } from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
 import { getFileModificationTime, stripLineNumberPrefix } from './file.js'
 import { readFileSyncWithMetadata } from './fileRead.js'
@@ -159,11 +158,7 @@ export function* normalizeMessage(message: Message): Generator<SDKMessage> {
         message.data.type === 'powershell_progress'
       ) {
         // Filter bash progress to send only one per minute
-        // Only emit for Tau Remote for now
-        if (
-          !isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
-          !process.env.CLAUDE_CODE_CONTAINER_ID
-        ) {
+        if (!process.env.CLAUDE_CODE_CONTAINER_ID) {
           break
         }
 
@@ -286,8 +281,8 @@ export async function* handleOrphanedPermission(
   // Add the assistant message with tool_use to messages BEFORE executing
   // so the conversation history is complete (tool_use -> tool_result).
   //
-  // On CCR resume, mutableMessages is seeded from the transcript and may already
-  // contain this tool_use. Pushing again would make normalizeMessagesForAPI merge
+  // On resume, mutableMessages may already contain this tool_use.
+  // Pushing again would make normalizeMessagesForAPI merge
   // same-ID assistants (concatenating content) and produce a duplicate tool_use
   // ID, which the API rejects with "tool_use ids must be unique".
   //

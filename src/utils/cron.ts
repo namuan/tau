@@ -182,10 +182,7 @@ export function computeNextCronRun(
 
 // --- cronToHuman ------------------------------------------------------------
 // Intentionally narrow: covers common patterns; falls through to the raw cron
-// string for anything else. The `utc` option exists for CCR remote triggers
-// (agents-platform.tsx), which run on servers and always use UTC cron strings
-// — that path translates UTC→local for display and needs midnight-crossing
-// logic for the weekday case. Local scheduled tasks (the default) need neither.
+// string for anything else.
 
 const DAY_NAMES = [
   'Sunday',
@@ -204,19 +201,7 @@ function formatLocalTime(minute: number, hour: number): string {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
-function formatUtcTimeAsLocal(minute: number, hour: number): string {
-  // Create a date in UTC and format in user's local timezone
-  const d = new Date()
-  d.setUTCHours(hour, minute, 0, 0)
-  return d.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  })
-}
-
-export function cronToHuman(cron: string, opts?: { utc?: boolean }): string {
-  const utc = opts?.utc ?? false
+export function cronToHuman(cron: string): string {
   const parts = cron.trim().split(/\s+/)
   if (parts.length !== 5) return cron
 
@@ -269,39 +254,25 @@ export function cronToHuman(cron: string, opts?: { utc?: boolean }): string {
     return n === 1 ? `Every hour${suffix}` : `Every ${n} hours${suffix}`
   }
 
-  // --- Remaining cases reference hour+minute: branch on utc ----------------
-
   if (!minute.match(/^\d+$/) || !hour.match(/^\d+$/)) return cron
   const m = parseInt(minute, 10)
   const h = parseInt(hour, 10)
-  const fmtTime = utc ? formatUtcTimeAsLocal : formatLocalTime
 
   // Daily at specific time: M H * * *
   if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
-    return `Every day at ${fmtTime(m, h)}`
+    return `Every day at ${formatLocalTime(m, h)}`
   }
 
   // Specific day of week: M H * * D
   if (dayOfMonth === '*' && month === '*' && dayOfWeek.match(/^\d$/)) {
     const dayIndex = parseInt(dayOfWeek, 10) % 7 // normalize 7 (Sunday alias) -> 0
-    let dayName: string | undefined
-    if (utc) {
-      // UTC day+time may land on a different local day (midnight crossing).
-      // Compute the actual local weekday by constructing the UTC instant.
-      const ref = new Date()
-      const daysToAdd = (dayIndex - ref.getUTCDay() + 7) % 7
-      ref.setUTCDate(ref.getUTCDate() + daysToAdd)
-      ref.setUTCHours(h, m, 0, 0)
-      dayName = DAY_NAMES[ref.getDay()]
-    } else {
-      dayName = DAY_NAMES[dayIndex]
-    }
-    if (dayName) return `Every ${dayName} at ${fmtTime(m, h)}`
+    const dayName = DAY_NAMES[dayIndex]
+    if (dayName) return `Every ${dayName} at ${formatLocalTime(m, h)}`
   }
 
   // Weekdays: M H * * 1-5
   if (dayOfMonth === '*' && month === '*' && dayOfWeek === '1-5') {
-    return `Weekdays at ${fmtTime(m, h)}`
+    return `Weekdays at ${formatLocalTime(m, h)}`
   }
 
   return cron

@@ -2,14 +2,10 @@
  * Session title generation via Haiku.
  *
  * Standalone module with minimal dependencies so it can be imported from
- * print.ts (SDK control request handler) without pulling in the React/chalk/
- * git dependency chain that teleport.tsx carries.
+ * print.ts without pulling in the React and terminal UI dependency graph.
  *
- * This is the single source of truth for AI-generated session titles across
- * all surfaces. Previously there were separate Haiku title generators:
- * - teleport.tsx generateTitleAndBranch (6-word title + branch for CCR)
- * - rename/generateSessionName.ts (kebab-case name for /rename)
- * Each remains for backwards compat; new callers should use this module.
+ * This is the source of truth for AI-generated session titles. The rename
+ * command retains a separate kebab-case generator for its naming format.
  */
 
 import { z } from 'zod/v4'
@@ -105,9 +101,8 @@ export async function generateSessionTitle(
       options: {
         querySource: 'generate_session_title',
         agents: [],
-        // Reflect the actual session mode — this module is called from
-        // both the SDK print path (non-interactive) and the CCR remote
-        // session path via useRemoteSession (interactive).
+        // Reflect the actual session mode in interactive and non-interactive
+        // callers.
         isNonInteractiveSession: getIsNonInteractiveSession(),
         hasAppendSystemPrompt: false,
               },

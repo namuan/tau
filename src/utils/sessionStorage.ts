@@ -1316,7 +1316,7 @@ export async function recordAttributionSnapshot(
  * budgeted, before the budget's persist step awaits.
  *
  * The preview is applied to the wire message first and its record is written
- * after; a session switch (/clear, /resume, teleport adopt) can land in that
+ * after; a session switch (/clear or /resume) can land in that
  * gap. Reading the session id at write time would then file the record under
  * the new session, and the old transcript would resume with those results
  * classified frozen — full content back on the wire, which is the exact cache

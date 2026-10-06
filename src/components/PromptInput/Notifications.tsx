@@ -13,7 +13,6 @@ import { calculateTokenWarningState } from '../../services/compact/autoCompact.j
 import type { Message } from '../../types/message.js';
 import { getApiKeyHelperElapsedMs, getConfiguredApiKeyHelper, getSubscriptionType } from '../../utils/auth.js';
 import { getExternalEditor } from '../../utils/editor.js';
-import { isEnvTruthy } from '../../utils/envUtils.js';
 import { formatDuration } from '../../utils/format.js';
 import { setEnvHookNotifier } from '../../utils/hooks/fileChangedWatcher.js';
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js';
@@ -237,11 +236,6 @@ function NotificationContent({
           </Text>
           <Text dimColor wrap="truncate">
             ({apiKeyHelperSlow})
-          </Text>
-        </Box>}
-      {isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) && (apiKeyStatus === 'invalid' || apiKeyStatus === 'missing') && <Box>
-          <Text color="error" wrap="truncate">
-            Authentication error · Try again
           </Text>
         </Box>}
       {debug && <Box>

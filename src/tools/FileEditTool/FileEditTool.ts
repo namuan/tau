@@ -1,7 +1,6 @@
 import { agentFileConflictMessage, checkAgentFileClaim } from '../../utils/agentFileClaims.js'
 import { dirname, isAbsolute, sep } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
 import {
   activateConditionalSkillsForPaths,
@@ -35,10 +34,6 @@ import {
 } from '../../utils/fileRead.js'
 import { formatFileSize } from '../../utils/format.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
-import {
-  fetchSingleFileGitDiff,
-  type ToolUseDiff,
-} from '../../utils/gitDiff.js'
 import { expandPath } from '../../utils/path.js'
 import {
   checkWritePermissionForTool,
@@ -699,21 +694,6 @@ export const FileEditTool = buildTool({
       })
     }
 
-    let gitDiff: ToolUseDiff | undefined
-    if (
-      isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
-      getFeatureValue_CACHED_MAY_BE_STALE('tengu_quartz_lantern', false)
-    ) {
-      const startTime = Date.now()
-      const diff = await fetchSingleFileGitDiff(absoluteFilePath)
-      if (diff) gitDiff = diff
-      logEvent('tengu_tool_use_diff_computed', {
-        isEditTool: true,
-        durationMs: Date.now() - startTime,
-        hasDiff: !!diff,
-      })
-    }
-
     // Best-effort, non-blocking syntax check (warn-only). Runs AFTER the write
     // above, so it is structurally incapable of blocking or reverting the edit —
     // it only attaches an advisory note when the edit INTRODUCED new parse
@@ -764,7 +744,6 @@ export const FileEditTool = buildTool({
       structuredPatch: patch,
       userModified: userModified ?? false,
       replaceAll: replace_all,
-      ...(gitDiff && { gitDiff }),
       ...(syntaxWarning && { syntaxWarning }),
       ...(importWarning && { importWarning }),
       ...(editedSnippet && { editedSnippet }),

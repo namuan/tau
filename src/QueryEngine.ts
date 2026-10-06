@@ -583,7 +583,7 @@ export class QueryEngine {
         // Local command output — yield as a synthetic assistant message so
         // RC renders it as assistant-style text rather than a user bubble.
         // Emitted as assistant (not the dedicated SDKLocalCommandOutputMessage
-        // system subtype) so mobile clients + session-ingress can parse it.
+        // system subtype) so downstream clients can parse it.
         if (
           msg.type === 'system' &&
           msg.subtype === 'local_command' &&

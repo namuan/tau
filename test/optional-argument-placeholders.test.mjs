@@ -156,7 +156,6 @@ test('the recorded Bash call with a filler command_parts runs its command', asyn
       tokens: [{ kind: 'arg', value: [] }, { kind: 'arg', value: [] }],
       positionals: [], trailing_args: [],
     },
-    dangerouslyDisableSandbox: false,
   }
   const { text } = await run(bash, recorded)
   assert.equal(bash.calls.length, 1, `the command did not run: ${text}`)

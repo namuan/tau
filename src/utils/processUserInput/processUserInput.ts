@@ -442,7 +442,6 @@ async function processUserInputBase(
   }
 
   // Slash commands
-  // Skip for remote bridge messages — input from CCR clients is plain text
   if (
     inputString !== null &&
     !effectiveSkipSlash &&

@@ -1,7 +1,6 @@
 import { c as _c } from "react/compiler-runtime";
 import { useCallback, useEffect, useState } from 'react';
 import { useNotifications } from 'src/context/notifications.js';
-import { getIsRemoteMode } from '../../bootstrap/state.js';
 import { getSettingsWithAllErrors } from '../../utils/settings/allErrors.js';
 import type { ValidationError } from '../../utils/settings/validation.js';
 import { useSettingsChange } from '../useSettingsChange.js';
@@ -31,9 +30,6 @@ export function useSettingsErrors() {
   let t2;
   if ($[1] !== addNotification || $[2] !== errors_0 || $[3] !== removeNotification) {
     t1 = () => {
-      if (getIsRemoteMode()) {
-        return;
-      }
       if (errors_0.length > 0) {
         removeNotification(SETTINGS_ERRORS_NOTIFICATION_KEY);
       } else {

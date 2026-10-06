@@ -12,9 +12,7 @@ type DiagnosticLogEntry = {
 }
 
 /**
- * Logs diagnostic information to a logfile. This information is sent
- * via the environment manager to session-ingress to monitor issues from
- * within the container.
+ * Logs diagnostic information to the configured diagnostic file.
  *
  * *Important* - this function MUST NOT be called with any PII, including
  * file paths, project names, repo names, prompts, etc.
