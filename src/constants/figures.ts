@@ -18,7 +18,7 @@ export const PLAY_ICON = '\u25b6' // ▶
 export const PAUSE_ICON = '\u23f8' // ⏸
 export const REFRESH_ARROW = '\u21bb' // ↻
 
-// Review status indicators (ultrareview diamond states)
+// Task status indicators
 export const DIAMOND_OPEN = '\u25c7' // ◇ - running
 export const DIAMOND_FILLED = '\u25c6' // ◆ - completed/failed
 export const REFERENCE_MARK = '\u203b' // ※ - komejirushi, away-summary recap marker

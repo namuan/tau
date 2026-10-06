@@ -56,7 +56,6 @@ const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0
 const TASK_TYPES = new Set<string>([
   'local_bash',
   'local_agent',
-  'remote_agent',
   'in_process_teammate',
   'local_workflow',
   'dream',

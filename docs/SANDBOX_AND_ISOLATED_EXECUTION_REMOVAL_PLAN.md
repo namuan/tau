@@ -112,7 +112,7 @@ Update Bash system prompts, settings help, command help, README/docs, and diagno
 - [x] Phase 1 — Inventory completed and recorded above.
 - [x] Phase 2 — Removed local sandbox wrapping from the shell execution path, removed `dangerouslyDisableSandbox` from Bash schemas/plumbing/internal callers, removed sandbox-specific auto-allow behavior, and removed sandbox instructions from the Bash prompt.
 - [x] Phase 3 — Removed local sandbox settings/schema/UI/startup/doctor paths, sandbox-only telemetry and network callbacks, the local adapter, and legacy sandbox settings are now warned about and stripped. Ordinary Tau permission and file protections remain.
-- [ ] Phase 4 — Remove hosted remote-agent execution and CCR remote-session infrastructure. In progress: removed the Agent tool's `isolation: "remote"` mode, `RemoteTriggerTool`, `/ultraplan` and `/ultrareview` registrations, their automatic keyword activation, and the plan-dialog launch option. Hosted task infrastructure and CCR session consumers remain under audit.
+- [ ] Phase 4 — Remove hosted remote-agent execution and CCR remote-session infrastructure. In progress: removed the Agent tool's `isolation: "remote"` mode, `RemoteTriggerTool`, `/ultraplan` and `/ultrareview` launch surfaces, hosted task registration/UI/result handling, and resume-time hosted-task restoration. Existing remote-agent metadata files and conversation history are left untouched. The CCR CLI/REPL session transport and related viewer/companion surfaces remain under audit.
 
 Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/preflight/workdir/background tests passed. `npx tsc --noEmit` still reports existing project-wide missing-module/compiler-type issues and the known Bash workdir type errors.
 

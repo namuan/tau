@@ -6,12 +6,10 @@ import type { InProcessTeammateTaskState } from './InProcessTeammateTask/types.j
 import type { LocalAgentTaskState } from './LocalAgentTask/LocalAgentTask.js'
 import type { LocalShellTaskState } from './LocalShellTask/guards.js'
 import type { LocalWorkflowTaskState } from './LocalWorkflowTask/LocalWorkflowTask.js'
-import type { RemoteAgentTaskState } from './RemoteAgentTask/RemoteAgentTask.js'
 
 export type TaskState =
   | LocalShellTaskState
   | LocalAgentTaskState
-  | RemoteAgentTaskState
   | InProcessTeammateTaskState
   | LocalWorkflowTaskState
   | DreamTaskState
@@ -20,7 +18,6 @@ export type TaskState =
 export type BackgroundTaskState =
   | LocalShellTaskState
   | LocalAgentTaskState
-  | RemoteAgentTaskState
   | InProcessTeammateTaskState
   | LocalWorkflowTaskState
   | DreamTaskState
