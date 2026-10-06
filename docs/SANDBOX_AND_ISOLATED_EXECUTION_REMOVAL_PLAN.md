@@ -29,7 +29,7 @@ Trace shared code before removal. Remove remote APIs, settings, or transport cod
 ### Hosted agents and CCR remote sessions
 
 - The Agent tool exposes `isolation: "remote"`; `RemoteAgentTask` manages remote execution, polling, resume, status, and task output.
-- Hosted tasks are connected to task unions/UI, background task controls, `/ultraplan`, remote review flows, and remote-agent metadata in `src/utils/sessionStorage.ts`.
+- Hosted tasks are connected to task unions/UI, background task controls, `/ultraplan`, remote review flows, and remote-agent metadata in `src/utils/sessionStorage.ts`. `RemoteTriggerTool` also exposes management of scheduled remote-agent triggers.
 - `RemoteSessionManager`, its WebSocket transport, `useRemoteSession`, and related dialogs handle CCR session connection and permission/message forwarding. Remove these session workflows as requested.
 - `src/utils/teleport.tsx`, `src/utils/teleport/*`, CCR API/auth/session code, and some session-storage logic have multiple consumers. Trace each consumer before deletion; do not remove shared session persistence or unrelated provider features by matching “CCR” alone.
 
@@ -112,7 +112,7 @@ Update Bash system prompts, settings help, command help, README/docs, and diagno
 - [x] Phase 1 — Inventory completed and recorded above.
 - [x] Phase 2 — Removed local sandbox wrapping from the shell execution path, removed `dangerouslyDisableSandbox` from Bash schemas/plumbing/internal callers, removed sandbox-specific auto-allow behavior, and removed sandbox instructions from the Bash prompt.
 - [x] Phase 3 — Removed local sandbox settings/schema/UI/startup/doctor paths, sandbox-only telemetry and network callbacks, the local adapter, and legacy sandbox settings are now warned about and stripped. Ordinary Tau permission and file protections remain.
-- [ ] Phase 4 — Remove hosted remote-agent execution and CCR remote-session infrastructure. Started: removed `isolation: "remote"` from the Agent tool schema/prompt/output UI and agent-file parser; the remaining hosted task and CCR session consumers are still under audit.
+- [ ] Phase 4 — Remove hosted remote-agent execution and CCR remote-session infrastructure. In progress: removed the Agent tool's `isolation: "remote"` mode and `RemoteTriggerTool`; hosted task workflows and CCR session consumers remain under audit.
 
 Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/preflight/workdir/background tests passed. `npx tsc --noEmit` still reports existing project-wide missing-module/compiler-type issues and the known Bash workdir type errors.
 
