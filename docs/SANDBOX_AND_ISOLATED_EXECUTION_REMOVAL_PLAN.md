@@ -115,10 +115,14 @@ Update Bash system prompts, settings help, command help, README/docs, and diagno
 - [x] Phase 5 — Removed the SSH CLI parser/startup path, REPL hook integration, and `useSSHSession`. The `src/ssh/*` implementation files were already absent; generic SSH-terminal environment checks remain because they describe the terminal Tau is running inside, not a Tau-managed SSH session.
 - [x] Phase 6 — Removed `/safetest`, the E2B login/provider UI and helper modules, and the `e2b` package from the manifest and lockfiles. Existing credentials and E2B-owned paths are untouched.
 - [x] Phase 7 — Audited local sandbox adapter and dependency references; no execution path, package dependency, or build shim references the removed adapter/runtime. Removed obsolete sandbox stubs from both build scripts and updated stale Bash contract fixtures.
+- [x] Phase 8 — Audited user-facing docs and prompts; no stale hosted-agent, CCR-session, safetest, or local sandbox claims remain outside this removal plan. Bash guidance continues to distinguish Tau permissions from OS isolation.
+- [ ] Phase 9 — Final validation and diff review.
 
 Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/preflight/workdir/background tests passed. `npx tsc --noEmit` still reports existing project-wide missing-module/compiler-type issues and the known Bash workdir type errors.
 
 Phase 3 validation: `npm run build`, CLI `--version`, legacy settings compatibility test, Eval tool tests, and focused Bash prompt/planner/preflight tests passed. `src/utils/toolSearchSafety.test.ts` still cannot run under Bun because `src/ink/components/Box.tsx` imports missing `src/global.d.ts`.
+
+Phase 4/7/8 validation: `npm run build`, `git diff --check`, the resume-command and Tau config-storage tests, and the optional-argument-placeholder assertions passed. The latter test's subprocess reaches the known Ink raw-mode error on non-TTY stdin and does not exit cleanly. The same raw-terminal issue prevents `test/core-tool-contracts.test.mjs` from terminating after its assertions. `getIsRemoteMode`, `CLAUDE_CODE_REMOTE` session variables, remote-mode state, sandbox adapter/runtime references, and removed settings/file-persistence paths no longer occur in active source or manifests.
 
 ## Acceptance Criteria
 
