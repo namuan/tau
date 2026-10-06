@@ -353,7 +353,6 @@ function BriefSpinner(t0) {
   const reducedMotion = settings.prefersReducedMotion ?? false;
   const [randomVerb] = useState(_temp4);
   const verb = overrideMessage ?? randomVerb;
-  const connStatus = useAppState(_temp5);
   let t1;
   let t2;
   if ($[0] !== mode) {
@@ -375,8 +374,8 @@ function BriefSpinner(t0) {
   useEffect(t1, t2);
   const [, time] = useAnimationFrame(reducedMotion ? null : 120);
   const runningCount = useAppState(_temp6);
-  const showConnWarning = connStatus === "reconnecting" || connStatus === "disconnected";
-  const connText = connStatus === "reconnecting" ? "Reconnecting" : "Disconnected";
+  const showConnWarning = false;
+  const connText = "";
   const dotFrame = Math.floor(time / 300) % 3;
   let t3;
   if ($[3] !== dotFrame || $[4] !== reducedMotion) {
@@ -470,23 +469,19 @@ function BriefSpinner(t0) {
 // working/idle/disconnected. See BriefSpinner's comment for the
 // Notifications overlay coupling.
 function _temp6(s_0) {
-  return count(Object.values(s_0.tasks), isBackgroundTask) + s_0.remoteBackgroundTaskCount;
-}
-function _temp5(s) {
-  return s.remoteConnectionStatus;
+  return count(Object.values(s_0.tasks), isBackgroundTask);
 }
 function _temp4() {
   return sample(getSpinnerVerbs()) ?? "Working";
 }
 export function BriefIdleStatus() {
   const $ = _c(9);
-  const connStatus = useAppState(_temp7);
   const runningCount = useAppState(_temp8);
   const {
     columns
   } = useTerminalSize();
-  const showConnWarning = connStatus === "reconnecting" || connStatus === "disconnected";
-  const connText = connStatus === "reconnecting" ? "Reconnecting\u2026" : "Disconnected";
+  const showConnWarning = false;
+  const connText = "";
   const leftText = showConnWarning ? connText : "";
   const rightText = runningCount > 0 ? `${runningCount} in background` : "";
   if (!leftText && !rightText) {
@@ -529,10 +524,7 @@ export function BriefIdleStatus() {
   return t2;
 }
 function _temp8(s_0) {
-  return count(Object.values(s_0.tasks), isBackgroundTask) + s_0.remoteBackgroundTaskCount;
-}
-function _temp7(s) {
-  return s.remoteConnectionStatus;
+  return count(Object.values(s_0.tasks), isBackgroundTask);
 }
 export function Spinner() {
   const $ = _c(8);

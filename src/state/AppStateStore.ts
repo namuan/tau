@@ -104,22 +104,6 @@ export type AppState = DeepImmutable<{
   // Single source of truth - computed once in main.tsx before option
   // mutation, consumers read this instead of re-calling isAssistantMode().
   kairosEnabled: boolean
-  // Remote session URL for --remote mode (shown in footer indicator)
-  remoteSessionUrl: string | undefined
-  // Remote session WS state (`claude assistant` viewer). 'connected' means the
-  // live event stream is open; 'reconnecting' = transient WS drop, backoff
-  // in progress; 'disconnected' = permanent close or reconnects exhausted.
-  remoteConnectionStatus:
-    | 'connecting'
-    | 'connected'
-    | 'reconnecting'
-    | 'disconnected'
-  // `claude assistant`: count of background tasks (Agent calls, teammates,
-  // workflows) running inside the REMOTE daemon child. Event-sourced from
-  // system/task_started and system/task_notification on the WS. The local
-  // AppState.tasks is always empty in viewer mode — the tasks live in a
-  // different process.
-  remoteBackgroundTaskCount: number
 }> & {
   // Unified task state - excluded from DeepImmutable because TaskState contains function types
   tasks: { [taskId: string]: TaskState }
@@ -318,9 +302,6 @@ export function getDefaultAppState(): AppState {
     viewSelectionMode: 'none',
     footerSelection: null,
     kairosEnabled: false,
-    remoteSessionUrl: undefined,
-    remoteConnectionStatus: 'connecting',
-    remoteBackgroundTaskCount: 0,
     toolPermissionContext: {
       ...getEmptyToolPermissionContext(),
       mode: initialMode,
