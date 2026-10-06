@@ -116,7 +116,7 @@ Update Bash system prompts, settings help, command help, README/docs, and diagno
 - [x] Phase 6 — Removed `/safetest`, the E2B login/provider UI and helper modules, and the `e2b` package from the manifest and lockfiles. Existing credentials and E2B-owned paths are untouched.
 - [x] Phase 7 — Audited local sandbox adapter and dependency references; no execution path, package dependency, or build shim references the removed adapter/runtime. Removed obsolete sandbox stubs from both build scripts and updated stale Bash contract fixtures.
 - [x] Phase 8 — Audited user-facing docs and prompts; no stale hosted-agent, CCR-session, safetest, or local sandbox claims remain outside this removal plan. Bash guidance continues to distinguish Tau permissions from OS isolation.
-- [ ] Phase 9 — Final validation and diff review.
+- [x] Phase 9 — Final validation and diff review completed. Build, CLI version smoke test, focused resume/config tests, Bash argument-placeholder assertions, and diff checks passed. The terminal-dependent contract tests cannot terminate on non-TTY stdin; this environment issue is recorded below.
 
 Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/preflight/workdir/background tests passed. `npx tsc --noEmit` still reports existing project-wide missing-module/compiler-type issues and the known Bash workdir type errors.
 
