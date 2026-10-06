@@ -57,7 +57,6 @@ const agentsPlatform =
     ? require('./commands/agents-platform/index.js').default
     : null
 /* eslint-enable @typescript-eslint/no-require-imports */
-import safetest from './commands/safetest/index.js'
 import bughunter from './commands/bughunter/index.js'
 import terminalSetup from './commands/terminalSetup/index.js'
 import usage from './commands/usage/index.js'
@@ -297,7 +296,6 @@ const COMMANDS = memoize((): Command[] => [
   review,
   rewind,
   tree,
-  safetest,
   terminalSetup,
   upgrade,
   extraUsage,
@@ -416,36 +414,13 @@ const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
       getWorkflowCommands ? getWorkflowCommands(cwd) : Promise.resolve([]),
     ])
 
-  const builtInCommands: Command[] = COMMANDS()
-  const coreOverrideNames: Set<string> = new Set(
-    builtInCommands
-      .filter(command => CORE_COMMAND_OVERRIDES.has(command.name))
-      .flatMap(command => [command.name, ...((command.aliases ?? []) as string[])]),
-  )
-  const externalCommands = [
+  return [
     ...bundledSkills,
     ...skillDirCommands,
     ...workflowCommands,
-  ].filter(command => !isCoreCommandOverride(command, coreOverrideNames))
-
-  return [
-    ...externalCommands,
-    ...builtInCommands,
+    ...COMMANDS(),
   ]
 })
-
-const CORE_COMMAND_OVERRIDES: Set<string> = new Set(['safetest'])
-
-function isCoreCommandOverride(
-  command: Command,
-  coreOverrideNames: Set<string>,
-): boolean {
-  return (
-    coreOverrideNames.has(command.name) ||
-    coreOverrideNames.has(getCommandName(command)) ||
-    (command.aliases ?? []).some(alias => coreOverrideNames.has(alias))
-  )
-}
 
 /**
  * Returns commands available to the current user. The expensive loading is

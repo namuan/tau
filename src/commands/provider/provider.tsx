@@ -44,15 +44,7 @@ import {
 } from '../../services/api/auth/api_key_manager.js'
 import TextInput from '../../components/TextInput.js'
 import { performLogout } from '../logout/logout.js'
-import { E2BSecurityLogin } from '../login/login.js'
 import { ProviderLoginFlow } from '../../components/ProviderLoginFlow.js'
-import {
-  E2B_SECURITY_DISPLAY_NAME,
-  E2B_SECURITY_PROVIDER,
-  clearE2BSecurityCredentials,
-  formatE2BSecurityBadge,
-  hasE2BSecurityAuth,
-} from '../../utils/safetest/e2bSecurity.js'
 
 // ─── Config ──────────────────────────────────────────────────────
 
@@ -103,12 +95,9 @@ const MANAGEABLE_PROVIDERS = [
   'kiro',
 ] as const satisfies readonly APIProvider[]
 
-const MANAGEABLE_PROVIDER_ROWS = [
-  ...MANAGEABLE_PROVIDERS,
-  E2B_SECURITY_PROVIDER,
-] as const
+const MANAGEABLE_PROVIDER_ROWS = MANAGEABLE_PROVIDERS
 
-type ManageableProvider = (typeof MANAGEABLE_PROVIDER_ROWS)[number]
+type ManageableProvider = (typeof MANAGEABLE_PROVIDERS)[number]
 
 /** Storage key for the user-supplied Ollama base URL (persisted in provider-keys.json). */
 const OLLAMA_BASE_URL_KEY = 'ollama_base_url'
@@ -116,15 +105,9 @@ const OLLAMA_DEFAULT_BASE = 'http://localhost:11434'
 const LMSTUDIO_BASE_URL_KEY = 'lmstudio_base_url'
 const LMSTUDIO_DEFAULT_BASE = 'http://localhost:1234/v1'
 
-type KeyedProvider = Exclude<
-  ManageableProvider,
-  | 'ollama'
-  | 'lmstudio'
-  | typeof E2B_SECURITY_PROVIDER
->
+type KeyedProvider = Exclude<ManageableProvider, 'ollama' | 'lmstudio'>
 
 function getManageableProviderName(provider: ManageableProvider): string {
-  if (provider === E2B_SECURITY_PROVIDER) return E2B_SECURITY_DISPLAY_NAME
   return PROVIDER_DISPLAY_NAMES[provider]
 }
 
@@ -281,7 +264,6 @@ type View =
       error?: string
     }
   | { kind: 'provider_login'; provider: KeyedProvider }
-  | { kind: 'e2b_login' }
   | {
       kind: 'result'
       provider: ManageableProvider
@@ -324,16 +306,6 @@ function buildConfigureOptions(
   ollamaStatus: OllamaStatus,
   lmStudioStatus: LmStudioStatus,
 ): ConfigureOption[] {
-  if (provider === E2B_SECURITY_PROVIDER) {
-    const options: ConfigureOption[] = []
-    options.push({ kind: 'login' })
-    if (hasE2BSecurityAuth()) {
-      options.push({ kind: 'deactivate' })
-    }
-    options.push({ kind: 'back' })
-    return options
-  }
-
   // Ollama has its own option set.
   if (provider === 'ollama') {
     const options: ConfigureOption[] = []
@@ -402,13 +374,9 @@ function labelConfigureOption(
         ? 'Activate AgentRouter'
         : `Activate ${getManageableProviderName(provider)}`
     case 'login':
-      return provider === E2B_SECURITY_PROVIDER
-        ? 'Log in with E2B API key or auth token'
-        : 'Log in'
+      return 'Log in'
     case 'deactivate':
-      return provider === E2B_SECURITY_PROVIDER
-        ? 'Clear E2B credentials'
-        : 'Deactivate (clear all credentials)'
+      return 'Deactivate (clear all credentials)'
     case 'set_ollama_url':
       return 'Set custom base URL'
     case 'reset_ollama_url':
@@ -544,35 +512,6 @@ function ProviderManager({
       provider: 'lmstudio',
       tone: 'success',
       message: 'LM Studio activated.',
-    })
-  }
-
-  function handleE2BLoginDone(success: boolean) {
-    if (success) {
-      refresh()
-      setView({
-        kind: 'result',
-        provider: E2B_SECURITY_PROVIDER,
-        tone: 'success',
-        message: `${E2B_SECURITY_DISPLAY_NAME} connected.`,
-      })
-      return
-    }
-    setView({
-      kind: 'configure',
-      provider: E2B_SECURITY_PROVIDER,
-      selectedIndex: 0,
-    })
-  }
-
-  function handleE2BDeactivate() {
-    clearE2BSecurityCredentials()
-    refresh()
-    setView({
-      kind: 'result',
-      provider: E2B_SECURITY_PROVIDER,
-      tone: 'success',
-      message: `${E2B_SECURITY_DISPLAY_NAME} credentials cleared.`,
     })
   }
 
@@ -803,18 +742,11 @@ function ProviderManager({
             }
             return
           case 'login':
-            if (view.provider === E2B_SECURITY_PROVIDER) {
-              setView({ kind: 'e2b_login' })
-            }
             if (usesEmbeddedProviderLogin(view.provider)) {
               setView({ kind: 'provider_login', provider: view.provider })
             }
             return
           case 'deactivate':
-            if (view.provider === E2B_SECURITY_PROVIDER) {
-              handleE2BDeactivate()
-              return
-            }
             if (view.provider !== 'ollama' && view.provider !== 'lmstudio') {
               handleDeactivate(view.provider)
             }
@@ -880,9 +812,7 @@ function ProviderManager({
             const name = getManageableProviderName(provider)
             const prefix = isSelected ? '>' : ' '
             const badge =
-              provider === E2B_SECURITY_PROVIDER
-                ? chalk.green(formatE2BSecurityBadge())
-                : provider === 'ollama'
+              provider === 'ollama'
                 ? formatOllamaBadge(ollamaStatus)
                 : provider === 'lmstudio'
                 ? formatLmStudioBadge(lmStudioStatus)
@@ -917,9 +847,7 @@ function ProviderManager({
     const name = getManageableProviderName(provider)
     const options = buildConfigureOptions(provider, ollamaStatus, lmStudioStatus)
     const badge =
-      provider === E2B_SECURITY_PROVIDER
-        ? chalk.green(formatE2BSecurityBadge())
-        : provider === 'ollama'
+      provider === 'ollama'
         ? formatOllamaBadge(ollamaStatus)
         : provider === 'lmstudio'
         ? formatLmStudioBadge(lmStudioStatus)
@@ -1040,10 +968,6 @@ function ProviderManager({
         </Box>
       </Box>
     )
-  }
-
-  if (view.kind === 'e2b_login') {
-    return <E2BSecurityLogin onDone={handleE2BLoginDone} />
   }
 
   if (view.kind === 'provider_login') {

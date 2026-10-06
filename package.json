@@ -121,7 +121,6 @@
     "@types/node": "^22.14.0",
     "@types/pdfkit": "^0.17.6",
     "@types/react": "^19.1.0",
-    "e2b": "^2.10.0",
     "esbuild": "^0.28.0",
     "typescript": "^5.7.3"
   },

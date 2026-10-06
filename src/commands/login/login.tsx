@@ -44,14 +44,6 @@ import {
   FIRECRAWL_PROVIDER_KEY,
   testFirecrawlApiKey,
 } from '../../tools/WebSearchTool/firecrawl.js'
-import {
-  E2B_DASHBOARD_URL,
-  E2B_SECURITY_DISPLAY_NAME,
-  E2B_SECURITY_PROVIDER,
-  hasE2BSecurityAuth,
-  openE2BDashboardInBrowser,
-  saveE2BSecurityCredential,
-} from '../../utils/safetest/e2bSecurity.js'
 
 // ─── Post-login refresh ──
 
@@ -100,9 +92,6 @@ export async function call(
     onDone(success ? 'Login successful' : 'Login interrupted')
   }
 
-  if (matchesE2BSecurityArg(args)) {
-    return <E2BSecurityLogin onDone={finish} />
-  }
   if (matchesFirecrawlArg(args)) {
     return <FirecrawlLogin onDone={finish} />
   }
@@ -130,11 +119,6 @@ export async function call(
       onDone={finish}
     />
   )
-}
-
-function matchesE2BSecurityArg(args: string): boolean {
-  const first = args.trim().toLowerCase().split(/\s+/)[0]
-  return first === E2B_SECURITY_PROVIDER || first === 'e2b'
 }
 
 function matchesFirecrawlArg(args: string): boolean {
@@ -176,27 +160,20 @@ function resolveLoginProviderArg(args: string): APIProvider | null {
   return null
 }
 
-const E2B_SECURITY_LOGIN_TARGET = E2B_SECURITY_PROVIDER
 const FIRECRAWL_LOGIN_TARGET = FIRECRAWL_PROVIDER_KEY
-type LoginTarget =
-  | APIProvider
-  | typeof E2B_SECURITY_LOGIN_TARGET
-  | typeof FIRECRAWL_LOGIN_TARGET
+type LoginTarget = APIProvider | typeof FIRECRAWL_LOGIN_TARGET
 
 const LOGIN_PROVIDERS = [
   ...SELECTABLE_PROVIDERS.filter(provider => provider !== 'lmstudio'),
-  E2B_SECURITY_LOGIN_TARGET,
   FIRECRAWL_LOGIN_TARGET,
 ] as const satisfies readonly LoginTarget[]
 
 function getLoginTargetName(target: LoginTarget): string {
-  if (target === E2B_SECURITY_LOGIN_TARGET) return E2B_SECURITY_DISPLAY_NAME
   if (target === FIRECRAWL_LOGIN_TARGET) return FIRECRAWL_DISPLAY_NAME
   return PROVIDER_DISPLAY_NAMES[target]
 }
 
 function getProviderAuthTypeLabel(provider: LoginTarget): string {
-  if (provider === E2B_SECURITY_LOGIN_TARGET) return 'E2B API key / auth token'
   if (provider === FIRECRAWL_LOGIN_TARGET) return 'Firecrawl API key'
   if (provider === 'antigravity') return 'Google login'
   if (provider === 'cloudflare') return 'Account ID / API token'
@@ -211,9 +188,6 @@ function getProviderAuthTypeLabel(provider: LoginTarget): string {
 }
 
 function getProviderConfiguredLabel(provider: LoginTarget): string {
-  if (provider === E2B_SECURITY_LOGIN_TARGET) {
-    return hasE2BSecurityAuth() ? ' [auth ready]' : ''
-  }
   if (provider === FIRECRAWL_LOGIN_TARGET) {
     if (process.env[FIRECRAWL_API_KEY_ENV]?.trim()) return ' [env key ready]'
     return hasStoredKey(FIRECRAWL_PROVIDER_KEY) ? ' [API key saved]' : ''
@@ -260,10 +234,7 @@ function ProviderPickerLogin({
     const providerForLogin = selectedProvider
     const handleProviderDone = (success: boolean) => {
       if (success) {
-        if (
-          providerForLogin !== E2B_SECURITY_LOGIN_TARGET &&
-          providerForLogin !== FIRECRAWL_LOGIN_TARGET
-        ) {
+        if (providerForLogin !== FIRECRAWL_LOGIN_TARGET) {
           setActiveProvider(providerForLogin)
         }
         onDone(true)
@@ -272,9 +243,6 @@ function ProviderPickerLogin({
       setSelectedProvider(null)
     }
 
-    if (providerForLogin === E2B_SECURITY_LOGIN_TARGET) {
-      return <E2BSecurityLogin onDone={handleProviderDone} />
-    }
     if (providerForLogin === FIRECRAWL_LOGIN_TARGET) {
       return <FirecrawlLogin onDone={handleProviderDone} />
     }
@@ -450,218 +418,6 @@ function FirecrawlLogin({
         )}
         {state.step === 'warning' && (
           <Text color="warning">{state.message}</Text>
-        )}
-      </Box>
-    </Dialog>
-  )
-}
-
-type E2BSecurityLoginMethod = 'authLogin' | 'apiKey'
-
-const E2B_SECURITY_LOGIN_METHODS: Array<{
-  method: E2BSecurityLoginMethod
-  label: string
-  description: string
-}> = [
-  {
-    method: 'authLogin',
-    label: 'Auth login',
-    description: 'open the E2B dashboard in your browser',
-  },
-  {
-    method: 'apiKey',
-    label: 'API key',
-    description: 'paste an existing E2B API key',
-  },
-]
-
-export function E2BSecurityLogin({
-  onDone,
-}: {
-  onDone: (success: boolean) => void
-}) {
-  const [method, setMethod] = useState<E2BSecurityLoginMethod | null>(null)
-  const [selectedMethodIndex, setSelectedMethodIndex] = useState(0)
-  const [secretInput, setSecretInput] = useState('')
-  const [secretCursorOffset, setSecretCursorOffset] = useState(0)
-  const [browserStatus, setBrowserStatus] = useState<
-    'opening' | 'opened' | 'fallback'
-  >('opening')
-  const [state, setState] = useState<
-    | { step: 'input'; error?: string }
-    | { step: 'success'; message: string }
-  >({ step: 'input' })
-  const inputColumns = Math.max(20, (process.stdout.columns ?? 80) - 14)
-
-  useEffect(() => {
-    if (method !== 'authLogin') return
-    let cancelled = false
-    setBrowserStatus('opening')
-    openE2BDashboardInBrowser()
-      .then(opened => {
-        if (cancelled) return
-        setBrowserStatus(opened ? 'opened' : 'fallback')
-      })
-      .catch(() => {
-        if (!cancelled) setBrowserStatus('fallback')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [method])
-
-  useInput(
-    (
-      _input: string,
-      key: {
-        return?: boolean
-        escape?: boolean
-        upArrow?: boolean
-        downArrow?: boolean
-      },
-    ) => {
-      if (state.step === 'success') return
-      if (method) {
-        if (key.escape) {
-          setMethod(null)
-          setState({ step: 'input' })
-        }
-        return
-      }
-      if (key.escape) {
-        onDone(false)
-        return
-      }
-      if (key.upArrow) {
-        setSelectedMethodIndex(i =>
-          i > 0 ? i - 1 : E2B_SECURITY_LOGIN_METHODS.length - 1,
-        )
-        return
-      }
-      if (key.downArrow) {
-        setSelectedMethodIndex(i =>
-          i < E2B_SECURITY_LOGIN_METHODS.length - 1 ? i + 1 : 0,
-        )
-        return
-      }
-      if (key.return) {
-        const selected =
-          E2B_SECURITY_LOGIN_METHODS[selectedMethodIndex]?.method ?? 'authLogin'
-        setMethod(selected)
-      }
-    },
-  )
-
-  useEffect(() => {
-    if (state.step !== 'success') return
-    const timer = setTimeout(() => onDone(true), 800)
-    return () => clearTimeout(timer)
-  }, [onDone, state.step])
-
-  function handleSubmit(value: string) {
-    const secret = value.trim()
-    if (!secret) {
-      setState({ step: 'input', error: 'E2B credential cannot be empty.' })
-      return
-    }
-    if (/\s/.test(secret)) {
-      setState({
-        step: 'input',
-        error: 'E2B credentials should not contain spaces or newlines.',
-      })
-      return
-    }
-
-    saveE2BSecurityCredential(secret)
-    if (!hasE2BSecurityAuth()) {
-      setState({
-        step: 'input',
-        error: 'Saved, but Tau could not read the credential back. Check your settings file.',
-      })
-      return
-    }
-    setState({
-      step: 'success',
-      message: 'E2B credential saved. /safetest is ready to use.',
-    })
-  }
-
-  return (
-    <Dialog
-      title={`Login - ${E2B_SECURITY_DISPLAY_NAME}`}
-      onCancel={() => onDone(false)}
-      color="permission"
-    >
-      <Box flexDirection="column" paddingLeft={1}>
-        {!method && state.step === 'input' && (
-          <>
-            <Text dimColor>
-              Choose how to sign in to E2B for /safetest.
-            </Text>
-            <Box flexDirection="column" marginTop={1}>
-              {E2B_SECURITY_LOGIN_METHODS.map((option, index) => (
-                <Text key={option.method}>
-                  {index === selectedMethodIndex ? '>' : ' '} {option.label}{' '}
-                  <Text dimColor>— {option.description}</Text>
-                </Text>
-              ))}
-            </Box>
-            <Box marginTop={1}>
-              <Text dimColor>Enter to choose, Esc to cancel</Text>
-            </Box>
-          </>
-        )}
-        {method && state.step === 'input' && (
-          <>
-            {method === 'authLogin' ? (
-              <>
-                <Text>
-                  {browserStatus === 'opening'
-                    ? 'Opening the E2B dashboard in your browser…'
-                    : browserStatus === 'opened'
-                    ? 'E2B dashboard opened in your browser.'
-                    : 'Could not open a browser automatically.'}
-                </Text>
-                <Text dimColor>
-                  Sign in (Google / GitHub / email), copy your API key from{' '}
-                  <Text color="suggestion">{E2B_DASHBOARD_URL}</Text>, then paste it here.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text>Paste your E2B API key.</Text>
-                <Text dimColor>
-                  Get one from <Text color="suggestion">{E2B_DASHBOARD_URL}</Text> if you don't have it yet.
-                </Text>
-              </>
-            )}
-            {state.error && (
-              <Box marginTop={1}>
-                <Text color="error">{state.error}</Text>
-              </Box>
-            )}
-            <Box marginTop={1}>
-              <Text>E2B API key: </Text>
-              <TextInput
-                value={secretInput}
-                onChange={setSecretInput}
-                onSubmit={handleSubmit}
-                mask="*"
-                placeholder="Paste your E2B API key here..."
-                focus={true}
-                showCursor={true}
-                columns={inputColumns}
-                cursorOffset={secretCursorOffset}
-                onChangeCursorOffset={setSecretCursorOffset}
-              />
-            </Box>
-            <Box marginTop={1}>
-              <Text dimColor>Enter to save, Esc to go back</Text>
-            </Box>
-          </>
-        )}
-        {state.step === 'success' && (
-          <Text color="success">{state.message}</Text>
         )}
       </Box>
     </Dialog>

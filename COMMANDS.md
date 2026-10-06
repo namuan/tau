@@ -145,11 +145,6 @@ GitHub workflows inside Tau, powered by the GitHub CLI.
 - `triage` - Classify issues (labels/status) with explicit confirmation before visible changes.
 - `release` - Release flow: inspect dirty working tree, check CI/CD workflow status, then tag/publish and list runs.
 
-**`/safetest` - Run a file inside a disposable cloud sandbox**
-Upload one file to a fresh E2B VM, run it there, get a clean report back. The local machine never executes anything. Each run gets its own throwaway sandbox that's destroyed at the end.
-
-Setup is one step: `/login` -> **E2B Security** -> pick "Auth login" (opens the E2B dashboard in your browser) or "API key" (just paste). After that, `/safetest` is ready - no env variables, no extra config.
-
 **`/pin` - Pin a constraint to every prompt**
 Save a sentence (or two) and Tau quietly appends it to the end of every message you send - a persistent reminder the model carries through the whole session without you retyping it. Use it for style rules ("reply in French"), guardrails ("never edit files outside `src/`"), or task focus ("stay on the auth refactor"). Cache-safe by design: only the dynamic tail of the user message changes, so your provider's prompt cache stays warm and the cost is a few extra tokens per turn.
 

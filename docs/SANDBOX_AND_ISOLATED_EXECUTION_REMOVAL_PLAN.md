@@ -40,9 +40,8 @@ Trace shared code before removal. Remove remote APIs, settings, or transport cod
 
 ### E2B safetest
 
-- `/safetest` is registered in `src/commands.ts` and implemented by `src/commands/safetest`, `src/utils/safetest/safetest.ts`, and `e2bSecurity.ts`.
-- E2B login/provider UI is integrated into the shared login and provider commands. The `e2b` package is declared in `package.json` and both lockfiles, so remove that wiring and regenerate locks when the feature is deleted.
-- E2B helpers can read `~/.e2b/config.json` and `.safeclaudecode/safetest.config.json`. Do not inspect, migrate, or delete either path during cleanup. E2B credentials also have Tau-owned secure-storage entries; do not delete stored secrets automatically without a separate decision.
+- `/safetest`, its E2B client/auth helpers, login/provider UI, and the `e2b` dependency were removed in Phase 6.
+- E2B credential entries in Tau secure storage were left untouched. The existing E2B-owned configuration paths were not inspected, migrated, or deleted.
 
 ### Existing Tau data
 
@@ -114,6 +113,7 @@ Update Bash system prompts, settings help, command help, README/docs, and diagno
 - [x] Phase 3 — Removed local sandbox settings/schema/UI/startup/doctor paths, sandbox-only telemetry and network callbacks, the local adapter, and legacy sandbox settings are now warned about and stripped. Ordinary Tau permission and file protections remain.
 - [ ] Phase 4 — Remove hosted remote-agent execution and CCR remote-session infrastructure. In progress: removed the Agent tool's `isolation: "remote"` mode, `RemoteTriggerTool`, `/ultraplan` and `/ultrareview` launch surfaces, hosted task registration/UI/result handling, and resume-time hosted-task restoration. Existing remote-agent metadata files and conversation history are left untouched. The CCR CLI/REPL session transport and related viewer/companion surfaces remain under audit.
 - [x] Phase 5 — Removed the SSH CLI parser/startup path, REPL hook integration, and `useSSHSession`. The `src/ssh/*` implementation files were already absent; generic SSH-terminal environment checks remain because they describe the terminal Tau is running inside, not a Tau-managed SSH session.
+- [x] Phase 6 — Removed `/safetest`, the E2B login/provider UI and helper modules, and the `e2b` package from the manifest and lockfiles. Existing credentials and E2B-owned paths are untouched.
 
 Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/preflight/workdir/background tests passed. `npx tsc --noEmit` still reports existing project-wide missing-module/compiler-type issues and the known Bash workdir type errors.
 
