@@ -1,14 +1,11 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useAppState } from 'src/state/AppState.js'
 import { useKeybindings } from '../../../keybindings/useKeybinding.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../../services/analytics/index.js'
-import { sanitizeToolNameForAnalytics } from '../../../services/analytics/metadata.js'
+
+
 import type { ToolUseContext } from '../../../Tool.js'
 import type { PermissionUpdate } from '../../../utils/permissions/PermissionUpdateSchema.js'
-import type { CompletionType } from '../../../utils/unaryLogging.js'
+
 import type { ToolUseConfirm } from '../PermissionRequest.js'
 import {
   type FileOperationType,
@@ -27,8 +24,6 @@ export interface ToolInput {
 
 export type UseFilePermissionDialogProps<T extends ToolInput> = {
   filePath: string
-  completionType: CompletionType
-  languageName: string | Promise<string>
   toolUseConfirm: ToolUseConfirm
   toolUseContext: ToolUseContext
   onDone: () => void
@@ -54,8 +49,6 @@ export type UseFilePermissionDialogResult<T> = {
  */
 export function useFilePermissionDialog<T extends ToolInput>({
   filePath,
-  completionType,
-  languageName,
   toolUseConfirm,
   toolUseContext,
   onDone,
@@ -69,10 +62,6 @@ export function useFilePermissionDialog<T extends ToolInput>({
   const [focusedOption, setFocusedOption] = useState('yes')
   const [yesInputMode, setYesInputMode] = useState(false)
   const [noInputMode, setNoInputMode] = useState(false)
-  // Track whether user ever entered feedback mode (persists after collapse)
-  const [yesFeedbackModeEntered, setYesFeedbackModeEntered] = useState(false)
-  const [noFeedbackModeEntered, setNoFeedbackModeEntered] = useState(false)
-
   // Generate options based on context
   const options = useMemo(
     () =>
@@ -92,15 +81,12 @@ export function useFilePermissionDialog<T extends ToolInput>({
   const onChange = useCallback(
     (option: PermissionOption, input: T, feedback?: string) => {
       const params: PermissionHandlerParams = {
-        messageId: toolUseConfirm.assistantMessage.message.id,
         path: filePath,
         toolUseConfirm,
         toolPermissionContext,
         toolUseContext,
         onDone,
         onReject,
-        completionType,
-        languageName,
         operationType,
       }
 
@@ -117,18 +103,11 @@ export function useFilePermissionDialog<T extends ToolInput>({
       const handler = PERMISSION_HANDLERS[option.type]
       handler(params, {
         feedback,
-        hasFeedback: !!feedback,
-        enteredFeedbackMode:
-          option.type === 'reject'
-            ? noFeedbackModeEntered
-            : yesFeedbackModeEntered,
         scope: option.type === 'accept-session' ? option.scope : undefined,
       })
     },
     [
       filePath,
-      completionType,
-      languageName,
       toolUseConfirm,
       toolUseContext,
       toolPermissionContext,
@@ -173,29 +152,19 @@ export function useFilePermissionDialog<T extends ToolInput>({
   // Handle Tab key toggling input mode for Yes/No options
   const handleInputModeToggle = useCallback(
     (value: string) => {
-      const analyticsProps = {
-        toolName: sanitizeToolNameForAnalytics(
-          toolUseConfirm.tool.name,
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }
-
       if (value === 'yes') {
         if (yesInputMode) {
           setYesInputMode(false)
-          logEvent('tengu_accept_feedback_mode_collapsed', analyticsProps)
+
         } else {
           setYesInputMode(true)
-          setYesFeedbackModeEntered(true)
-          logEvent('tengu_accept_feedback_mode_entered', analyticsProps)
         }
       } else if (value === 'no') {
         if (noInputMode) {
           setNoInputMode(false)
-          logEvent('tengu_reject_feedback_mode_collapsed', analyticsProps)
+
         } else {
           setNoInputMode(true)
-          setNoFeedbackModeEntered(true)
-          logEvent('tengu_reject_feedback_mode_entered', analyticsProps)
         }
       }
     },

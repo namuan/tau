@@ -5,7 +5,7 @@ import {
   getIsNonInteractiveSession,
   getProjectRoot,
 } from '../bootstrap/state.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+
 import {
   getClaudeConfigHomeDir,
   isEnvDefinedFalsy,
@@ -78,7 +78,7 @@ export function isExtractModeActive(): boolean {
   }
   return (
     !getIsNonInteractiveSession() ||
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_slate_thimble', false)
+    false
   )
 }
 

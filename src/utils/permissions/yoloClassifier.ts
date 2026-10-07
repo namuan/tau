@@ -10,9 +10,9 @@ import {
   getSessionId,
   setLastClassifierRequests,
 } from '../../bootstrap/state.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
-import { logEvent } from '../../services/analytics/index.js'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../services/analytics/metadata.js'
+
+
+
 import { getCacheControl } from '../../services/api/claude.js'
 import { parsePromptTooLongTokenCounts } from '../../services/api/errors.js'
 import { getDefaultMaxRetries } from '../../services/api/withRetry.js'
@@ -70,10 +70,7 @@ const ANTHROPIC_PERMISSIONS_TEMPLATE: string =
 
 function isUsingExternalPermissions(): boolean {
   if (process.env.USER_TYPE !== 'ant') return true
-  const config = getFeatureValue_CACHED_MAY_BE_STALE(
-    'tengu_auto_mode_config',
-    {} as AutoModeConfig,
-  )
+  const config = {} as AutoModeConfig
   return config?.forceExternalPermissions === true
 }
 
@@ -402,10 +399,7 @@ function toCompactBlock(
       logForDebugging(
         `toAutoClassifierInput failed for ${block.name}: ${errorMessage(e)}`,
       )
-      logEvent('tengu_auto_mode_malformed_tool_input', {
-        toolName:
-          block.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      })
+
       encoded = input
     }
     if (encoded === '') return ''
@@ -1332,10 +1326,7 @@ function getClassifierModel(): string {
     const envModel = process.env.CLAUDE_CODE_AUTO_MODE_MODEL
     if (envModel) return envModel
   }
-  const config = getFeatureValue_CACHED_MAY_BE_STALE(
-    'tengu_auto_mode_config',
-    {} as AutoModeConfig,
-  )
+  const config = {} as AutoModeConfig
   if (config?.model) {
     return config.model
   }
@@ -1357,10 +1348,7 @@ function resolveTwoStageClassifier():
     if (isEnvTruthy(env)) return true
     if (isEnvDefinedFalsy(env)) return false
   }
-  const config = getFeatureValue_CACHED_MAY_BE_STALE(
-    'tengu_auto_mode_config',
-    {} as AutoModeConfig,
-  )
+  const config = {} as AutoModeConfig
   return config?.twoStageClassifier
 }
 
@@ -1378,10 +1366,7 @@ function isJsonlTranscriptEnabled(): boolean {
     if (isEnvTruthy(env)) return true
     if (isEnvDefinedFalsy(env)) return false
   }
-  const config = getFeatureValue_CACHED_MAY_BE_STALE(
-    'tengu_auto_mode_config',
-    {} as AutoModeConfig,
-  )
+  const config = {} as AutoModeConfig
   return config?.jsonlTranscript === true
 }
 
@@ -1412,21 +1397,7 @@ function logAutoModeOutcome(
   },
 ): void {
   const { classifierType, failureKind, ...rest } = extra ?? {}
-  logEvent('tengu_auto_mode_outcome', {
-    outcome:
-      outcome as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    classifierModel:
-      model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    ...(classifierType !== undefined && {
-      classifierType:
-        classifierType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    ...(failureKind !== undefined && {
-      failureKind:
-        failureKind as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    ...rest,
-  })
+
 }
 
 /**

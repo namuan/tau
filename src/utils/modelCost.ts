@@ -1,6 +1,6 @@
 import type { BetaUsage as Usage } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js'
-import { logEvent } from 'src/services/analytics/index.js'
+
+
 import { recordUnpricedModel } from '../bootstrap/state.js'
 import { isFastModeEnabled } from './fastMode.js'
 import {
@@ -320,11 +320,7 @@ function trackUnknownModelCost(
   shortName: ModelShortName,
   usage: Usage,
 ): void {
-  logEvent('tengu_unknown_model_cost', {
-    model: model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    shortName:
-      shortName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  })
+
   recordUnpricedModel(model, totalTokens(usage))
   // Meeting a model we cannot price is the only reason to want the catalogue,
   // so the download is triggered here rather than at startup. A session that

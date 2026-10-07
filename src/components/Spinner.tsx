@@ -6,14 +6,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { computeGlimmerIndex, computeShimmerSegments, SHIMMER_INTERVAL_MS } from './Spinner/glimmer.js';
 import { feature } from 'bun:bundle';
 import { getKairosActive, getUserMsgOptIn } from '../bootstrap/state.js';
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js';
+
 import { getCompactProgress, subscribeCompactProgress } from '../services/compact/compactProgress.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { count } from '../utils/array.js';
 import sample from 'lodash-es/sample.js';
 import { formatDuration, formatNumber, formatSecondsShort } from '../utils/format.js';
 import type { Theme } from 'src/utils/theme.js';
-import { activityManager } from '../utils/activityManager.js';
 import { getSpinnerVerbs } from '../constants/spinnerVerbs.js';
 import { MessageResponse } from './MessageResponse.js';
 import { TaskListV2 } from './TaskListV2.js';
@@ -75,7 +74,7 @@ export function SpinnerWithVerb(props: Props): React.ReactNode {
   // Runtime gate mirrors isBriefEnabled() but inlined — importing from
   // BriefTool.ts would leak tool-name strings into external builds. Single
   // spinner instance → hooks stay unconditional (two subs, negligible).
-  if ((feature('KAIROS') || feature('KAIROS_BRIEF')) && (getKairosActive() || getUserMsgOptIn() && (briefEnvEnabled || getFeatureValue_CACHED_MAY_BE_STALE('tengu_kairos_brief', false))) && isBriefOnly && !viewingAgentTaskId) {
+  if ((feature('KAIROS') || feature('KAIROS_BRIEF')) && (getKairosActive() || getUserMsgOptIn() && (briefEnvEnabled || false)) && isBriefOnly && !viewingAgentTaskId) {
     return <BriefSpinner mode={props.mode} overrideMessage={props.overrideMessage} />;
   }
   return <SpinnerWithVerbInner {...props} />;
@@ -199,14 +198,6 @@ function SpinnerWithVerbInner({
   const effectiveVerb = foregroundedTeammate && !foregroundedTeammate.isIdle ? foregroundedTeammate.spinnerVerb ?? randomVerb : leaderVerb;
   const message = effectiveVerb + '…';
 
-  // Track CLI activity when spinner is active
-  useEffect(() => {
-    const operationId = 'spinner-' + mode;
-    activityManager.startCLIActivity(operationId);
-    return () => {
-      activityManager.endCLIActivity(operationId);
-    };
-  }, [mode]);
   const effortValue = useAppState(s_4 => s_4.effortValue);
   const effortSuffix = getEffortSuffix(getMainLoopModel(), effortValue);
 
@@ -353,25 +344,6 @@ function BriefSpinner(t0) {
   const reducedMotion = settings.prefersReducedMotion ?? false;
   const [randomVerb] = useState(_temp4);
   const verb = overrideMessage ?? randomVerb;
-  let t1;
-  let t2;
-  if ($[0] !== mode) {
-    t1 = () => {
-      const operationId = "spinner-" + mode;
-      activityManager.startCLIActivity(operationId);
-      return () => {
-        activityManager.endCLIActivity(operationId);
-      };
-    };
-    t2 = [mode];
-    $[0] = mode;
-    $[1] = t1;
-    $[2] = t2;
-  } else {
-    t1 = $[1];
-    t2 = $[2];
-  }
-  useEffect(t1, t2);
   const [, time] = useAnimationFrame(reducedMotion ? null : 120);
   const runningCount = useAppState(_temp6);
   const showConnWarning = false;

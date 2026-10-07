@@ -1,12 +1,8 @@
 import { useState } from 'react'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
-import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js'
+
+
 import { useSetAppState } from '../../state/AppState.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
-import { logUnaryPermissionEvent } from './utils.js'
 
 /**
  * Shared feedback-mode state + handlers for shell permission dialogs (Bash,
@@ -43,37 +39,23 @@ export function useShellPermissionFeedback({
   const [yesInputMode, setYesInputMode] = useState(false)
   const [noInputMode, setNoInputMode] = useState(false)
   const [focusedOption, setFocusedOption] = useState('yes')
-  // Track whether user ever entered feedback mode (persists after collapse)
-  const [yesFeedbackModeEntered, setYesFeedbackModeEntered] = useState(false)
-  const [noFeedbackModeEntered, setNoFeedbackModeEntered] = useState(false)
-
   // Handle Tab key toggling input mode for Yes/No options
   function handleInputModeToggle(option: string) {
     // Notify that user is interacting with the dialog
     toolUseConfirm.onUserInteraction()
-    const analyticsProps = {
-      toolName: sanitizeToolNameForAnalytics(
-        toolUseConfirm.tool.name,
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }
-
     if (option === 'yes') {
       if (yesInputMode) {
         setYesInputMode(false)
-        logEvent('tengu_accept_feedback_mode_collapsed', analyticsProps)
+
       } else {
         setYesInputMode(true)
-        setYesFeedbackModeEntered(true)
-        logEvent('tengu_accept_feedback_mode_entered', analyticsProps)
       }
     } else if (option === 'no') {
       if (noInputMode) {
         setNoInputMode(false)
-        logEvent('tengu_reject_feedback_mode_collapsed', analyticsProps)
+
       } else {
         setNoInputMode(true)
-        setNoFeedbackModeEntered(true)
-        logEvent('tengu_reject_feedback_mode_entered', analyticsProps)
       }
     }
   }
@@ -84,9 +66,7 @@ export function useShellPermissionFeedback({
 
     // Log escape if no feedback was provided (user pressed ESC)
     if (!hasFeedback) {
-      logEvent('tengu_permission_request_escape', {
-        explainer_visible: explainerVisible,
-      })
+
       // Increment escape count for attribution tracking
       setAppState(prev => ({
         ...prev,
@@ -96,13 +76,6 @@ export function useShellPermissionFeedback({
         },
       }))
     }
-
-    logUnaryPermissionEvent(
-      'tool_use_single',
-      toolUseConfirm,
-      'reject',
-      hasFeedback,
-    )
 
     if (trimmedFeedback) {
       toolUseConfirm.onReject(trimmedFeedback)

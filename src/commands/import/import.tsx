@@ -10,7 +10,7 @@ import { Select } from '../../components/CustomSelect/select.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
 import { Spinner } from '../../components/Spinner.js'
 import { Box, Text } from '../../ink.js'
-import { logEvent } from '../../services/analytics/index.js'
+
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import type {
   Entry,
@@ -162,10 +162,7 @@ async function performImport(sourcePath: string): Promise<{
   const effectiveTitle = `${firstPrompt} ${autoSuffix('Imported')}`
   await saveCustomTitle(importSessionId, effectiveTitle, importPath)
 
-  logEvent('tengu_conversation_forked', {
-    message_count: serializedMessages.length,
-    has_custom_title: false,
-  })
+
 
   return {
     sessionId: importSessionId,

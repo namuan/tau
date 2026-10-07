@@ -17,16 +17,6 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf8'))
 const bundledRuntimePackages = new Set(['e2b'])
 const optionalExternalPackages = new Set([
   '@anthropic-ai/mcpb',
-  '@opentelemetry/exporter-logs-otlp-grpc',
-  '@opentelemetry/exporter-logs-otlp-http',
-  '@opentelemetry/exporter-logs-otlp-proto',
-  '@opentelemetry/exporter-metrics-otlp-grpc',
-  '@opentelemetry/exporter-metrics-otlp-http',
-  '@opentelemetry/exporter-metrics-otlp-proto',
-  '@opentelemetry/exporter-prometheus',
-  '@opentelemetry/exporter-trace-otlp-grpc',
-  '@opentelemetry/exporter-trace-otlp-http',
-  '@opentelemetry/exporter-trace-otlp-proto',
   'modifiers-napi',
   'node-pty',
   'yaml',

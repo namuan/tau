@@ -3,7 +3,7 @@ import { constants as fsConstants, readFileSync, unlinkSync } from 'fs'
 import { type FileHandle, mkdir, open, realpath } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
 import { isAbsolute, resolve } from 'path'
-import { logEvent } from 'src/services/analytics/index.js'
+
 import {
   clearSystemPromptSectionCacheEntry,
   getOriginalCwd,
@@ -374,7 +374,7 @@ export async function exec(
             void onCwdChangedForHooks(cwd, newCwd)
           }
         } catch {
-          logEvent('tengu_shell_set_cwd', { success: false })
+
         }
       }
       // Clean up the temp file used for cwd tracking
@@ -429,9 +429,7 @@ export function setCwd(path: string, relativeTo?: string): void {
   setCwdState(physicalPath)
   if (process.env.NODE_ENV !== 'test') {
     try {
-      logEvent('tengu_shell_set_cwd', {
-        success: true,
-      })
+
     } catch (_error) {
       // Ignore logging errors to prevent test failures
     }

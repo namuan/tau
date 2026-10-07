@@ -8,8 +8,8 @@ import {
   setNeedsAutoModeExitAttachment,
   setNeedsPlanModeExitAttachment,
 } from '../../bootstrap/state.js'
-import { logEvent } from '../../services/analytics/index.js'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../services/analytics/metadata.js'
+
+
 import {
   buildTool,
   type Tool,
@@ -193,12 +193,7 @@ export const ExitPlanModeV2Tool: Tool<InputSchema, Output> = buildTool({
       if (mode === 'bypassPermissions') {
         return { result: true }
       }
-      logEvent('tengu_exit_plan_mode_called_outside_plan', {
-        model:
-          options.mainLoopModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        mode: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        hasExitedPlanModeInSession: hasExitedPlanModeInSession(),
-      })
+
       return {
         result: false,
         message:

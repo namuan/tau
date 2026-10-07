@@ -34,11 +34,7 @@ import {
 } from '../../bootstrap/state.js'
 import { COMMAND_MESSAGE_TAG } from '../../constants/xml.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-  logEvent,
-} from '../../services/analytics/index.js'
+
 import { getAgentContext } from '../../utils/agentContext.js'
 import { errorMessage } from '../../utils/errors.js'
 import {
@@ -90,7 +86,6 @@ const remoteSkillModules = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? {
       ...(require('../../services/skillSearch/remoteSkillState.js') as typeof import('../../services/skillSearch/remoteSkillState.js')),
       ...(require('../../services/skillSearch/remoteSkillLoader.js') as typeof import('../../services/skillSearch/remoteSkillLoader.js')),
-      ...(require('../../services/skillSearch/telemetry.js') as typeof import('../../services/skillSearch/telemetry.js')),
       ...(require('../../services/skillSearch/featureCheck.js') as typeof import('../../services/skillSearch/featureCheck.js')),
     }
   : null
@@ -126,40 +121,7 @@ async function executeForkedSkill(
       : {}
   const queryDepth = context.queryTracking?.depth ?? 0
   const parentAgentId = getAgentContext()?.agentId
-  logEvent('tengu_skill_tool_invocation', {
-    command_name:
-      forkedSanitizedName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    // _PROTO_skill_name routes to the privileged skill_name BQ column
-    // (unredacted, all users); command_name stays in additional_metadata as
-    // the redacted variant for general-access dashboards.
-    _PROTO_skill_name:
-      commandName as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-    execution_context:
-      'fork' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    invocation_trigger: (queryDepth > 0
-      ? 'nested-skill'
-      : 'claude-proactive') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    query_depth: queryDepth,
-    ...(parentAgentId && {
-      parent_agent_id:
-        parentAgentId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    ...wasDiscoveredField,
-    ...(process.env.USER_TYPE === 'ant' && {
-      skill_name:
-        commandName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      skill_source:
-        command.source as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...(command.loadedFrom && {
-        skill_loaded_from:
-          command.loadedFrom as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-      ...(command.kind && {
-        skill_kind:
-          command.kind as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-    }),
-  })
+
 
   const { modifiedGetAppState, baseAgent, promptMessages, skillContent } =
     await prepareForkedCommandContext(command, args || '', context)
@@ -325,7 +287,7 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
     // Remove leading slash if present (for compatibility)
     const hasLeadingSlash = trimmed.startsWith('/')
     if (hasLeadingSlash) {
-      logEvent('tengu_skill_tool_slash_prefix', {})
+
     }
     const normalizedCommandName = hasLeadingSlash
       ? trimmed.substring(1)
@@ -626,42 +588,7 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
         : {}
     const queryDepth = context.queryTracking?.depth ?? 0
     const parentAgentId = getAgentContext()?.agentId
-    logEvent('tengu_skill_tool_invocation', {
-      command_name:
-        sanitizedCommandName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      // _PROTO_skill_name routes to the privileged skill_name BQ column
-      // (unredacted, all users); command_name stays in additional_metadata as
-      // the redacted variant for general-access dashboards.
-      _PROTO_skill_name:
-        commandName as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-      execution_context:
-        'inline' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      invocation_trigger: (queryDepth > 0
-        ? 'nested-skill'
-        : 'claude-proactive') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      query_depth: queryDepth,
-      ...(parentAgentId && {
-        parent_agent_id:
-          parentAgentId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-      ...wasDiscoveredField,
-      ...(process.env.USER_TYPE === 'ant' && {
-        skill_name:
-          commandName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        ...(command?.type === 'prompt' && {
-          skill_source:
-            command.source as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
-        ...(command?.loadedFrom && {
-          skill_loaded_from:
-            command.loadedFrom as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
-        ...(command?.kind && {
-          skill_kind:
-            command.kind as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }),
-      }),
-    })
+
 
     // Get the tool use ID from the parent message for linking newMessages
     const toolUseID = getToolUseIDFromParentMessage(
@@ -959,35 +886,7 @@ async function executeRemoteSkill(
   // remote from local invocations without joining on skill name prefixes.
   const queryDepth = context.queryTracking?.depth ?? 0
   const parentAgentId = getAgentContext()?.agentId
-  logEvent('tengu_skill_tool_invocation', {
-    command_name:
-      'remote_skill' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    // _PROTO_skill_name routes to the privileged skill_name BQ column
-    // (unredacted, all users); command_name stays in additional_metadata as
-    // the redacted variant.
-    _PROTO_skill_name:
-      commandName as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-    execution_context:
-      'remote' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    invocation_trigger: (queryDepth > 0
-      ? 'nested-skill'
-      : 'claude-proactive') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    query_depth: queryDepth,
-    ...(parentAgentId && {
-      parent_agent_id:
-        parentAgentId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    was_discovered: true,
-    is_remote: true,
-    remote_cache_hit: cacheHit,
-    remote_load_latency_ms: latencyMs,
-    ...(process.env.USER_TYPE === 'ant' && {
-      skill_name:
-        commandName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      remote_slug:
-        slug as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-  })
+
 
   recordSkillUsage(commandName)
 

@@ -11,7 +11,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
 // Bundle the production GrepTool, ignore policy, ripgrep process wrapper, path
 // helpers and Glob together. Only unrelated application services are replaced:
-// no terminal, user settings, accounts or telemetry are initialized by a search.
+// no terminal, user settings, or accounts are initialized by a search.
 // The permission fixture supplies deny patterns; Grep's ordering and exclusions
 // still run against a real ripgrep process, including explicit-glob overrides.
 async function loadSearchTools() {
@@ -45,7 +45,6 @@ async function loadSearchTools() {
       export const renderToolUseMessage = () => null;
       export const userFacingName = () => 'Search';
     `],
-    [/services\/analytics\/index\.js$/, 'analytics', `export const logEvent = () => {};`],
     [/(?:^|\/)debug\.js$/, 'debug', `export const logForDebugging = () => {};`],
     [/(?:^|\/)log\.js$/, 'log', `export const logError = () => {};`],
     [/(?:^|\/)slowOperations\.js$/, 'slow', `export const slowLogging = () => ({ [Symbol.dispose]() {} }); export const jsonStringify = JSON.stringify;`],

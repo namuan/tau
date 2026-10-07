@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { logEvent } from 'src/services/analytics/index.js'
+
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { Box, Text, useTheme } from '../ink.js'
 import type { ThemeSetting } from '../utils/theme.js'
@@ -14,9 +14,7 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
   const exitState = useExitOnCtrlCDWithKeybindings()
 
   useEffect(() => {
-    logEvent('tengu_began_setup', {
-      oauthEnabled: false,
-    })
+
   }, [])
 
   function handleThemeSelection(newTheme: ThemeSetting) {

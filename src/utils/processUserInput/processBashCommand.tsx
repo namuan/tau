@@ -6,7 +6,7 @@ import type { SetToolJSXFn } from 'src/Tool.js';
 import { BashTool } from 'src/tools/BashTool/BashTool.js';
 import type { AttachmentMessage, SystemMessage, UserMessage } from 'src/types/message.js';
 import type { ShellProgress } from 'src/types/tools.js';
-import { logEvent } from '../../services/analytics/index.js';
+
 import { errorMessage, ShellError } from '../errors.js';
 import { createHiddenBashMessage } from '../hiddenBashMessage.js';
 import { createSyntheticUserCaveatMessage, createUserInterruptionMessage, createUserMessage, prepareUserContent } from '../messages.js';
@@ -22,7 +22,7 @@ export async function processBashCommand(inputString: string, precedingInputBloc
   messages: (UserMessage | AttachmentMessage | SystemMessage)[];
   shouldQuery: boolean;
 }> {
-  logEvent('tengu_input_bash', {});
+
   const userMessage = createUserMessage({
     content: prepareUserContent({
       inputString: `<bash-input>${inputString}</bash-input>`,

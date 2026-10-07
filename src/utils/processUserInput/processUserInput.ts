@@ -9,7 +9,7 @@ import {
   isHiddenBashInput,
 } from 'src/components/PromptInput/inputModes.js'
 import type { QuerySource } from 'src/constants/querySource.js'
-import { logEvent } from 'src/services/analytics/index.js'
+
 import { getContentText } from 'src/utils/messages.js'
 import { type LocalJSXCommandContext } from '../../commands.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
@@ -360,9 +360,7 @@ async function processUserInputBase(
           data: pastedImage.content,
         },
       }
-      logEvent('tengu_pasted_image_resize_attempt', {
-        original_size_bytes: pastedImage.content.length,
-      })
+
       const resized = await maybeResizeAndDownsampleImageBlock(imageBlock)
       return {
         resized,
@@ -478,10 +476,7 @@ async function processUserInputBase(
         trimmedInput.startsWith(agentMentionString) && !isSubagentOnly
 
       // Log whenever users use @agent-<name> syntax
-      logEvent('tengu_subagent_at_mention', {
-        is_subagent_only: isSubagentOnly,
-        is_prefix: isPrefix,
-      })
+
     }
   }
 

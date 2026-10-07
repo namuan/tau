@@ -11,10 +11,7 @@ import { logError } from 'src/utils/log.js'
 import { getClaudeTempDir } from 'src/utils/permissions/filesystem.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import type { QuerySource } from '../../constants/querySource.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../analytics/index.js'
+
 
 function getCacheBreakDiffPath(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -528,46 +525,7 @@ export async function checkResponseForCacheBreak(
       reason = 'unknown cause'
     }
 
-    logEvent('tengu_prompt_cache_break', {
-      systemPromptChanged: changes?.systemPromptChanged ?? false,
-      toolSchemasChanged: changes?.toolSchemasChanged ?? false,
-      modelChanged: changes?.modelChanged ?? false,
-      fastModeChanged: changes?.fastModeChanged ?? false,
-      cacheControlChanged: changes?.cacheControlChanged ?? false,
-      betasChanged: changes?.betasChanged ?? false,
-      overageChanged: changes?.overageChanged ?? false,
-      effortChanged: changes?.effortChanged ?? false,
-      extraBodyChanged: changes?.extraBodyChanged ?? false,
-      addedToolCount: changes?.addedToolCount ?? 0,
-      removedToolCount: changes?.removedToolCount ?? 0,
-      systemCharDelta: changes?.systemCharDelta ?? 0,
-      addedTools: (changes?.addedTools ?? []).join(
-        ',',
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      removedTools: (changes?.removedTools ?? []).join(
-        ',',
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      changedToolSchemas: (changes?.changedToolSchemas ?? []).join(
-        ',',
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      // Beta header names are fixed enum-like values,
-      // not code or filepaths. requestId is an opaque server-generated ID.
-      addedBetas: (changes?.addedBetas ?? []).join(
-        ',',
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      removedBetas: (changes?.removedBetas ?? []).join(
-        ',',
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      callNumber: state.callCount,
-      prevCacheReadTokens: prevCacheRead,
-      cacheReadTokens,
-      cacheCreationTokens,
-      timeSinceLastAssistantMsg: timeSinceLastAssistantMsg ?? -1,
-      lastAssistantMsgOver5minAgo,
-      lastAssistantMsgOver1hAgo,
-      requestId: (requestId ??
-        '') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
 
     // Write diff file for ant debugging via --debug. The path is included in
     // the summary log so ants can find it (DevBar UI removed — event data

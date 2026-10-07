@@ -10,12 +10,12 @@ import { WelcomeV2 } from '../../components/LogoV2/WelcomeV2.js';
 import type { Root } from '../../ink.js';
 import { Box, Text } from '../../ink.js';
 import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js';
-import { logEvent } from '../../services/analytics/index.js';
+
 import { AppStateProvider } from '../../state/AppState.js';
 import { onChangeAppState } from '../../state/onChangeAppState.js';
 import { isAnthropicAuthEnabled } from '../../utils/auth.js';
 export async function setupTokenHandler(root: Root): Promise<void> {
-  logEvent('tengu_setup_token_command', {});
+
   const showAuthWarning = !isAnthropicAuthEnabled();
   const {
     ConsoleOAuthFlow
@@ -66,7 +66,7 @@ function DoctorView(t0) {
   return t1;
 }
 export async function doctorHandler(root: Root): Promise<void> {
-  logEvent('tengu_doctor_command', {});
+
   await new Promise<void>(resolve => {
     root.render(<AppStateProvider>
         <KeybindingSetup>

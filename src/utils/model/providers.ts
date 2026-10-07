@@ -1,4 +1,4 @@
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../services/analytics/index.js'
+
 import { isEnvTruthy } from '../envUtils.js'
 import { getGlobalConfig, saveGlobalConfig } from '../config.js'
 import { getForcedProvider } from '../forcedProvider.js'
@@ -275,10 +275,6 @@ export function isAnthropicNativeProvider(p: APIProvider): boolean {
  */
 export function claude5SupportApplies(): boolean {
   return isAnthropicNativeProvider(getAPIProvider())
-}
-
-export function getAPIProviderForStatsig(): AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {
-  return getAPIProvider() as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
 }
 
 /**

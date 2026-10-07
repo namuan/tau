@@ -133,7 +133,7 @@ export function NotebookEditPermissionRequest(props) {
   }
   let t15;
   if ($[40] !== T2 || $[41] !== language || $[42] !== notebook_path || $[43] !== t10 || $[44] !== t12 || $[45] !== t14 || $[46] !== t5 || $[47] !== t6 || $[48] !== t7 || $[49] !== t8 || $[50] !== t9) {
-    t15 = <T2 toolUseConfirm={t5} toolUseContext={t6} onDone={t7} onReject={t8} workerBadge={t9} title={t10} question={t12} content={t14} path={notebook_path} completionType="tool_use_single" languageName={language} parseInput={parseInput} />;
+    t15 = <T2 toolUseConfirm={t5} toolUseContext={t6} onDone={t7} onReject={t8} workerBadge={t9} title={t10} question={t12} content={t14} path={notebook_path} parseInput={parseInput} />;
     $[40] = T2;
     $[41] = language;
     $[42] = notebook_path;

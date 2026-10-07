@@ -3,8 +3,8 @@ import React, { useMemo, useState } from 'react';
 import type { CommandResultDisplay, LocalJSXCommandContext } from '../../commands.js';
 import { type OptionWithDescription, Select } from '../../components/CustomSelect/select.js';
 import { Dialog } from '../../components/design-system/Dialog.js';
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js';
-import { logEvent } from '../../services/analytics/index.js';
+
+
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js';
 import type { ToolUseContext } from '../../Tool.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
@@ -49,7 +49,7 @@ function RateLimitOptionsMenu(t0) {
   const isMax = subscriptionType === "max";
   const isMax20x = isMax && rateLimitTier === "default_claude_max_20x";
   const isTeamOrEnterprise = subscriptionType === "team" || subscriptionType === "enterprise";
-  const buyFirst = getFeatureValue_CACHED_MAY_BE_STALE("tengu_jade_anvil_4", false);
+  const buyFirst = false;
   let t3;
   bb0: {
     let actionOptions;
@@ -137,7 +137,7 @@ function RateLimitOptionsMenu(t0) {
   let t4;
   if ($[13] !== onDone) {
     t4 = function handleCancel() {
-      logEvent("tengu_rate_limit_options_menu_cancel", {});
+
       onDone(undefined, {
         display: "skip"
       });
@@ -152,7 +152,7 @@ function RateLimitOptionsMenu(t0) {
   if ($[15] !== context || $[16] !== handleCancel || $[17] !== onDone) {
     t5 = function handleSelect(value) {
       if (value === "upgrade") {
-        logEvent("tengu_rate_limit_options_menu_select_upgrade", {});
+
         upgradeCall(onDone, context).then(jsx => {
           if (jsx) {
             setSubCommandJSX(jsx);
@@ -160,7 +160,7 @@ function RateLimitOptionsMenu(t0) {
         });
       } else {
         if (value === "extra-usage") {
-          logEvent("tengu_rate_limit_options_menu_select_extra_usage", {});
+
           extraUsageCall(onDone, context).then(jsx_0 => {
             if (jsx_0) {
               setSubCommandJSX(jsx_0);

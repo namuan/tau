@@ -1,10 +1,7 @@
 import { feature } from 'bun:bundle'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from 'src/services/analytics/index.js'
-import { sanitizeToolNameForAnalytics } from 'src/services/analytics/metadata.js'
+
+
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
 import type {
   ToolPermissionContext,
@@ -37,10 +34,7 @@ import {
   supportsPersistence,
 } from '../../utils/permissions/PermissionUpdate.js'
 import type { PermissionUpdate } from '../../utils/permissions/PermissionUpdateSchema.js'
-import {
-  logPermissionDecision,
-  type PermissionDecisionArgs,
-} from './permissionLogging.js'
+
 
 type PermissionApprovalSource =
   | { type: 'hook'; permanent?: boolean }
@@ -117,24 +111,10 @@ function createPermissionContext(
         permissionPromptStartTimeMs?: number
       },
     ) {
-      logPermissionDecision(
-        {
-          tool,
-          input: opts?.input ?? input,
-          toolUseContext,
-          messageId,
-          toolUseID,
-        },
-        args,
-        opts?.permissionPromptStartTimeMs,
-      )
+
     },
     logCancelled() {
-      logEvent('tengu_tool_use_cancelled', {
-        messageID:
-          messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        toolName: sanitizeToolNameForAnalytics(tool.name),
-      })
+
     },
     async persistPermissions(updates: PermissionUpdate[]) {
       if (updates.length === 0) return false
@@ -199,11 +179,7 @@ function createPermissionContext(
                 setClassifierApproval(toolUseID, matchedRule)
               }
             }
-            logPermissionDecision(
-              { tool, input, toolUseContext, messageId, toolUseID },
-              { decision: 'accept', source: { type: 'classifier' } },
-              undefined,
-            )
+
             return {
               behavior: 'allow' as const,
               updatedInput: updatedInput ?? input,

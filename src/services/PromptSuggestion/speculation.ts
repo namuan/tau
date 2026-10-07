@@ -43,10 +43,7 @@ import { getClaudeTempDir } from '../../utils/permissions/filesystem.js'
 import { extractReadFilesFromMessages } from '../../utils/queryHelpers.js'
 import { getTranscriptPath } from '../../utils/sessionStorage.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../analytics/index.js'
+
 import {
   generateSuggestion,
   getPromptVariant,
@@ -129,26 +126,7 @@ function logSpeculation(
   boundary: CompletionBoundary | null,
   extras?: Record<string, string | number | boolean | undefined>,
 ): void {
-  logEvent('tengu_speculation', {
-    speculation_id:
-      id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    outcome:
-      outcome as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    duration_ms: Date.now() - startTime,
-    suggestion_length: suggestionLength,
-    tools_executed: countToolsInMessages(messages),
-    completed: boundary !== null,
-    boundary_type: boundary?.type as
-      | AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      | undefined,
-    boundary_tool: getBoundaryTool(boundary) as
-      | AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      | undefined,
-    boundary_detail: getBoundaryDetail(boundary) as
-      | AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      | undefined,
-    ...extras,
-  })
+
 }
 
 function countToolsInMessages(messages: Message[]): number {
@@ -702,9 +680,9 @@ export async function startSpeculation(
         error_message: errorMessage(error).slice(
           0,
           200,
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        ) as string,
         error_phase:
-          'start' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          'start' as string,
         is_pipelined: isPipelined,
       },
     )
@@ -976,9 +954,9 @@ export async function handleSpeculationAccept(
         error_message: errorMessage(error).slice(
           0,
           200,
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        ) as string,
         error_phase:
-          'accept' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          'accept' as string,
         is_pipelined: speculationState.isPipelined,
       },
     )

@@ -3,11 +3,9 @@ import chalk from 'chalk'
 import {
   addToTotalCostState,
   addToTotalLinesChanged,
-  getCostCounter,
   getModelUsage,
   getSdkBetas,
   getSessionId,
-  getTokenCounter,
   getTotalAPIDuration,
   getTotalAPIDurationWithoutRetries,
   getTotalCacheCreationInputTokens,
@@ -30,10 +28,7 @@ import {
   setHasUnknownModelCost,
 } from './bootstrap/state.js'
 import type { ModelUsage } from './entrypoints/agentSdkTypes.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from './services/analytics/index.js'
+
 import { getAdvisorUsage } from './utils/advisor.js'
 import {
   getCurrentProjectConfig,
@@ -43,7 +38,6 @@ import {
   getContextWindowForModel,
   getModelMaxOutputTokens,
 } from './utils/context.js'
-import { isFastModeEnabled } from './utils/fastMode.js'
 import { formatDuration, formatNumber } from './utils/format.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
 import { getCanonicalName } from './utils/model/model.js'
@@ -384,36 +378,11 @@ export function addToTotalSessionCost(
     }
   }
 
-  const attrs =
-    isFastModeEnabled() && usage.speed === 'fast'
-      ? { model, speed: 'fast' }
-      : { model }
-
-  getCostCounter()?.add(cost, attrs)
-  getTokenCounter()?.add(usage.input_tokens, { ...attrs, type: 'input' })
-  getTokenCounter()?.add(usage.output_tokens, { ...attrs, type: 'output' })
-  getTokenCounter()?.add(usage.cache_read_input_tokens ?? 0, {
-    ...attrs,
-    type: 'cacheRead',
-  })
-  getTokenCounter()?.add(usage.cache_creation_input_tokens ?? 0, {
-    ...attrs,
-    type: 'cacheCreation',
-  })
 
   let totalCost = cost
   for (const advisorUsage of getAdvisorUsage(usage)) {
     const advisorCost = calculateUSDCost(advisorUsage.model, advisorUsage)
-    logEvent('tengu_advisor_tool_token_usage', {
-      advisor_model:
-        advisorUsage.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      input_tokens: advisorUsage.input_tokens,
-      output_tokens: advisorUsage.output_tokens,
-      cache_read_input_tokens: advisorUsage.cache_read_input_tokens ?? 0,
-      cache_creation_input_tokens:
-        advisorUsage.cache_creation_input_tokens ?? 0,
-      cost_usd_micros: Math.round(advisorCost * 1_000_000),
-    })
+
     totalCost += addToTotalSessionCost(
       advisorCost,
       advisorUsage,

@@ -8,7 +8,7 @@ import { microcompactMessages } from 'src/services/compact/microCompact.js'
 import { getSdkBetas } from '../bootstrap/state.js'
 import { getCommandName } from '../commands.js'
 import { getSystemContext, getUserContext } from '../context.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+
 import {
   getAutoCompactThreshold,
   isAutoCompactEnabled,
@@ -1077,7 +1077,7 @@ export async function analyzeContextUsage(
   let reservedTokens = 0
   let skipReservedBuffer = false
   if (feature('REACTIVE_COMPACT')) {
-    if (getFeatureValue_CACHED_MAY_BE_STALE('tengu_cobalt_raccoon', false)) {
+    if (false) {
       skipReservedBuffer = true
     }
   }

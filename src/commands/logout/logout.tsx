@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useMemo, useState } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
-import { refreshGrowthBookAfterAuthChange } from '../../services/analytics/growthbook.js'
+
 import { getGroveNoticeConfig, getGroveSettings } from '../../services/api/grove.js'
 import { clearPolicyLimitsCache } from '../../services/policyLimits/index.js'
 import { clearRemoteManagedSettingsCache } from '../../services/remoteManagedSettings/index.js'
@@ -10,7 +10,6 @@ import { clearBetasCaches } from '../../utils/betas.js'
 import { saveGlobalConfig } from '../../utils/config.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
-import { resetUserCache } from '../../utils/user.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
@@ -53,12 +52,6 @@ export async function performLogout({
   provider?: APIProvider
 } = {}): Promise<void> {
   const provider = providerOverride ?? getAPIProvider()
-
-  // Flush telemetry BEFORE clearing credentials
-  const { flushTelemetry } = await import(
-    '../../utils/telemetry/instrumentation.js'
-  )
-  await flushTelemetry()
 
   if (isThirdPartyProvider(provider)) {
     // Third-party: only delete this provider's credentials
@@ -110,8 +103,6 @@ export async function clearAuthRelatedCaches(): Promise<void> {
   getClaudeAIOAuthTokens.cache?.clear?.()
   clearBetasCaches()
   clearToolSchemaCache()
-  resetUserCache()
-  refreshGrowthBookAfterAuthChange()
   getGroveNoticeConfig.cache?.clear?.()
   getGroveSettings.cache?.clear?.()
   await clearRemoteManagedSettingsCache()

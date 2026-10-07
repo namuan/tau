@@ -7,13 +7,10 @@
  */
 
 import memoize from 'lodash-es/memoize.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+
 import { isAntigravityModelId } from '../services/api/providers/gemini_code_assist.js'
 import { providerWillUseNativeLane } from '../services/api/providers/nativeLaneReadiness.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
+
 import type { Tool } from '../Tool.js'
 import {
   type ToolPermissionContext,
@@ -270,23 +267,7 @@ export function getToolSearchMode(): ToolSearchMode {
  */
 const DEFAULT_UNSUPPORTED_MODEL_PATTERNS = ['haiku']
 
-/**
- * Get the list of model patterns that do NOT support tool_reference.
- * Can be configured via GrowthBook for live updates without code changes.
- */
 function getUnsupportedToolReferencePatterns(): string[] {
-  try {
-    // Try to get from GrowthBook for live configuration
-    const patterns = getFeatureValue_CACHED_MAY_BE_STALE<string[] | null>(
-      'tengu_tool_search_unsupported_models',
-      null,
-    )
-    if (patterns && Array.isArray(patterns) && patterns.length > 0) {
-      return patterns
-    }
-  } catch {
-    // GrowthBook not ready, use defaults
-  }
   return DEFAULT_UNSUPPORTED_MODEL_PATTERNS
 }
 
@@ -297,8 +278,7 @@ function getUnsupportedToolReferencePatterns(): string[] {
  * UNLESS they match a pattern in the unsupported list. This ensures new
  * models work by default without code changes.
  *
- * Currently, Haiku models do NOT support tool_reference. This can be
- * updated via GrowthBook feature 'tengu_tool_search_unsupported_models'.
+ * Currently, Haiku models do NOT support tool_reference.
  *
  * @param model The model name to check
  * @returns true if the model supports tool_reference, false otherwise
@@ -478,20 +458,7 @@ export async function isToolSearchEnabled(
     reason: string,
     extraProps?: Record<string, number>,
   ): void {
-    logEvent('tengu_tool_search_mode_decision', {
-      enabled,
-      mode: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      reason:
-        reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      // Log the actual model being checked, not the session's main model.
-      // This is important for debugging subagent tool search decisions where
-      // the subagent model (e.g., haiku) differs from the session model (e.g., opus).
-      checkedModel:
-        model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      userType: (process.env.USER_TYPE ??
-        'external') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...extraProps,
-    })
+
   }
 
   if (getPowerModeFromSettings(getInitialSettings()) === 'cheap') {
@@ -730,7 +697,7 @@ export type DeferredToolsDeltaScanContext = {
 export function isDeferredToolsDeltaEnabled(): boolean {
   return (
     process.env.USER_TYPE === 'ant' ||
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_glacier_2xr', false)
+    false
   )
 }
 
@@ -783,21 +750,7 @@ export function getDeferredToolsDelta(
   // subagent first-fires and compact-path scans have EXPECTED prior=0 and
   // dominate the stat. callSite/querySource/attachmentTypesSeen split the
   // buckets so the real main-thread cross-turn failure is isolable in BQ.
-  logEvent('tengu_deferred_tools_pool_change', {
-    addedCount: added.length,
-    removedCount: removed.length,
-    priorAnnouncedCount: announced.size,
-    messagesLength: messages.length,
-    attachmentCount,
-    dtdCount,
-    callSite: (scanContext?.callSite ??
-      'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    querySource: (scanContext?.querySource ??
-      'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    attachmentTypesSeen: [...attachmentTypesSeen]
-      .sort()
-      .join(',') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  })
+
 
   return {
     addedNames: added.map(t => t.name).sort(),

@@ -3,8 +3,8 @@ import { feature } from 'bun:bundle';
 import { APIUserAbortError } from '@anthropic-ai/sdk';
 import * as React from 'react';
 import { useCallback } from 'react';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
-import { sanitizeToolNameForAnalytics } from 'src/services/analytics/metadata.js';
+
+
 import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import { Text } from '../ink.js';
 import type { ToolPermissionContext, Tool as ToolType, ToolUseContext } from '../Tool.js';
@@ -23,7 +23,7 @@ import { handleCoordinatorPermission } from './toolPermission/handlers/coordinat
 import { handleInteractivePermission } from './toolPermission/handlers/interactiveHandler.js';
 import { handleSwarmWorkerPermission } from './toolPermission/handlers/swarmWorkerHandler.js';
 import { createPermissionContext, createPermissionQueueOps } from './toolPermission/PermissionContext.js';
-import { logPermissionDecision } from './toolPermission/permissionLogging.js';
+
 export type CanUseToolFn<Input extends Record<string, unknown> = Record<string, unknown>> = (tool: ToolType, input: Input, toolUseContext: ToolUseContext, assistantMessage: AssistantMessage, toolUseID: string, forceDecision?: PermissionDecision<Input>) => Promise<PermissionDecision<Input>>;
 function useCanUseTool(setToolUseConfirmQueue, setToolPermissionContext) {
   const $ = _c(3);
@@ -64,16 +64,7 @@ function useCanUseTool(setToolUseConfirmQueue, setToolPermissionContext) {
         switch (result.behavior) {
           case "deny":
             {
-              logPermissionDecision({
-                tool,
-                input,
-                toolUseContext,
-                messageId: ctx.messageId,
-                toolUseID
-              }, {
-                decision: "reject",
-                source: "config"
-              });
+
               if (feature("TRANSCRIPT_CLASSIFIER") && result.decisionReason?.type === "classifier" && result.decisionReason.classifier === "auto-mode") {
                 recordAutoModeDenial({
                   toolName: tool.name,

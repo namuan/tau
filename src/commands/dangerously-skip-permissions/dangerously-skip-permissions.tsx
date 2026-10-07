@@ -7,7 +7,7 @@ import { Select } from '../../components/CustomSelect/select.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import { Box, Text } from '../../ink.js'
-import { logEvent } from '../../services/analytics/index.js'
+
 import type { LocalJSXCommandContext } from '../../commands.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
@@ -159,7 +159,7 @@ function enableBypassPermissions(context: LocalJSXCommandContext): string {
   setPermissionMode(context, 'bypassPermissions', {
     isBypassPermissionsModeAvailable: true,
   })
-  logEvent('tengu_bypass_permissions_command_enabled', {})
+
 
   return [
     `Bypass Permissions mode: ${chalk.green('ON')}`,
@@ -178,7 +178,7 @@ function disableBypassPermissions(context: LocalJSXCommandContext): string {
   }
 
   setPermissionMode(context, 'default')
-  logEvent('tengu_bypass_permissions_command_disabled', {})
+
 
   return `Bypass Permissions mode: ${chalk.red('OFF')} ${chalk.dim('(Default mode)')}`
 }
@@ -256,7 +256,7 @@ function EnableBypassFlow({
       <EnableBypassDialog
         onAccept={() => setConfirmed(true)}
         onCancel={() => {
-          logEvent('tengu_bypass_permissions_command_cancelled', {})
+
           onDone('Bypass Permissions mode unchanged.', { display: 'system' })
         }}
       />

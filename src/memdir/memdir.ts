@@ -13,19 +13,11 @@ const teamMemPaths = feature('TEAMMEM')
   : null
 
 import { getKairosActive, getOriginalCwd } from '../bootstrap/state.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
-import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
 import { isReplModeEnabled } from '../tools/REPLTool/constants.js'
 import { logForDebugging } from '../utils/debug.js'
-import { hasEmbeddedSearchTools } from '../utils/embeddedTools.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { formatFileSize } from '../utils/format.js'
-import { getProjectDir } from '../utils/sessionStorage.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import {
   MEMORY_FRONTMATTER_EXAMPLE,
@@ -174,44 +166,6 @@ export async function ensureMemoryDirExists(memoryDir: string): Promise<void> {
       { level: 'debug' },
     )
   }
-}
-
-/**
- * Log memory directory file/subdir counts asynchronously.
- * Fire-and-forget — doesn't block prompt building.
- */
-function logMemoryDirCounts(
-  memoryDir: string,
-  baseMetadata: Record<
-    string,
-    | number
-    | boolean
-    | AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-  >,
-): void {
-  const fs = getFsImplementation()
-  void fs.readdir(memoryDir).then(
-    dirents => {
-      let fileCount = 0
-      let subdirCount = 0
-      for (const d of dirents) {
-        if (d.isFile()) {
-          fileCount++
-        } else if (d.isDirectory()) {
-          subdirCount++
-        }
-      }
-      logEvent('tengu_memdir_loaded', {
-        ...baseMetadata,
-        total_file_count: fileCount,
-        total_subdir_count: subdirCount,
-      })
-    },
-    () => {
-      // Directory unreadable — log without counts
-      logEvent('tengu_memdir_loaded', baseMetadata)
-    },
-  )
 }
 
 /**
@@ -391,14 +345,7 @@ export function buildMemoryPrompt(params: {
   if (entrypointContent.trim()) {
     const t = truncateEntrypointContent(entrypointContent)
     const memoryType = displayName === AUTO_MEM_DISPLAY_NAME ? 'auto' : 'agent'
-    logMemoryDirCounts(memoryDir, {
-      content_length: t.byteCount,
-      line_count: t.lineCount,
-      was_truncated: t.wasLineTruncated,
-      was_byte_truncated: t.wasByteTruncated,
-      memory_type:
-        memoryType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
     lines.push(`## ${ENTRYPOINT_NAME}`, '', t.content)
   } else {
     lines.push(
@@ -482,41 +429,8 @@ function buildAssistantDailyLogPrompt(
   return lines.join('\n')
 }
 
-/**
- * Build the "Searching past context" section if the feature gate is enabled.
- */
-export function buildSearchingPastContextSection(autoMemDir: string): string[] {
-  if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_coral_fern', false)) {
-    return []
-  }
-  const projectDir = getProjectDir(getOriginalCwd())
-  // Ant-native builds alias grep to embedded ugrep and remove the dedicated
-  // Grep tool, so give the model a real shell invocation there.
-  // In REPL mode, both Grep and Bash are hidden from direct use — the model
-  // calls them from inside REPL scripts, so the grep shell form is what it
-  // will write in the script anyway.
-  const embedded = hasEmbeddedSearchTools() || isReplModeEnabled()
-  const memSearch = embedded
-    ? `grep -rn "<search term>" ${autoMemDir} --include="*.md"`
-    : `${GREP_TOOL_NAME} with pattern="<search term>" path="${autoMemDir}" glob="*.md"`
-  const transcriptSearch = embedded
-    ? `grep -rn "<search term>" ${projectDir}/ --include="*.jsonl"`
-    : `${GREP_TOOL_NAME} with pattern="<search term>" path="${projectDir}/" glob="*.jsonl"`
-  return [
-    '## Searching past context',
-    '',
-    'When looking for past context:',
-    '1. Search topic files in your memory directory:',
-    '```',
-    memSearch,
-    '```',
-    '2. Session transcript logs (last resort — large files, slow):',
-    '```',
-    transcriptSearch,
-    '```',
-    'Use narrow search terms (error messages, file paths, function names) rather than broad keywords.',
-    '',
-  ]
+export function buildSearchingPastContextSection(_autoMemDir: string): string[] {
+  return []
 }
 
 /**
@@ -535,10 +449,7 @@ export async function loadMemoryPrompt(
   const autoEnabled = isAutoMemoryEnabled()
   const compact = options.compact === true
 
-  const skipIndex = getFeatureValue_CACHED_MAY_BE_STALE(
-    'tengu_moth_copse',
-    false,
-  )
+  const skipIndex = false
 
   // KAIROS daily-log mode takes precedence over TEAMMEM: the append-only
   // log paradigm does not compose with team sync (which expects a shared
@@ -546,10 +457,7 @@ export async function loadMemoryPrompt(
   // means the !autoEnabled case falls through to the tengu_memdir_disabled
   // telemetry block below, matching the non-KAIROS path.
   if (feature('KAIROS') && autoEnabled && getKairosActive()) {
-    logMemoryDirCounts(getAutoMemPath(), {
-      memory_type:
-        'auto' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
     return buildAssistantDailyLogPrompt(skipIndex, compact)
   }
 
@@ -584,14 +492,8 @@ export async function loadMemoryPrompt(
       // out from under the auto dir, add a second ensureMemoryDirExists call
       // for autoDir here.
       await ensureMemoryDirExists(teamDir)
-      logMemoryDirCounts(autoDir, {
-        memory_type:
-          'auto' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      })
-      logMemoryDirCounts(teamDir, {
-        memory_type:
-          'team' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      })
+
+
       return compact
         ? teamMemPrompts!.buildCompactCombinedMemoryPrompt(
             extraGuidelines,
@@ -609,10 +511,7 @@ export async function loadMemoryPrompt(
     // Harness guarantees the directory exists so the model can write without
     // checking. The prompt text reflects this ("already exists").
     await ensureMemoryDirExists(autoDir)
-    logMemoryDirCounts(autoDir, {
-      memory_type:
-        'auto' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
     return (compact ? buildCompactMemoryLines : buildMemoryLines)(
       'auto memory',
       autoDir,
@@ -621,19 +520,6 @@ export async function loadMemoryPrompt(
     ).join('\n')
   }
 
-  logEvent('tengu_memdir_disabled', {
-    disabled_by_env_var: isEnvTruthy(
-      process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY,
-    ),
-    disabled_by_setting:
-      !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY) &&
-      getInitialSettings().autoMemoryEnabled === false,
-  })
-  // Gate on the GB flag directly, not isTeamMemoryEnabled() — that function
-  // checks isAutoMemoryEnabled() first, which is definitionally false in this
-  // branch. We want "was this user in the team-memory cohort at all."
-  if (getFeatureValue_CACHED_MAY_BE_STALE('tengu_herring_clock', false)) {
-    logEvent('tengu_team_memdir_disabled', {})
-  }
+
   return null
 }

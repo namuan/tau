@@ -18,11 +18,8 @@ import type {
 import { randomUUID, type UUID } from 'crypto'
 import isObject from 'lodash-es/isObject.js'
 import last from 'lodash-es/last.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from 'src/services/analytics/index.js'
-import { sanitizeToolNameForAnalytics } from 'src/services/analytics/metadata.js'
+
+
 import type { AgentId } from 'src/types/ids.js'
 import { companionIntroText } from '../buddy/prompt.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
@@ -32,10 +29,7 @@ import {
   getMermaidNotDrawnReminder,
 } from './mermaidDiagramsReminder.js'
 import { isAutoMemoryEnabled } from '../memdir/paths.js'
-import {
-  checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
-  getFeatureValue_CACHED_MAY_BE_STALE,
-} from '../services/analytics/growthbook.js'
+
 import {
   getImageTooLargeErrorMessage,
   getPdfInvalidErrorMessage,
@@ -189,7 +183,7 @@ const TOOL_REFERENCE_TURN_BOUNDARY = 'Tool loaded.'
 export function withMemoryCorrectionHint(message: string): string {
   if (
     isAutoMemoryEnabled() &&
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_amber_prism', false)
+    false
   ) {
     return message + MEMORY_CORRECTION_HINT
   }
@@ -2165,9 +2159,7 @@ export function normalizeMessagesForAPI(
           // that gets relocated, so skipping it saves a scan. When gate is
           // off, this is the fallback (same as pre-#21049 main).
           if (
-            !checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-              'tengu_toolref_defer_j8m',
-            )
+            !false
           ) {
             const contentAfterStrip = normalizedMessage.message.content
             if (
@@ -2290,9 +2282,7 @@ export function normalizeMessagesForAPI(
           const rawAttachmentMessage = normalizeAttachmentForAPI(
             message.attachment,
           )
-          const attachmentMessage = checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-            'tengu_chair_sermon',
-          )
+          const attachmentMessage = false
             ? rawAttachmentMessage.map(ensureSystemReminderWrap)
             : rawAttachmentMessage
 
@@ -2318,9 +2308,7 @@ export function normalizeMessagesForAPI(
   // Runs after merge (siblings are in place) and before ID tagging (so
   // tags reflect final positions). When gate is OFF, this is a noop and
   // the TOOL_REFERENCE_TURN_BOUNDARY injection above serves as fallback.
-  const relocated = checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-    'tengu_toolref_defer_j8m',
-  )
+  const relocated = false
     ? relocateToolReferenceSiblings(result)
     : result
 
@@ -2351,9 +2339,7 @@ export function normalizeMessagesForAPI(
   // Gated together: the merge exists solely to feed the smoosh; running it
   // ungated changes VCR fixture hashes for @-mention scenarios (adjacent
   // [prompt, attachment] users) without any benefit when the smoosh is off.
-  const smooshed = checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-    'tengu_chair_sermon',
-  )
+  const smooshed = false
     ? smooshSystemReminderSiblings(mergeAdjacentUserMessages(withNonEmpty))
     : withNonEmpty
 
@@ -2632,7 +2618,7 @@ export function mergeUserContentBlocks(
     return [...a, ...b]
   }
 
-  if (!checkStatsigFeatureGate_CACHED_MAY_BE_STALE('tengu_chair_sermon')) {
+  if (!false) {
     // Legacy (ungated) smoosh: only string-content tool_result + all-text
     // siblings → joined string. Matches pre-universal-smoosh behavior on main.
     // The precondition guarantees smooshIntoToolResult hits its string path
@@ -2707,9 +2693,7 @@ export function normalizeContentFromAPI(
       }
       case 'text':
         if (contentBlock.text.trim().length === 0) {
-          logEvent('tengu_model_whitespace_response', {
-            length: contentBlock.text.length,
-          })
+
         }
         // Return the block as-is to preserve exact content for prompt caching.
         // Empty text blocks are handled at the display layer and must not be
@@ -4752,12 +4736,7 @@ function filterTrailingThinkingFromLastAssistant(
     lastValidIndex--
   }
 
-  logEvent('tengu_filtered_trailing_thinking_block', {
-    messageUUID:
-      lastMessage.uuid as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    blocksRemoved: content.length - lastValidIndex - 1,
-    remainingBlocks: lastValidIndex + 1,
-  })
+
 
   // Insert placeholder if all blocks were thinking
   const filteredContent =
@@ -4924,10 +4903,7 @@ export function filterWhitespaceOnlyAssistantMessages(
       ) {
         return false
       }
-      logEvent('tengu_filtered_whitespace_only_assistant', {
-        messageUUID:
-          message.uuid as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      })
+
       return true
     },
   )
@@ -4985,11 +4961,7 @@ function ensureNonEmptyAssistantContent(
     const content = message.message.content
     if (Array.isArray(content) && content.length === 0) {
       hasChanges = true
-      logEvent('tengu_fixed_empty_assistant_content', {
-        messageUUID:
-          message.uuid as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        messageIndex: index,
-      })
+
 
       return toNoContentAssistant(message)
     }
@@ -5068,13 +5040,7 @@ export function filterOrphanedThinkingOnlyMessages(
     }
 
     // Truly orphaned - no other message with same id has content to merge with
-    logEvent('tengu_filtered_orphaned_thinking_message', {
-      messageUUID:
-        msg.uuid as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      messageId: msg.message
-        .id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      blockCount: content.length,
-    })
+
     return true
   }).messages
 }
@@ -5390,7 +5356,7 @@ export function ensureToolResultPairing(
         // [tool_result, text] sibling the smoosh inside normalize never saw
         // (pairing runs after normalize). Re-smoosh just this one message.
         result.push(
-          checkStatsigFeatureGate_CACHED_MAY_BE_STALE('tengu_chair_sermon')
+          false
             ? smooshSystemReminderSiblings([patchedNext])[0]!
             : patchedNext,
         )
@@ -5464,13 +5430,7 @@ export function ensureToolResultPairing(
       )
     }
 
-    logEvent('tengu_tool_result_pairing_repaired', {
-      messageCount: messages.length,
-      repairedMessageCount: result.length,
-      messageTypes: messageTypes.join(
-        '; ',
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
     logError(
       new Error(
         `ensureToolResultPairing: repaired missing tool_result blocks (${messages.length} -> ${result.length} messages). Message structure: ${messageTypes.join('; ')}`,

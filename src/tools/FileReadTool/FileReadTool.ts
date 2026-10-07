@@ -10,12 +10,9 @@ import {
 } from '../../constants/apiLimits.js'
 import { hasBinaryExtension } from '../../constants/files.js'
 import { memoryFreshnessNote } from '../../memdir/memoryAge.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
-import { logEvent } from '../../services/analytics/index.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  getFileExtensionForAnalytics,
-} from '../../services/analytics/metadata.js'
+
+
+
 import {
   countTokensWithAPI,
   roughTokenCountEstimationForFileType,
@@ -38,7 +35,6 @@ import {
   getFileModificationTimeAsync,
   suggestPathUnderCwd,
 } from '../../utils/file.js'
-import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { formatFileSize } from '../../utils/format.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import {
@@ -641,10 +637,7 @@ export const FileReadTool = buildTool({
     // Telemetry: track when callers override default read limits.
     // Only fires on override (low volume) — event count = override frequency.
     if (fileReadingLimits !== undefined) {
-      logEvent('tengu_file_read_limits_override', {
-        hasMaxTokens: fileReadingLimits.maxTokens !== undefined,
-        hasMaxSizeBytes: fileReadingLimits.maxSizeBytes !== undefined,
-      })
+
     }
 
     const ext = path.extname(file_path).toLowerCase().slice(1)
@@ -681,10 +674,7 @@ export const FileReadTool = buildTool({
     // the model externally.
     // 3P default: killswitch off = dedup enabled. Client-side only — no
     // server support needed, safe for Bedrock/Vertex/Foundry.
-    const dedupKillswitch = getFeatureValue_CACHED_MAY_BE_STALE(
-      'tengu_read_dedup_killswitch',
-      false,
-    )
+    const dedupKillswitch = false
     // Skeleton reads never dedup: they are cheap to recompute and their
     // output shape differs from the full-content read the dedup stub
     // would point the model back to. (Auto-skeleton reads don't need a
@@ -709,10 +699,7 @@ export const FileReadTool = buildTool({
         try {
           const mtimeMs = await getFileModificationTimeAsync(fullFilePath)
           if (mtimeMs === existingState.timestamp) {
-            const analyticsExt = getFileExtensionForAnalytics(fullFilePath)
-            logEvent('tengu_file_read_dedup', {
-              ...(analyticsExt !== undefined && { ext: analyticsExt }),
-            })
+
             return markPagesIgnored({
               data: {
                 type: 'file_unchanged' as const,
@@ -1125,12 +1112,7 @@ async function callInner(
       file: { filePath: file_path, cells },
     }
 
-    logFileOperation({
-      operation: 'read',
-      tool: 'FileReadTool',
-      filePath: fullFilePath,
-      content: cellsJson,
-    })
+
 
     return { data }
   }
@@ -1142,12 +1124,7 @@ async function callInner(
     const data = await readImageWithTokenBudget(resolvedFilePath, maxTokens)
     context.nestedMemoryAttachmentTriggers?.add(fullFilePath)
 
-    logFileOperation({
-      operation: 'read',
-      tool: 'FileReadTool',
-      filePath: fullFilePath,
-      content: data.file.base64,
-    })
+
 
     const metadataText = data.file.dimensions
       ? createImageMetadataText(data.file.dimensions)
@@ -1213,26 +1190,11 @@ async function callInner(
             ? `This is only the text layer of PDF pages ${pages}, extracted with ${textResult.data.tool}, because the pages could not be rendered as images. Images, charts, scanned pages and layout were not inspected. ${message}`
             : `PDF pages ${pages} have no text layer (they are probably scanned images) and could not be rendered as images, so their content was not inspected. ${message}`,
         )
-        logFileOperation({
-          operation: 'read',
-          tool: 'FileReadTool',
-          filePath: fullFilePath,
-          content: `PDF text of pages ${pages}`,
-        })
+
         return { data }
       }
-      logEvent('tengu_pdf_page_extraction', {
-        success: true,
-        pageCount: extractResult.data.file.count,
-        fileSize: extractResult.data.file.originalSize,
-        hasPageRange: true,
-      })
-      logFileOperation({
-        operation: 'read',
-        tool: 'FileReadTool',
-        filePath: fullFilePath,
-        content: `PDF pages ${pages}`,
-      })
+
+
       const entries = await readdir(extractResult.data.file.outputDir)
       // pdftoppm and current PyMuPDF write JPEG; an old PyMuPDF writes PNG.
       const imageFiles = entries.filter(f => /\.(jpg|png)$/.test(f)).sort()
@@ -1284,17 +1246,9 @@ async function callInner(
       // Only logged: no Python fallback, which would render every page.
       const extractResult = await extractPDFPages(resolvedFilePath, undefined, false)
       if (extractResult.success) {
-        logEvent('tengu_pdf_page_extraction', {
-          success: true,
-          pageCount: extractResult.data.file.count,
-          fileSize: extractResult.data.file.originalSize,
-        })
+
       } else {
-        logEvent('tengu_pdf_page_extraction', {
-          success: false,
-          available: extractResult.error.reason !== 'unavailable',
-          fileSize: stats.size,
-        })
+
       }
     }
 
@@ -1311,12 +1265,7 @@ async function callInner(
       throw new Error(readResult.error.message)
     }
     const pdfData = readResult.data
-    logFileOperation({
-      operation: 'read',
-      tool: 'FileReadTool',
-      filePath: fullFilePath,
-      content: pdfData.file.base64,
-    })
+
 
     return {
       data: pdfData,
@@ -1370,18 +1319,8 @@ async function callInner(
     // parse cache in officeDocs.ts instead of the readFileState dedup above.
     context.nestedMemoryAttachmentTriggers?.add(fullFilePath)
 
-    logFileOperation({
-      operation: 'read',
-      tool: 'FileReadTool',
-      filePath: fullFilePath,
-      content,
-    })
-    const officeAnalyticsExt = getFileExtensionForAnalytics(fullFilePath)
-    logEvent('tengu_file_read_office_parse', {
-      cached: parsed.cached,
-      truncated: selected.length < totalLines,
-      ...(officeAnalyticsExt !== undefined && { ext: officeAnalyticsExt }),
-    })
+
+
 
     const notes = [
       `Converted ${path.basename(fullFilePath)} to markdown with ${parsed.source}${parsed.cached ? ' (cached from an earlier read)' : ''}.`,
@@ -1445,23 +1384,8 @@ async function callInner(
       recordFileRead(fullFilePath, context.agentId)
       context.nestedMemoryAttachmentTriggers?.add(fullFilePath)
 
-      logFileOperation({
-        operation: 'read',
-        tool: 'FileReadTool',
-        filePath: fullFilePath,
-        content: skeletonResult.formatted,
-      })
-      const analyticsExt = getFileExtensionForAnalytics(fullFilePath)
-      logEvent('tengu_file_read_skeleton', {
-        totalLines: skeletonResult.totalLines,
-        keptLines: skeletonResult.keptLines,
-        elidedLines: skeletonResult.elidedLines,
-        elidedRegions: skeletonResult.elidedRegions,
-        truncatedLines: skeletonResult.truncatedLines,
-        truncatedChars: skeletonResult.truncatedChars,
-        auto: skeletonMode === 'auto',
-        ...(analyticsExt !== undefined && { ext: analyticsExt }),
-      })
+
+
 
       return {
         data: {
@@ -1533,30 +1457,10 @@ async function callInner(
     memoryFileMtimes.set(data, mtimeMs)
   }
 
-  logFileOperation({
-    operation: 'read',
-    tool: 'FileReadTool',
-    filePath: fullFilePath,
-    content,
-  })
+
 
   const sessionFileType = detectSessionFileType(fullFilePath)
-  const analyticsExt = getFileExtensionForAnalytics(fullFilePath)
-  logEvent('tengu_session_file_read', {
-    totalLines,
-    readLines: lineCount,
-    totalBytes,
-    readBytes,
-    offset,
-    ...(limit !== undefined && { limit }),
-    ...(analyticsExt !== undefined && { ext: analyticsExt }),
-    ...(messageId !== undefined && {
-      messageID:
-        messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    is_session_memory: sessionFileType === 'session_memory',
-    is_session_transcript: sessionFileType === 'session_transcript',
-  })
+
 
   return { data }
 }

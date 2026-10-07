@@ -1,6 +1,6 @@
 import { agentFileConflictMessage, checkAgentFileClaim } from '../../utils/agentFileClaims.js'
 import { dirname, isAbsolute, sep } from 'path'
-import { logEvent } from 'src/services/analytics/index.js'
+
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
 import {
   activateConditionalSkillsForPaths,
@@ -27,7 +27,6 @@ import {
   fileHistoryEnabled,
   fileHistoryTrackEdit,
 } from '../../utils/fileHistory.js'
-import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import {
   type LineEndingType,
   readFileSyncWithMetadata,
@@ -668,30 +667,19 @@ export const FileEditTool = buildTool({
       absoluteFilePath.endsWith(`${sep}AGENTS.md`) ||
       absoluteFilePath.endsWith(`${sep}AGENTS.local.md`)
     ) {
-      logEvent('tengu_write_agents_md', {})
+
     }
     countLinesChanged(patch)
 
-    logFileOperation({
-      operation: 'edit',
-      tool: 'FileEditTool',
-      filePath: absoluteFilePath,
-    })
 
-    logEvent('tengu_edit_string_lengths', {
-      oldStringBytes: Buffer.byteLength(old_string, 'utf8'),
-      newStringBytes: Buffer.byteLength(new_string, 'utf8'),
-      replaceAll: replace_all,
-    })
+
+
 
     // Track how often the whitespace-flexible fallback rescued an edit that
     // exact matching would have failed. (Metadata values are boolean-only by
     // policy — no strings.)
     if (flexMatchType) {
-      logEvent('tengu_edit_flexible_match', {
-        trailingWhitespace: flexMatchType === 'trailing-whitespace',
-        indent: flexMatchType === 'indent',
-      })
+
     }
 
     // Best-effort, non-blocking syntax check (warn-only). Runs AFTER the write

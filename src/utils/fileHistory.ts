@@ -16,7 +16,7 @@ import {
   getOriginalCwd,
   getSessionId,
 } from 'src/bootstrap/state.js'
-import { logEvent } from 'src/services/analytics/index.js'
+
 import type { LogOption } from 'src/types/logs.js'
 import { inspect } from 'util'
 import { getGlobalConfig } from './config.js'
@@ -107,7 +107,7 @@ export async function fileHistoryTrackEdit(
   const mostRecent = captured.snapshots.at(-1)
   if (!mostRecent) {
     logError(new Error('FileHistory: Missing most recent snapshot'))
-    logEvent('tengu_file_history_track_edit_failed', {})
+
     return
   }
   if (mostRecent.trackedFileBackups[trackingPath]) {
@@ -122,7 +122,7 @@ export async function fileHistoryTrackEdit(
     backup = await createBackup(filePath, 1)
   } catch (error) {
     logError(error)
-    logEvent('tengu_file_history_track_edit_failed', {})
+
     return
   }
   const isAddingFile = backup.backupFileName === null
@@ -176,16 +176,13 @@ export async function fileHistoryTrackEdit(
         logError(new Error(`FileHistory: Failed to record snapshot: ${error}`))
       })
 
-      logEvent('tengu_file_history_track_edit_success', {
-        isNewFile: isAddingFile,
-        version: backup.version,
-      })
+
       logForDebugging(`FileHistory: Tracked file modification for ${filePath}`)
 
       return updatedState
     } catch (error) {
       logError(error)
-      logEvent('tengu_file_history_track_edit_failed', {})
+
       return state
     }
   })
@@ -243,9 +240,7 @@ export async function fileHistoryMakeSnapshot(
               version: nextVersion,
               backupTime: new Date(),
             }
-            logEvent('tengu_file_history_backup_deleted_file', {
-              version: nextVersion,
-            })
+
             logForDebugging(
               `FileHistory: Missing tracked file: ${trackingPath}`,
             )
@@ -274,7 +269,7 @@ export async function fileHistoryMakeSnapshot(
           )
         } catch (error) {
           logError(error)
-          logEvent('tengu_file_history_backup_file_failed', {})
+
         }
       }),
     )
@@ -326,15 +321,12 @@ export async function fileHistoryMakeSnapshot(
       logForDebugging(
         `FileHistory: Added snapshot for ${messageId}, tracking ${state.trackedFiles.size} files`,
       )
-      logEvent('tengu_file_history_snapshot_success', {
-        trackedFilesCount: state.trackedFiles.size,
-        snapshotCount: updatedState.snapshots.length,
-      })
+
 
       return updatedState
     } catch (error) {
       logError(error)
-      logEvent('tengu_file_history_snapshot_failed', {})
+
       return state
     }
   })
@@ -367,10 +359,7 @@ export async function fileHistoryRewind(
   )
   if (!targetSnapshot) {
     logError(new Error(`FileHistory: Snapshot for ${messageId} not found`))
-    logEvent('tengu_file_history_rewind_failed', {
-      trackedFilesCount: captured.trackedFiles.size,
-      snapshotFound: false,
-    })
+
     throw new Error('The selected snapshot was not found')
   }
 
@@ -381,16 +370,10 @@ export async function fileHistoryRewind(
     const filesChanged = await applySnapshot(captured, targetSnapshot)
 
     logForDebugging(`FileHistory: [Rewind] Finished rewinding to ${messageId}`)
-    logEvent('tengu_file_history_rewind_success', {
-      trackedFilesCount: captured.trackedFiles.size,
-      filesChangedCount: filesChanged.length,
-    })
+
   } catch (error) {
     logError(error)
-    logEvent('tengu_file_history_rewind_failed', {
-      trackedFilesCount: captured.trackedFiles.size,
-      snapshotFound: true,
-    })
+
     throw error
   }
 }
@@ -441,9 +424,7 @@ export async function fileHistoryGetDiffStats(
           logError(
             new Error('FileHistory: Error finding the backup file to apply'),
           )
-          logEvent('tengu_file_history_rewind_restore_file_failed', {
-            dryRun: true,
-          })
+
           return null
         }
 
@@ -462,9 +443,7 @@ export async function fileHistoryGetDiffStats(
         return null
       } catch (error) {
         logError(error)
-        logEvent('tengu_file_history_rewind_restore_file_failed', {
-          dryRun: true,
-        })
+
         return null
       }
     }),
@@ -552,9 +531,7 @@ async function applySnapshot(
         logError(
           new Error('FileHistory: Error finding the backup file to apply'),
         )
-        logEvent('tengu_file_history_rewind_restore_file_failed', {
-          dryRun: false,
-        })
+
         continue
       }
 
@@ -581,9 +558,7 @@ async function applySnapshot(
       }
     } catch (error) {
       logError(error)
-      logEvent('tengu_file_history_rewind_restore_file_failed', {
-        dryRun: false,
-      })
+
     }
   }
   return filesChanged
@@ -784,10 +759,7 @@ async function createBackup(
   // Preserve file permissions on the backup.
   await chmod(backupPath, srcStats.mode)
 
-  logEvent('tengu_file_history_backup_file_created', {
-    version: version,
-    fileSize: srcStats.size,
-  })
+
 
   return {
     backupFileName,
@@ -813,7 +785,7 @@ async function restoreBackup(
     backupStats = await stat(backupPath)
   } catch (e: unknown) {
     if (isENOENT(e)) {
-      logEvent('tengu_file_history_rewind_restore_file_failed', {})
+
       logError(
         new Error(`FileHistory: [Rewind] Backup file not found: ${backupPath}`),
       )
@@ -1034,10 +1006,7 @@ export async function copyFileHistoryForResume(log: LogOption): Promise<void> {
     )
 
     if (failedSnapshots > 0) {
-      logEvent('tengu_file_history_resume_copy_failed', {
-        numSnapshots: fileHistorySnapshots.length,
-        failedSnapshots,
-      })
+
     }
   } catch (error) {
     logError(error)

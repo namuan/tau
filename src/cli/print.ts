@@ -16,11 +16,8 @@ import { assembleToolPool, filterToolsByDenyRules } from 'src/tools.js'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { uniq } from 'src/utils/array.js'
 import { mergeAndFilterTools } from 'src/utils/toolPool.js'
-import {
-  logEvent,
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from 'src/services/analytics/index.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
+
+
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import { toolMatchesName, type Tool, type Tools } from 'src/Tool.js'
@@ -267,7 +264,7 @@ import {
   drainSdkEvents,
   taskNotificationSdkEvent,
 } from '../utils/sdkEventQueue.js'
-import { initializeGrowthBook } from '../services/analytics/growthbook.js'
+
 import { errorMessage, toError } from '../utils/errors.js'
 import { sleep } from '../utils/sleep.js'
 import { isExtractModeActive } from '../memdir/paths.js'
@@ -462,10 +459,6 @@ export async function runHeadless(
     await checkGroveForNonInteractive()
   }
   headlessProfilerCheckpoint('after_grove_check')
-
-  // Initialize GrowthBook so feature flags take effect in headless mode.
-  // Without this, the disk cache is empty and all flags fall back to defaults.
-  void initializeGrowthBook()
 
   if (options.resumeSessionAt && !options.resume) {
     process.stderr.write(`Error: --resume-session-at requires --resume\n`)
@@ -2031,7 +2024,7 @@ function runHeadlessStreaming(
 
           if (
             message.request.agentProgressSummaries &&
-            getFeatureValue_CACHED_MAY_BE_STALE('tengu_slate_prism', true)
+            true
           ) {
             setSdkAgentProgressSummariesEnabled(true)
           }
@@ -2170,9 +2163,7 @@ function runHeadlessStreaming(
           // is GC'd — no fd or port is held.
           claudeOAuth?.service.cleanup()
 
-          logEvent('tengu_oauth_flow_start', {
-            loginWithClaudeAi: loginWithClaudeAi ?? true,
-          })
+
 
           const service = new OAuthService()
           let urlResolver!: (urls: {
@@ -2205,9 +2196,7 @@ function runHeadlessStreaming(
               // getClaudeAIOAuthTokens in this process is invalidated; the
               // next API call re-reads keychain/file and works. No respawn.
               await installOAuthTokens(tokens)
-              logEvent('tengu_oauth_success', {
-                loginWithClaudeAi: loginWithClaudeAi ?? true,
-              })
+
             })
             .finally(() => {
               service.cleanup()
@@ -3010,7 +2999,7 @@ async function loadInitialMessages(
   // Handle continue in print mode
   if (options.continue) {
     try {
-      logEvent('tengu_continue_print', {})
+
 
       const result = await loadConversationForResume(
         undefined /* sessionId */,
@@ -3092,7 +3081,7 @@ async function loadInitialMessages(
   // Handle resume in print mode
   if (options.resume) {
     try {
-      logEvent('tengu_resume_print', {})
+
 
       const resumeValue = typeof options.resume === 'string' ? options.resume : ''
       const jsonlFile = resumeValue.toLowerCase().endsWith('.jsonl')

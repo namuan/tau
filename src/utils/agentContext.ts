@@ -22,7 +22,7 @@
  */
 
 import { AsyncLocalStorage } from 'async_hooks'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../services/analytics/index.js'
+
 import { isAgentSwarmsEnabled } from './agentSwarmsEnabled.js'
 
 /**
@@ -139,7 +139,7 @@ export function isTeammateAgentContext(
  * and custom agents are always mapped to the literal "user-defined".
  */
 export function getSubagentLogName():
-  | AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+  | string
   | undefined {
   const context = getAgentContext()
   if (!isSubagentContext(context) || !context.subagentName) {
@@ -147,7 +147,7 @@ export function getSubagentLogName():
   }
   return (
     context.isBuiltIn ? context.subagentName : 'user-defined'
-  ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+  ) as string
 }
 
 /**

@@ -1,7 +1,7 @@
 import { c as _c } from "react/compiler-runtime";
 import { homedir } from 'os';
 import React from 'react';
-import { logEvent } from 'src/services/analytics/index.js';
+
 import { setSessionTrustAccepted } from '../../bootstrap/state.js';
 import type { Command } from '../../commands.js';
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
@@ -14,7 +14,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js';
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js';
 import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
-import { getApiKeyHelperSources, getBashPermissionSources, getDangerousEnvVarsSources, getHooksSources, getOtelHeadersHelperSources } from './utils.js';
+import { getApiKeyHelperSources, getBashPermissionSources, getDangerousEnvVarsSources, getHooksSources } from './utils.js';
 type Props = {
   onDone(): void;
   commands?: Command[];
@@ -51,15 +51,6 @@ export function TrustDialog(t0) {
   }
   const apiKeyHelperSources = t5;
   const hasApiKeyHelper = apiKeyHelperSources.length > 0;
-  let t8;
-  if ($[7] === Symbol.for("react.memo_cache_sentinel")) {
-    t8 = getOtelHeadersHelperSources();
-    $[7] = t8;
-  } else {
-    t8 = $[7];
-  }
-  const otelHeadersHelperSources = t8;
-  const hasOtelHeadersHelper = otelHeadersHelperSources.length > 0;
   let t9;
   if ($[8] === Symbol.for("react.memo_cache_sentinel")) {
     t9 = getDangerousEnvVarsSources();
@@ -94,16 +85,9 @@ export function TrustDialog(t0) {
   if ($[13] !== hasAnyBashExecution) {
     t12 = () => {
       const isHomeDir = homedir() === getCwd();
-      logEvent("tengu_trust_dialog_shown", {
-        isHomeDir,
-        hasHooks,
-        hasBashExecution: hasAnyBashExecution,
-        hasApiKeyHelper,
-        hasOtelHeadersHelper,
-        hasDangerousEnvVars
-      });
+
     };
-    t13 = [hasHooks, hasAnyBashExecution, hasApiKeyHelper, hasOtelHeadersHelper, hasDangerousEnvVars];
+    t13 = [hasHooks, hasAnyBashExecution, hasApiKeyHelper, hasDangerousEnvVars];
     $[13] = hasAnyBashExecution;
     $[14] = t12;
     $[15] = t13;
@@ -120,14 +104,7 @@ export function TrustDialog(t0) {
         return;
       }
       const isHomeDir_0 = homedir() === getCwd();
-      logEvent("tengu_trust_dialog_accept", {
-        isHomeDir: isHomeDir_0,
-        hasHooks,
-        hasBashExecution: hasAnyBashExecution,
-        hasApiKeyHelper,
-        hasOtelHeadersHelper,
-        hasDangerousEnvVars
-      });
+
       if (isHomeDir_0) {
         setSessionTrustAccepted(true);
       } else {

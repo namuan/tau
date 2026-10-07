@@ -1,7 +1,7 @@
 import { agentFileConflictMessage, checkAgentFileClaim } from '../../utils/agentFileClaims.js'
 import { existsSync } from 'fs'
 import { dirname, sep } from 'path'
-import { logEvent } from 'src/services/analytics/index.js'
+
 import { z } from 'zod/v4'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
 import {
@@ -21,7 +21,6 @@ import {
   fileHistoryEnabled,
   fileHistoryTrackEdit,
 } from '../../utils/fileHistory.js'
-import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { validateBuiltinImports } from '../../utils/importCheck.js'
@@ -425,7 +424,7 @@ export const FileWriteTool = buildTool({
       fullFilePath.endsWith(`${sep}AGENTS.md`) ||
       fullFilePath.endsWith(`${sep}AGENTS.local.md`)
     ) {
-      logEvent('tengu_write_agents_md', {})
+
     }
 
     // Best-effort post-write checks, warn-only (same contract as
@@ -474,12 +473,7 @@ export const FileWriteTool = buildTool({
       // Track lines added and removed for file updates, right before yielding result
       countLinesChanged(patch)
 
-      logFileOperation({
-        operation: 'write',
-        tool: 'FileWriteTool',
-        filePath: fullFilePath,
-        type: 'update',
-      })
+
 
       return {
         data,
@@ -499,12 +493,7 @@ export const FileWriteTool = buildTool({
     // For creation of new files, count all lines as additions, right before yielding the result
     countLinesChanged([], content)
 
-    logFileOperation({
-      operation: 'write',
-      tool: 'FileWriteTool',
-      filePath: fullFilePath,
-      type: 'create',
-    })
+
 
     return {
       data,

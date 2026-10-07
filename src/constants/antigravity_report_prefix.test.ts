@@ -4,9 +4,6 @@ import { API_PROVIDERS, type APIProvider } from '../utils/model/providerRegistry
 
 let selectedProvider: APIProvider = 'antigravity'
 mock.module('bun:bundle', () => ({ feature: () => false }))
-mock.module('../services/analytics/growthbook.js', () => ({
-  getFeatureValue_CACHED_MAY_BE_STALE: () => true,
-}))
 mock.module('../utils/debug.js', () => ({ logForDebugging: () => {} }))
 mock.module('../utils/model/providers.js', () => ({ getAPIProvider: () => selectedProvider }))
 mock.module('../utils/workloadContext.js', () => ({ getWorkload: () => undefined }))

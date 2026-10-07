@@ -21,10 +21,7 @@ const contextCollapse = feature('CONTEXT_COLLAPSE')
   ? (require('./services/contextCollapse/index.js') as typeof import('./services/contextCollapse/index.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
-import {
-  logEvent,
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from 'src/services/analytics/index.js'
+
 import { ImageSizeError } from './utils/imageValidation.js'
 import { ImageResizeError } from './utils/imageResizer.js'
 import { findToolByName, type ToolUseContext } from './Tool.js'
@@ -62,7 +59,7 @@ import {
   DEFAULT_SCAN_WINDOW,
   detectToolLoop,
 } from './utils/toolLedger.js'
-import { sanitizeToolNameForAnalytics } from './services/analytics/metadata.js'
+
 import { generateToolUseSummary } from './services/toolUseSummary/toolUseSummaryGenerator.js'
 import { prependUserContext, appendSystemContext } from './utils/api.js'
 import {
@@ -117,7 +114,7 @@ import {
   tokenCountWithEstimation,
 } from './utils/tokens.js'
 import { ESCALATED_MAX_TOKENS } from './utils/context.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from './services/analytics/growthbook.js'
+
 import { SLEEP_TOOL_NAME } from './tools/SleepTool/prompt.js'
 import { executePostSamplingHooks } from './utils/hooks/postSamplingHooks.js'
 import { executeStopFailureHooks } from './utils/hooks.js'
@@ -390,9 +387,6 @@ async function* queryLoop(
           depth: 0,
         }
 
-    const queryChainIdForAnalytics =
-      queryTracking.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-
     toolUseContext = {
       ...toolUseContext,
       queryTracking,
@@ -511,31 +505,7 @@ async function* queryLoop(
         compactionUsage,
       } = compactionResult
 
-      logEvent('tengu_auto_compact_succeeded', {
-        originalMessageCount: messages.length,
-        compactedMessageCount:
-          compactionResult.summaryMessages.length +
-          compactionResult.attachments.length +
-          compactionResult.hookResults.length,
-        preCompactTokenCount,
-        postCompactTokenCount,
-        truePostCompactTokenCount,
-        compactionInputTokens: compactionUsage?.input_tokens,
-        compactionOutputTokens: compactionUsage?.output_tokens,
-        compactionCacheReadTokens:
-          compactionUsage?.cache_read_input_tokens ?? 0,
-        compactionCacheCreationTokens:
-          compactionUsage?.cache_creation_input_tokens ?? 0,
-        compactionTotalTokens: compactionUsage
-          ? compactionUsage.input_tokens +
-            (compactionUsage.cache_creation_input_tokens ?? 0) +
-            (compactionUsage.cache_read_input_tokens ?? 0) +
-            compactionUsage.output_tokens
-          : 0,
 
-        queryChainId: queryChainIdForAnalytics,
-        queryDepth: queryTracking.depth,
-      })
 
       // Reset on every compact so turnCounter/turnId reflect the MOST RECENT
       // compact. recompactionInfo (autoCompact.ts:190) already captured the
@@ -656,16 +626,7 @@ async function* queryLoop(
         ...(effort !== undefined ? { effortValue: effort } : {}),
       }))
 
-      logEvent('tengu_model_fallback_triggered', {
-        original_model:
-          `${originalProvider}/${originalModel}` as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        fallback_model:
-          `${attempt.target.provider}/${attempt.target.model}` as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        entrypoint:
-          'cli' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        queryChainId: queryChainIdForAnalytics,
-        queryDepth: queryTracking.depth,
-      })
+
 
       const reason = errorText
         ? `: ${truncateFallbackErrorMessage(errorText)}`
@@ -846,11 +807,7 @@ async function* queryLoop(
               for (const msg of assistantMessages) {
                 yield { type: 'tombstone' as const, message: msg }
               }
-              logEvent('tengu_orphaned_messages_tombstoned', {
-                orphanedMessageCount: assistantMessages.length,
-                queryChainId: queryChainIdForAnalytics,
-                queryDepth: queryTracking.depth,
-              })
+
 
               assistantMessages.length = 0
               toolResults.length = 0
@@ -1054,16 +1011,7 @@ async function* queryLoop(
             }
 
             // Log the fallback event
-            logEvent('tengu_model_fallback_triggered', {
-              original_model:
-                innerError.originalModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              fallback_model:
-                fallbackModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              entrypoint:
-                'cli' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              queryChainId: queryChainIdForAnalytics,
-              queryDepth: queryTracking.depth,
-            })
+
 
             // Yield system message about fallback — use 'warning' level so
             // users see the notification without needing verbose mode
@@ -1081,15 +1029,7 @@ async function* queryLoop(
       logError(error)
       const errorMessage =
         error instanceof Error ? error.message : String(error)
-      logEvent('tengu_query_error', {
-        assistantMessages: assistantMessages.length,
-        toolUses: assistantMessages.flatMap(_ =>
-          _.message.content.filter(content => content.type === 'tool_use'),
-        ).length,
 
-        queryChainId: queryChainIdForAnalytics,
-        queryDepth: queryTracking.depth,
-      })
 
       // Handle image size/resize errors with user-friendly messages
       if (
@@ -1310,18 +1250,13 @@ async function* queryLoop(
         // override check), then falls through to multi-turn recovery if
         // 64k also hits the cap.
         // 3P default: false (not validated on Bedrock/Vertex)
-        const capEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
-          'tengu_otk_slot_v1',
-          false,
-        )
+        const capEnabled = false
         if (
           capEnabled &&
           maxOutputTokensOverride === undefined &&
           !process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS
         ) {
-          logEvent('tengu_max_tokens_escalate', {
-            escalatedTo: ESCALATED_MAX_TOKENS,
-          })
+
           const next: State = {
             messages: messagesForQuery,
             toolUseContext,
@@ -1511,11 +1446,7 @@ async function* queryLoop(
               `Token budget early stop: diminishing returns at ${decision.completionEvent.pct}%`,
             )
           }
-          logEvent('tengu_token_budget_completed', {
-            ...decision.completionEvent,
-            queryChainId: queryChainIdForAnalytics,
-            queryDepth: queryTracking.depth,
-          })
+
         }
       }
 
@@ -1575,17 +1506,9 @@ async function* queryLoop(
 
 
     if (streamingToolExecutor) {
-      logEvent('tengu_streaming_tool_execution_used', {
-        tool_count: toolUseBlocks.length,
-        queryChainId: queryChainIdForAnalytics,
-        queryDepth: queryTracking.depth,
-      })
+
     } else {
-      logEvent('tengu_streaming_tool_execution_not_used', {
-        tool_count: toolUseBlocks.length,
-        queryChainId: queryChainIdForAnalytics,
-        queryDepth: queryTracking.depth,
-      })
+
     }
 
     const toolUpdates = streamingToolExecutor
@@ -1720,27 +1643,14 @@ async function* queryLoop(
 
     if (tracking?.compacted) {
       tracking.turnCounter++
-      logEvent('tengu_post_autocompact_turn', {
-        turnId:
-          tracking.turnId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        turnCounter: tracking.turnCounter,
 
-        queryChainId: queryChainIdForAnalytics,
-        queryDepth: queryTracking.depth,
-      })
     }
 
     // Be careful to do this after tool calls are done, because the API
     // will error if we interleave tool_result messages with regular user messages.
 
     // Instrumentation: Track message count before attachments
-    logEvent('tengu_query_before_attachments', {
-      messagesForQueryCount: messagesForQuery.length,
-      assistantMessagesCount: assistantMessages.length,
-      toolResultsCount: toolResults.length,
-      queryChainId: queryChainIdForAnalytics,
-      queryDepth: queryTracking.depth,
-    })
+
 
     // Get queued commands snapshot before processing attachments.
     // These will be sent as attachments so Claude can respond to them in the current turn.
@@ -1856,12 +1766,7 @@ async function* queryLoop(
         tr.type === 'attachment' && tr.attachment.type === 'edited_text_file',
     )
 
-    logEvent('tengu_query_after_attachments', {
-      totalToolResultsCount: toolResults.length,
-      fileChangeAttachmentCount,
-      queryChainId: queryChainIdForAnalytics,
-      queryDepth: queryTracking.depth,
-    })
+
 
     // Tool thrash: the same tool, the same arguments, failing over and over.
     // Detection is read-only over the history, and the nudge is appended after
@@ -1879,12 +1784,7 @@ async function* queryLoop(
         : null
       if (detection && breakerKey && !loopBreakersSent.has(breakerKey)) {
         loopBreakersSent.add(breakerKey)
-        logEvent('tengu_tool_loop_detected', {
-          toolName: sanitizeToolNameForAnalytics(detection.name),
-          repeatCount: detection.count,
-          queryChainId: queryChainIdForAnalytics,
-          queryDepth: queryTracking.depth,
-        })
+
         // Pushed but never yielded, so it reaches the model and no user-facing
         // surface at all: not the REPL list, not --print, not the SDK stream.
         // Same treatment as the goal loop's continuation nudge below. isMeta is

@@ -2,7 +2,6 @@ import { Ajv } from 'ajv'
 import { z } from 'zod/v4'
 import type { Tool, ToolInputJSONSchema } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
-import { TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -144,10 +143,7 @@ function buildSyntheticOutputTool(
             const errors = validateSchema.errors
               ?.map(e => `${e.instancePath || 'root'}: ${e.message}`)
               .join(', ')
-            throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-              `Output does not match required schema: ${errors}`,
-              `StructuredOutput schema mismatch: ${(errors ?? '').slice(0, 150)}`,
-            )
+            throw new Error(`Output does not match required schema: ${errors}`)
           }
           return {
             data: 'Structured output provided successfully',

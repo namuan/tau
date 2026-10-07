@@ -1,6 +1,6 @@
 import { feature } from 'bun:bundle'
 import memoize from 'lodash-es/memoize.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
+
 import { getSdkBetas } from '../bootstrap/state.js'
 import {
   CLAUDE_CODE_20250219_BETA_HEADER,
@@ -91,9 +91,7 @@ export function modelSupportsAutoMode(model: string): boolean {
     // auto mode for listed models, bypassing the denylist/allowlist below.
     // Exact model IDs (e.g. "claude-strudel-v6-p") match only that model;
     // canonical names (e.g. "claude-strudel") match the whole family.
-    const config = getFeatureValue_CACHED_MAY_BE_STALE<{
-      allowModels?: string[]
-    }>('tengu_auto_mode_config', {})
+    const config = {}
     const rawLower = model.toLowerCase()
     if (
       config?.allowModels?.some(

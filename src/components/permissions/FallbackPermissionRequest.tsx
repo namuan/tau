@@ -2,16 +2,15 @@ import { c as _c } from "react/compiler-runtime";
 import React, { useCallback, useMemo } from 'react';
 import { getOriginalCwd } from '../../bootstrap/state.js';
 import { Box, Text, useTheme } from '../../ink.js';
-import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js';
 import { env } from '../../utils/env.js';
 import { enableBypassPermissionsModeForSession } from '../../utils/permissions/bypassPermissionsMode.js';
 import { isBypassPermissionsModeDisabled } from '../../utils/permissions/permissionSetup.js';
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js';
 import { truncateToLines } from '../../utils/stringUtils.js';
-import { logUnaryEvent } from '../../utils/unaryLogging.js';
-import { type UnaryEvent, usePermissionRequestLogging } from './hooks.js';
+
+import { usePermissionRequestLogging } from './hooks.js';
 import { PermissionDialog } from './PermissionDialog.js';
-import { PermissionPrompt, type PermissionPromptOption, type ToolAnalyticsContext } from './PermissionPrompt.js';
+import { PermissionPrompt, type PermissionPromptOption } from './PermissionPrompt.js';
 import type { PermissionRequestProps } from './PermissionRequest.js';
 import { PermissionRuleExplanation } from './PermissionRuleExplanation.js';
 type FallbackOptionValue = 'yes' | 'yes-dont-ask-again' | 'yes-bypass-permissions' | 'no';
@@ -39,48 +38,21 @@ export function FallbackPermissionRequest(t0) {
     t1 = $[3];
   }
   const userFacingName = t1;
-  let t2;
-  if ($[4] === Symbol.for("react.memo_cache_sentinel")) {
-    t2 = {
-      completion_type: "tool_use_single",
-      language_name: "none"
-    };
-    $[4] = t2;
-  } else {
-    t2 = $[4];
-  }
-  const unaryEvent = t2;
-  usePermissionRequestLogging(toolUseConfirm, unaryEvent);
+  usePermissionRequestLogging(toolUseConfirm);
   let t3;
   if ($[5] !== onDone || $[6] !== onReject || $[7] !== toolUseConfirm) {
     t3 = (value, feedback) => {
       bb8: switch (value) {
         case "yes":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "accept",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
+
             toolUseConfirm.onAllow(toolUseConfirm.input, [], feedback);
             onDone();
             break bb8;
           }
         case "yes-dont-ask-again":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "accept",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
+
             toolUseConfirm.onAllow(toolUseConfirm.input, [{
               type: "addRules",
               rules: [{
@@ -94,15 +66,7 @@ export function FallbackPermissionRequest(t0) {
           }
         case "yes-bypass-permissions":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "accept",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
+
             if (!enableBypassPermissionsModeForSession(toolUseContext)) {
               toolUseConfirm.onReject('Bypass Permissions mode is disabled by settings or policy.');
               onReject();
@@ -115,15 +79,7 @@ export function FallbackPermissionRequest(t0) {
           }
         case "no":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "reject",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
+
             toolUseConfirm.onReject(feedback);
             onReject();
             onDone();
@@ -141,15 +97,7 @@ export function FallbackPermissionRequest(t0) {
   let t4;
   if ($[9] !== onDone || $[10] !== onReject || $[11] !== toolUseConfirm) {
     t4 = () => {
-      logUnaryEvent({
-        completion_type: "tool_use_single",
-        event: "reject",
-        metadata: {
-          language_name: "none",
-          message_id: toolUseConfirm.assistantMessage.message.id,
-          platform: env.platform
-        }
-      });
+
       toolUseConfirm.onReject();
       onReject();
       onDone();
@@ -243,26 +191,6 @@ export function FallbackPermissionRequest(t0) {
     result = $[17];
   }
   const options = result;
-  let t8;
-  if ($[22] !== toolUseConfirm.tool.name) {
-    t8 = sanitizeToolNameForAnalytics(toolUseConfirm.tool.name);
-    $[22] = toolUseConfirm.tool.name;
-    $[23] = t8;
-  } else {
-    t8 = $[23];
-  }
-  let t10;
-  if ($[24] !== t8 || $[25] !== t9) {
-    t10 = {
-      toolName: t8,
-    };
-    $[24] = t8;
-    $[25] = t9;
-    $[26] = t10;
-  } else {
-    t10 = $[26];
-  }
-  const toolAnalyticsContext = t10;
   let t11;
   if ($[27] !== theme || $[28] !== toolUseConfirm.input || $[29] !== toolUseConfirm.tool) {
     t11 = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
@@ -328,12 +256,11 @@ export function FallbackPermissionRequest(t0) {
     t17 = $[45];
   }
   let t18;
-  if ($[46] !== handleCancel || $[47] !== handleSelect || $[48] !== options || $[49] !== toolAnalyticsContext) {
-    t18 = <PermissionPrompt options={options} onSelect={handleSelect} onCancel={handleCancel} toolAnalyticsContext={toolAnalyticsContext} />;
+  if ($[46] !== handleCancel || $[47] !== handleSelect || $[48] !== options) {
+    t18 = <PermissionPrompt options={options} onSelect={handleSelect} onCancel={handleCancel} />;
     $[46] = handleCancel;
     $[47] = handleSelect;
     $[48] = options;
-    $[49] = toolAnalyticsContext;
     $[50] = t18;
   } else {
     t18 = $[50];

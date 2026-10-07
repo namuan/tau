@@ -1,8 +1,5 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
-import {
-  logEvent,
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from 'src/services/analytics/index.js'
+
 import {
   toolMatchesName,
   type Tools,
@@ -201,7 +198,7 @@ import {
   getEffectiveContextWindowSize,
   isAutoCompactEnabled,
 } from '../services/compact/autoCompact.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+
 import {
   hasInstructionsLoadedHook,
   executeInstructionsLoadedHooks,
@@ -1011,23 +1008,14 @@ async function maybe<A>(label: string, f: () => Promise<A[]>): Promise<A[]> {
         .reduce((total, attachment) => {
           return total + jsonStringify(attachment).length
         }, 0)
-      logEvent('tengu_attachment_compute_duration', {
-        label,
-        duration_ms: duration,
-        attachment_size_bytes: attachmentSizeBytes,
-        attachment_count: result.length,
-      } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
+
     }
     return result
   } catch (e) {
     const duration = Date.now() - startTime
     // Log only 5% of events to reduce volume
     if (Math.random() < 0.05) {
-      logEvent('tengu_attachment_compute_duration', {
-        label,
-        duration_ms: duration,
-        error: true,
-      } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
+
     }
     logError(e)
     // For Ant users, log the full error to help with debugging
@@ -1455,7 +1443,7 @@ function getUltrathinkEffortAttachment(input: string | null): Attachment[] {
   if (!isUltrathinkEnabled() || !input || !hasUltrathinkKeyword(input)) {
     return []
   }
-  logEvent('tengu_ultrathink', {})
+
   return [{ type: 'ultrathink_effort', level: 'high' }]
 }
 
@@ -1798,10 +1786,7 @@ async function getNestedMemoryAttachmentsForFile(
       originalCwd,
     )
 
-    const skipProjectLevel = getFeatureValue_CACHED_MAY_BE_STALE(
-      'tengu_paper_halyard',
-      false,
-    )
+    const skipProjectLevel = false
 
     // Phase 3: Process nested directories (CWD → target)
     // Each directory gets: AGENTS.md + unconditional rules + conditional rules
@@ -1876,7 +1861,7 @@ async function processAtMentionedFiles(
                 )
               }
               const stdout = names.join('\n')
-              logEvent('tengu_at_mention_extracting_directory_success', {})
+
 
               return {
                 type: 'directory' as const,
@@ -1904,7 +1889,7 @@ async function processAtMentionedFiles(
           },
         )
       } catch {
-        logEvent('tengu_at_mention_extracting_filename_error', {})
+
       }
     }),
   )
@@ -1923,11 +1908,11 @@ function processAgentMentions(
     const agentDef = agents.find(def => def.agentType === agentType)
 
     if (!agentDef) {
-      logEvent('tengu_at_mention_agent_not_found', {})
+
       return null
     }
 
-    logEvent('tengu_at_mention_agent_success', {})
+
 
     return {
       type: 'agent_mention' as const,
@@ -2016,9 +2001,7 @@ export async function getChangedFiles(
             }
           } catch (compressionError) {
             logError(compressionError)
-            logEvent('tengu_watched_file_compression_failed', {
-              file: normalizedPath,
-            } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
+
             return null
           }
         }
@@ -2248,7 +2231,7 @@ export function startRelevantMemoryPrefetch(
 ): MemoryPrefetch | undefined {
   if (
     !isAutoMemoryEnabled() ||
-    !getFeatureValue_CACHED_MAY_BE_STALE('tengu_moth_copse', false)
+    !false
   ) {
     return undefined
   }
@@ -2293,12 +2276,7 @@ export function startRelevantMemoryPrefetch(
     consumedOnIteration: -1,
     [Symbol.dispose]() {
       controller.abort()
-      logEvent('tengu_memdir_prefetch_collected', {
-        hidden_by_first_iteration:
-          handle.settledAt !== null && handle.consumedOnIteration === 0,
-        consumed_on_iteration: handle.consumedOnIteration,
-        latency_ms: (handle.settledAt ?? Date.now()) - firedAt,
-      })
+
     },
   }
   void promise.finally(() => {
@@ -2722,11 +2700,7 @@ export async function* getAttachmentMessages(
     return
   }
 
-  logEvent('tengu_attachments', {
-    attachment_types: attachments.map(
-      _ => _.type,
-    ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  })
+
 
   for (const attachment of attachments) {
     yield createAttachmentMessage(attachment)
@@ -2762,11 +2736,7 @@ export async function tryGetPDFReference(
     // Use page count if available, otherwise fall back to size heuristic (~100KB per page)
     const effectivePageCount = pageCount ?? Math.ceil(stats.size / (100 * 1024))
     if (effectivePageCount > PDF_AT_MENTION_INLINE_THRESHOLD) {
-      logEvent('tengu_pdf_reference_attachment', {
-        pageCount: effectivePageCount,
-        fileSize: stats.size,
-        hadPdfinfo: pageCount !== null,
-      } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
+
       return {
         type: 'pdf_reference',
         filename,
@@ -2822,10 +2792,7 @@ export async function generateFileAttachment(
     if (!isPDFExtension(ext) && !isOfficeDocExtension(ext)) {
       try {
         const stats = await getFsImplementation().stat(filename)
-        logEvent('tengu_attachment_file_too_large', {
-          size_bytes: stats.size,
-          mode,
-        } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
+
         return null
       } catch {
         // If we can't stat the file, proceed with normal reading (will fail later if file doesn't exist)
@@ -2863,7 +2830,7 @@ export async function generateFileAttachment(
       ) {
         // File hasn't been modified, return already_read_file attachment
         // This tells the system the file is already in context and doesn't need to be sent to API
-        logEvent(successEventName, {})
+
         return {
           type: 'already_read_file',
           filename,
@@ -2921,7 +2888,7 @@ export async function generateFileAttachment(
           limit: MAX_LINES_TO_READ,
         }
         const result = await FileReadTool.call(truncatedInput, toolUseContext)
-        logEvent(successEventName, {})
+
 
         return {
           type: 'file' as const,
@@ -2931,7 +2898,7 @@ export async function generateFileAttachment(
           displayPath: relative(getCwd(), filename),
         }
       } catch {
-        logEvent(errorEventName, {})
+
         return null
       }
     }
@@ -2944,7 +2911,7 @@ export async function generateFileAttachment(
 
     try {
       const result = await FileReadTool.call(fileInput, toolUseContext)
-      logEvent(successEventName, {})
+
       return {
         type: 'file',
         filename,
@@ -2961,7 +2928,7 @@ export async function generateFileAttachment(
       throw error
     }
   } catch {
-    logEvent(errorEventName, {})
+
     return null
   }
 }
@@ -3700,7 +3667,7 @@ export function getCompactionReminderAttachment(
   messages: Message[],
   model: string,
 ): Attachment[] {
-  if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_marble_fox', false)) {
+  if (!false) {
     return []
   }
 

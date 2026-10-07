@@ -42,16 +42,7 @@ import {
   getSettings_DEPRECATED,
   getSettingsForSource,
 } from './settings/settings.js'
-import {
-  logEvent,
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-} from 'src/services/analytics/index.js'
-import { logOTelEvent } from './telemetry/events.js'
-import {
-  startHookSpan,
-  endHookSpan,
-  isBetaTracingEnabled,
-} from './telemetry/sessionTracing.js'
+
 import {
   hookJSONOutputSchema,
   promptRequestSchema,
@@ -1444,7 +1435,7 @@ export async function getMatchingHooks(
     // Fast-path: callback/function hooks don't need dedup (each is unique).
     // Skip the 6-pass filter + 4×Map + 4×Array.from below when all hooks are
     // callback/function — the common case for internal hooks like
-    // sessionFileAccessHooks/attributionHooks (44x faster in microbench).
+    // teamMemoryAccessHooks/attributionHooks (44x faster in microbench).
     if (
       matchedHooks.every(
         m => m.hook.type === 'callback' || m.hook.type === 'function',
@@ -1740,16 +1731,9 @@ async function* executeHooks({
   const userHooks = matchingHooks.filter(h => !isInternalHook(h))
   if (userHooks.length > 0) {
     const hookTypeCounts = getHookTypeCounts(userHooks)
-    logEvent(`tengu_run_hook`, {
-      hookName:
-        hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      numCommands: userHooks.length,
-      hookTypeCounts: jsonStringify(
-        hookTypeCounts,
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
   } else {
-    // Fast-path: all hooks are internal callbacks (sessionFileAccessHooks,
+    // Fast-path: all hooks are internal callbacks (teamMemoryAccessHooks,
     // attributionHooks). These return {} and don't use the abort signal, so we
     // can skip span/progress/abortSignal/processHookJSONOutput/resultLoop.
     // Measured: 6.01µs → ~1.8µs per PostToolUse hit (-70%).
@@ -1768,43 +1752,9 @@ async function* executeHooks({
     const totalDurationMs = Date.now() - batchStartTime
     getStatsStore()?.observe('hook_duration_ms', totalDurationMs)
     addToTurnHookDuration(totalDurationMs)
-    logEvent(`tengu_repl_hook_finished`, {
-      hookName:
-        hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      numCommands: matchingHooks.length,
-      numSuccess: matchingHooks.length,
-      numBlocking: 0,
-      numNonBlockingError: 0,
-      numCancelled: 0,
-      totalDurationMs,
-    })
+
     return
   }
-
-  // Collect hook definitions for beta tracing telemetry
-  const hookDefinitionsJson = isBetaTracingEnabled()
-    ? jsonStringify(getHookDefinitionsForTelemetry(matchingHooks))
-    : '[]'
-
-  // Log hook execution start to OTEL (only for beta tracing)
-  if (isBetaTracingEnabled()) {
-    void logOTelEvent('hook_execution_start', {
-      hook_event: hookEvent,
-      hook_name: hookName,
-      num_hooks: String(matchingHooks.length),
-      managed_only: String(shouldAllowManagedHooksOnly()),
-      hook_definitions: hookDefinitionsJson,
-      hook_source: shouldAllowManagedHooksOnly() ? 'policySettings' : 'merged',
-    })
-  }
-
-  // Start hook span for beta tracing
-  const hookSpan = startHookSpan(
-    hookEvent,
-    hookName,
-    matchingHooks.length,
-    hookDefinitionsJson,
-  )
 
   // Yield progress messages for each hook before execution
   for (const { hook } of matchingHooks) {
@@ -2622,43 +2572,9 @@ async function* executeHooks({
   getStatsStore()?.observe('hook_duration_ms', totalDurationMs)
   addToTurnHookDuration(totalDurationMs)
 
-  logEvent(`tengu_repl_hook_finished`, {
-    hookName:
-      hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    numCommands: matchingHooks.length,
-    numSuccess: outcomes.success,
-    numBlocking: outcomes.blocking,
-    numNonBlockingError: outcomes.non_blocking_error,
-    numCancelled: outcomes.cancelled,
-    totalDurationMs,
-  })
 
-  // Log hook execution completion to OTEL (only for beta tracing)
-  if (isBetaTracingEnabled()) {
-    const hookDefinitionsComplete =
-      getHookDefinitionsForTelemetry(matchingHooks)
 
-    void logOTelEvent('hook_execution_complete', {
-      hook_event: hookEvent,
-      hook_name: hookName,
-      num_hooks: String(matchingHooks.length),
-      num_success: String(outcomes.success),
-      num_blocking: String(outcomes.blocking),
-      num_non_blocking_error: String(outcomes.non_blocking_error),
-      num_cancelled: String(outcomes.cancelled),
-      managed_only: String(shouldAllowManagedHooksOnly()),
-      hook_definitions: jsonStringify(hookDefinitionsComplete),
-      hook_source: shouldAllowManagedHooksOnly() ? 'policySettings' : 'merged',
-    })
-  }
 
-  // End hook span for beta tracing
-  endHookSpan(hookSpan, {
-    numSuccess: outcomes.success,
-    numBlocking: outcomes.blocking,
-    numNonBlockingError: outcomes.non_blocking_error,
-    numCancelled: outcomes.cancelled,
-  })
 }
 
 export type HookOutsideReplResult = {
@@ -2745,14 +2661,7 @@ async function executeHooksOutsideREPL({
   const userHooks = matchingHooks.filter(h => !isInternalHook(h))
   if (userHooks.length > 0) {
     const hookTypeCounts = getHookTypeCounts(userHooks)
-    logEvent(`tengu_run_hook`, {
-      hookName:
-        hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      numCommands: userHooks.length,
-      hookTypeCounts: jsonStringify(
-        hookTypeCounts,
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
   }
 
   // Validate and stringify the hook input
@@ -4465,23 +4374,4 @@ export async function executeWorktreeRemoveHook(
   }
 
   return true
-}
-
-function getHookDefinitionsForTelemetry(
-  matchedHooks: MatchedHook[],
-): Array<{ type: string; command?: string; prompt?: string; name?: string }> {
-  return matchedHooks.map(({ hook }) => {
-    if (hook.type === 'command') {
-      return { type: 'command', command: hook.command }
-    } else if (hook.type === 'prompt') {
-      return { type: 'prompt', prompt: hook.prompt }
-    } else if (hook.type === 'http') {
-      return { type: 'http', command: hook.url }
-    } else if (hook.type === 'function') {
-      return { type: 'function', name: 'function' }
-    } else if (hook.type === 'callback') {
-      return { type: 'callback', name: 'callback' }
-    }
-    return { type: 'unknown' }
-  })
 }

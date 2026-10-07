@@ -12,7 +12,7 @@ import type { QuerySource } from '../../constants/querySource.js'
 import { getSystemContext, getUserContext } from '../../context.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { query } from '../../query.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
+
 import {
   acquireAntigravityAgentTurn,
   antigravityAgentGateBusy,
@@ -69,11 +69,6 @@ import {
   asSystemPrompt,
   type SystemPrompt,
 } from '../../utils/systemPromptType.js'
-import {
-  isPerfettoTracingEnabled,
-  registerAgent as registerPerfettoAgent,
-  unregisterAgent as unregisterPerfettoAgent,
-} from '../../utils/telemetry/perfettoTracing.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { createAgentId } from '../../utils/uuid.js'
 import {
@@ -302,12 +297,6 @@ async function* runAgentWithoutProviderOverride({
     setAgentTranscriptSubdir(agentId, transcriptSubdir)
   }
 
-  // Register agent in Perfetto trace for hierarchy visualization
-  if (isPerfettoTracingEnabled()) {
-    const parentId = toolUseContext.agentId ?? getSessionId()
-    registerPerfettoAgent(agentId, agentDefinition.agentType, parentId)
-  }
-
   // Log API calls path for subagents (ant-only)
   if (process.env.USER_TYPE === 'ant') {
     logForDebugging(
@@ -340,7 +329,7 @@ async function* runAgentWithoutProviderOverride({
   const shouldOmitClaudeMd =
     agentDefinition.omitClaudeMd &&
     !override?.userContext &&
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_slim_subagent_claudemd', true)
+    true
   const { claudeMd: _omittedClaudeMd, ...userContextNoClaudeMd } =
     baseUserContext
   const resolvedUserContext = shouldOmitClaudeMd
@@ -822,7 +811,6 @@ async function* runAgentWithoutProviderOverride({
     // Release the cloned fork context messages
     initialMessages.length = 0
     // Release perfetto agent registry entry
-    unregisterPerfettoAgent(agentId)
     // Release transcript subdir mapping
     clearAgentTranscriptSubdir(agentId)
     // Release this agent's todos entry. Without this, every subagent that

@@ -2,7 +2,7 @@ import { c as _c } from "react/compiler-runtime";
 import * as React from 'react';
 import { useState } from 'react';
 import { Text } from '../../ink.js';
-import { logEvent } from '../../services/analytics/index.js';
+
 import { formatGrantAmount, getCachedOverageCreditGrant, refreshOverageCreditGrantCache } from '../../services/api/overageCreditGrant.js';
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js';
 import { truncate } from '../../utils/format.js';
@@ -62,9 +62,7 @@ export function incrementOverageCreditUpsellSeenCount(): void {
       overageCreditUpsellSeenCount: newCount
     };
   });
-  logEvent('tengu_overage_credit_upsell_shown', {
-    seen_count: newCount
-  });
+
 }
 
 // Copy from "OC & Bulk Overages copy" doc (#6 — CLI /usage)

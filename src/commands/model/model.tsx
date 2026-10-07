@@ -4,10 +4,7 @@ import type { CommandResultDisplay } from '../../commands.js'
 import { ModelPicker } from '../../components/ModelPicker.js'
 import { ProviderModelPicker } from '../../components/ProviderModelPicker.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
+
 import { useAppState, useSetAppState } from '../../state/AppState.js'
 import type {
   LocalJSXCommandCall,
@@ -139,9 +136,7 @@ function ModelPickerWrapper({
       : null
 
   function handleCancel(): void {
-    logEvent('tengu_model_command_menu', {
-      action: 'cancel' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
     const displayModel = renderModelLabel(mainLoopModel)
     onDone(`Kept model as ${chalk.bold(displayModel)}`, {
       display: 'system',
@@ -152,13 +147,7 @@ function ModelPickerWrapper({
     model: string | null,
     effort: EffortLevel | undefined,
   ): void {
-    logEvent('tengu_model_command_menu', {
-      action: model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      from_model:
-        mainLoopModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      to_model:
-        model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
 
     commitModelSelection({
       model,
@@ -175,13 +164,7 @@ function ModelPickerWrapper({
     provider: BrowsableModelProvider,
     modelId: string,
   ): void {
-    logEvent('tengu_model_command_menu', {
-      action: modelId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      from_model:
-        mainLoopModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      to_model:
-        modelId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
 
     commitModelSelection({
       model: modelId,
@@ -367,9 +350,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   args = args?.trim() || ''
 
   if (COMMON_INFO_ARGS.includes(args)) {
-    logEvent('tengu_model_command_inline_help', {
-      args: args as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
     return <ShowModelAndClose onDone={onDone} />
   }
 
@@ -395,9 +376,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   }
 
   if (args) {
-    logEvent('tengu_model_command_inline', {
-      args: args as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
+
     return (
       <SetModelAndClose
         args={args}

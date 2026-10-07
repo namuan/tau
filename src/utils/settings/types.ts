@@ -347,10 +347,6 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Organization UUID to use for OAuth login'),
-      otelHeadersHelper: z
-        .string()
-        .optional()
-        .describe('Path to a script that outputs OpenTelemetry headers'),
       outputStyle: z
         .string()
         .optional()

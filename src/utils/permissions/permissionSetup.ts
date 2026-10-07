@@ -33,20 +33,12 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
   : null
 
 import { resolve } from 'path'
-import {
-  checkSecurityRestrictionGate,
-  checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
-  getDynamicConfig_BLOCKS_ON_INIT,
-  getFeatureValue_CACHED_MAY_BE_STALE,
-} from 'src/services/analytics/growthbook.js'
+
 import {
   addDirHelpMessage,
   validateDirectoryForWorkspace,
 } from '../../commands/add-dir/validation.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
+
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -553,9 +545,7 @@ export function initialPermissionModeFromCLI({
 
   // Check GrowthBook gate first - highest precedence
   const growthBookDisableBypassPermissionsMode =
-    checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-      'tengu_disable_bypass_permissions_mode',
-    )
+    false
 
   // Then check settings - lower precedence
   const settingsDisableBypassPermissionsMode =
@@ -770,9 +760,7 @@ export async function initializeToolPermissionContext({
   // Check if bypassPermissions mode is available (not disabled by Statsig gate or settings)
   // Use cached values to avoid blocking on startup
   const growthBookDisableBypassPermissionsMode =
-    checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-      'tengu_disable_bypass_permissions_mode',
-    )
+    false
   const settings = getSettings_DEPRECATED() || {}
   const settingsDisableBypassPermissionsMode =
     settings.permissions?.disableBypassPermissionsMode === 'disable'
@@ -921,10 +909,7 @@ export async function verifyAutoModeGateAccess(
   // after GrowthBook initialization and is the authoritative source for
   // isAutoModeAvailable. The sync startup path uses stale cache; this
   // corrects it. Circuit breaker (enabled==='disabled') takes effect here.
-  const autoModeConfig = await getDynamicConfig_BLOCKS_ON_INIT<{
-    enabled?: AutoModeEnabledState
-    disableFastMode?: boolean
-  }>('tengu_auto_mode_config', {})
+  const autoModeConfig = await Promise.resolve({})
   const enabledState = parseAutoModeEnabledState(autoModeConfig?.enabled)
   const disabledBySettings = isAutoModeDisabledBySettings()
   // Treat settings-disable the same as GrowthBook 'disabled' for circuit-breaker
@@ -1096,7 +1081,7 @@ export async function verifyAutoModeGateAccess(
  * Core logic to check if bypassPermissions should be disabled based on Statsig gate
  */
 export function shouldDisableBypassPermissions(): Promise<boolean> {
-  return checkSecurityRestrictionGate('tengu_disable_bypass_permissions_mode')
+  return Promise.resolve(false)
 }
 
 function isAutoModeDisabledBySettings(): boolean {
@@ -1159,9 +1144,7 @@ function parseAutoModeEnabledState(value: unknown): AutoModeEnabledState {
  * auto mode in their mode pickers.
  */
 export function getAutoModeEnabledState(): AutoModeEnabledState {
-  const config = getFeatureValue_CACHED_MAY_BE_STALE<{
-    enabled?: AutoModeEnabledState
-  }>('tengu_auto_mode_config', {})
+  const config = {}
   return parseAutoModeEnabledState(config?.enabled)
 }
 
@@ -1177,9 +1160,7 @@ const NO_CACHED_AUTO_MODE_CONFIG = Symbol('no-cached-auto-mode-config')
 export function getAutoModeEnabledStateIfCached():
   | AutoModeEnabledState
   | undefined {
-  const config = getFeatureValue_CACHED_MAY_BE_STALE<
-    { enabled?: AutoModeEnabledState } | typeof NO_CACHED_AUTO_MODE_CONFIG
-  >('tengu_auto_mode_config', NO_CACHED_AUTO_MODE_CONFIG)
+  const config = NO_CACHED_AUTO_MODE_CONFIG
   if (config === NO_CACHED_AUTO_MODE_CONFIG) return undefined
   return parseAutoModeEnabledState(config?.enabled)
 }
@@ -1203,9 +1184,7 @@ export function hasAutoModeOptInAnySource(): boolean {
  */
 export function isBypassPermissionsModeDisabled(): boolean {
   const growthBookDisableBypassPermissionsMode =
-    checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-      'tengu_disable_bypass_permissions_mode',
-    )
+    false
   const settings = getSettings_DEPRECATED() || {}
   const settingsDisableBypassPermissionsMode =
     settings.permissions?.disableBypassPermissionsMode === 'disable'

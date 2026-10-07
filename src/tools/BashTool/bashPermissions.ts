@@ -1,11 +1,8 @@
 import { feature } from 'bun:bundle'
 import { APIUserAbortError } from '@anthropic-ai/sdk'
 import type { z } from 'zod/v4'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
+
+
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import type { PendingClassifierCheck } from '../../types/permissions.js'
 import { count } from '../../utils/array.js'
@@ -126,23 +123,7 @@ function logClassifierResultForAnts(
     return
   }
 
-  logEvent('tengu_internal_bash_classifier_result', {
-    behavior:
-      behavior as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    descriptions: jsonStringify(
-      descriptions,
-    ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    matches: result.matches,
-    matchedDescription: (result.matchedDescription ??
-      '') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    confidence:
-      result.confidence as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    reason:
-      result.reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    // Note: command contains code/filepaths - this is ANT-ONLY so it's OK
-    command:
-      command as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  })
+
 }
 
 /**
@@ -1576,7 +1557,7 @@ export async function bashToolHasPermission(
   // GrowthBook killswitch for shadow mode — when off, skip the native parse
   // entirely. Computed once; feature() must stay inline in the ternary below.
   const shadowEnabled = feature('TREE_SITTER_BASH_SHADOW')
-    ? getFeatureValue_CACHED_MAY_BE_STALE('tengu_birch_trellis', true)
+    ? true
     : false
   // Parse once here; the resulting AST feeds both parseForSecurityFromAst
   // and bashToolCheckCommandOperatorPermissions.
@@ -1619,15 +1600,7 @@ export async function bashToolHasPermission(
         (tsSubs.length !== legacySubs.length ||
           tsSubs.some((s, i) => s !== legacySubs[i]))
     }
-    logEvent('tengu_tree_sitter_shadow', {
-      available,
-      astTooComplex: tooComplex,
-      astSemanticFail: semanticFail,
-      subsDiffer,
-      injectionCheckDisabled,
-      killswitchOff: !shadowEnabled,
-      cmdOverLength: input.command.length > 10000,
-    })
+
     // Always force legacy — shadow mode is observational only.
     astResult = { kind: 'parse-unavailable' }
     astRoot = null
@@ -1644,9 +1617,7 @@ export async function bashToolHasPermission(
       type: 'other' as const,
       reason: astResult.reason,
     }
-    logEvent('tengu_bash_ast_too_complex', {
-      nodeTypeId: nodeTypeId(astResult.nodeType),
-    })
+
     return {
       behavior: 'ask',
       decisionReason,
@@ -2230,25 +2201,12 @@ export async function bashToolHasPermission(
     astSubcommands === null &&
     !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_COMMAND_INJECTION_CHECK)
   ) {
-    // CC-643: Batch divergence telemetry into a single logEvent. The per-sub
-    // logEvent was the hot-path syscall driver (each call → /proc/self/stat
-    // via process.memoryUsage()). Aggregate count preserves the signal.
-    let divergenceCount = 0
-    const onDivergence = () => {
-      divergenceCount++
-    }
     const results = await Promise.all(
-      subcommands.map(c => bashCommandIsSafeAsync(c, onDivergence)),
+      subcommands.map(c => bashCommandIsSafeAsync(c)),
     )
     hasPossibleCommandInjection = results.some(
       r => r.behavior !== 'passthrough',
     )
-    if (divergenceCount > 0) {
-      logEvent('tengu_tree_sitter_security_divergence', {
-        quoteContextDivergence: true,
-        count: divergenceCount,
-      })
-    }
   }
   if (
     subcommandPermissionDecisions.every(_ => _.behavior === 'allow') &&

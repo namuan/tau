@@ -6,7 +6,7 @@ import pickBy from 'lodash-es/pickBy.js'
 import { basename, dirname, join, resolve } from 'path'
 import { getOriginalCwd, getSessionTrustAccepted } from '../bootstrap/state.js'
 import { getAutoMemEntrypoint } from '../memdir/paths.js'
-import { logEvent } from '../services/analytics/index.js'
+
 import type {
   BillingType,
   ReferralEligibilityResponse,
@@ -41,11 +41,6 @@ const teamMemPaths = feature('TEAMMEM')
 /* eslint-enable @typescript-eslint/no-require-imports */
 import type { ImageDimensions } from './imageResizer.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
-
-// Re-entrancy guard: prevents getConfig → logEvent → getGlobalConfig → getConfig
-// infinite recursion when the config file is corrupted. logEvent's sampling check
-// reads GrowthBook features from the global config, which calls getConfig again.
-let insideGetConfig = false
 
 // Image dimension info for coordinate mapping (only set when image was resized)
 export type PastedContent = {
@@ -352,7 +347,6 @@ export type GlobalConfig = {
   subscriptionNoticeCount?: number // Number of times the subscription notice has been shown
   hasAvailableSubscription?: boolean // Cached result of whether user has a subscription available
   subscriptionUpsellShownCount?: number // Number of times the subscription upsell has been shown (deprecated)
-  recommendedSubscription?: string // Cached config value from Statsig (deprecated)
 
   // Todo feature configuration
   todoFeatureEnabled: boolean // Whether the todo feature is enabled
@@ -405,21 +399,6 @@ export type GlobalConfig = {
   // Sonnet 4.5 1m migration tracking
   sonnet1m45MigrationComplete?: boolean
 
-  // Cached statsig gate values
-  cachedStatsigGates: {
-    [gateName: string]: boolean
-  }
-
-  // Cached statsig dynamic configs
-  cachedDynamicConfigs?: { [configName: string]: unknown }
-
-  // Cached GrowthBook feature values
-  cachedGrowthBookFeatures?: { [featureName: string]: unknown }
-
-  // Local GrowthBook overrides (ant-only, set via /config Gates tab).
-  // Checked after env-var overrides but before the real resolved value.
-  growthBookOverrides?: { [featureName: string]: unknown }
-
   // Emergency tip tracking - stores the last shown tip to prevent re-showing
   lastShownEmergencyTip?: string
 
@@ -447,7 +426,7 @@ export type GlobalConfig = {
   // undefined = hardcoded Opus (backward-compat); null = leader's model; string = model alias/ID.
   teammateDefaultModel?: string | null
 
-  // PR status footer configuration (feature-flagged via GrowthBook)
+  // PR status footer configuration
   prStatusFooterEnabled?: boolean // Show PR review status in footer (default: true)
 
   // Tmux live panel visibility (ant-only, toggled via Enter on tmux pill)
@@ -471,14 +450,6 @@ export type GlobalConfig = {
   // Speculation configuration (ant-only)
   speculationEnabled?: boolean // Whether speculation is enabled (default: true)
 
-
-  // Disk cache for /api/claude_code/organizations/metrics_enabled.
-  // Org-level settings change rarely; persisting across processes avoids a
-  // cold API call on every `claude -p` invocation.
-  metricsStatusCache?: {
-    enabled: boolean
-    timestamp: number
-  }
 
   // Version of the last-applied migration set. When equal to
   // CURRENT_MIGRATION_VERSION, runMigrations() skips all sync migrations
@@ -568,9 +539,6 @@ function createDefaultGlobalConfig(): GlobalConfig {
     messageIdleNotifThresholdMs: 60000,
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,
-    cachedStatsigGates: {},
-    cachedDynamicConfigs: {},
-    cachedGrowthBookFeatures: {},
     respectGitignore: true,
     copyFullResponse: false,
   }
@@ -794,7 +762,7 @@ export function saveGlobalConfig(
         'saveGlobalConfig fallback: re-read config is missing auth that cache has; refusing to write. See GH #3117.',
         { level: 'error' },
       )
-      logEvent('tengu_config_auth_loss_prevented', {})
+
       return
     }
     const config = updater(currentConfig)
@@ -835,11 +803,7 @@ export const CONFIG_WRITE_DISPLAY_THRESHOLD = 20
 function reportConfigCacheStats(): void {
   const total = configCacheHits + configCacheMisses
   if (total > 0) {
-    logEvent('tengu_config_cache_stats', {
-      cache_hits: configCacheHits,
-      cache_misses: configCacheMisses,
-      hit_rate: configCacheHits / total,
-    })
+
   }
   configCacheHits = 0
   configCacheMisses = 0
@@ -1071,9 +1035,7 @@ function saveConfigWithLock<A extends object>(
       logForDebugging(
         'Lock acquisition took longer than expected - another Claude instance may be running',
       )
-      logEvent('tengu_config_lock_contention', {
-        lock_time_ms: lockTime,
-      })
+
     }
 
     // Check for stale write - file changed since we last read it
@@ -1085,12 +1047,7 @@ function saveConfigWithLock<A extends object>(
           currentStats.mtimeMs !== lastReadFileStats.mtime ||
           currentStats.size !== lastReadFileStats.size
         ) {
-          logEvent('tengu_config_stale_write', {
-            read_mtime: lastReadFileStats.mtime,
-            write_mtime: currentStats.mtimeMs,
-            read_size: lastReadFileStats.size,
-            write_size: currentStats.size,
-          })
+
         }
       } catch (e) {
         const code = getErrnoCode(e)
@@ -1110,7 +1067,7 @@ function saveConfigWithLock<A extends object>(
         'saveConfigWithLock: re-read config is missing auth that cache has; refusing to write to avoid wiping ~/.config/tau/config.json. See GH #3117.',
         { level: 'error' },
       )
-      logEvent('tengu_config_auth_loss_prevented', {})
+
       return false
     }
 
@@ -1365,31 +1322,7 @@ function getConfig<A>(
         { level: 'error' },
       )
 
-      // Guard: logEvent → shouldSampleEvent → getGlobalConfig → getConfig
-      // causes infinite recursion when the config file is corrupted, because
-      // the sampling check reads a GrowthBook feature from global config.
-      // Only log analytics on the outermost call.
-      if (!insideGetConfig) {
-        insideGetConfig = true
-        try {
-          // Log the error for monitoring
-          logError(error)
-
-          // Log analytics event for config corruption
-          let hasBackup = false
-          try {
-            fs.statSync(`${file}.backup`)
-            hasBackup = true
-          } catch {
-            // No backup
-          }
-          logEvent('tengu_config_parse_error', {
-            has_backup: hasBackup,
-          })
-        } finally {
-          insideGetConfig = false
-        }
-      }
+      logError(error)
 
       process.stderr.write(
         `\nClaude configuration file at ${file} is corrupted: ${error.message}\n`,
@@ -1566,7 +1499,7 @@ export function saveCurrentProjectConfig(
         'saveCurrentProjectConfig fallback: re-read config is missing auth that cache has; refusing to write. See GH #3117.',
         { level: 'error' },
       )
-      logEvent('tengu_config_auth_loss_prevented', {})
+
       return
     }
     const currentProjectConfig =

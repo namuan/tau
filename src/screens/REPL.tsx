@@ -43,7 +43,6 @@ import { WorkerPendingPermission } from '../components/permissions/WorkerPending
 import { injectUserMessageToTeammate, getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
 import { isLocalAgentTask, queuePendingMessage, appendMessageToLocalAgent, type LocalAgentTaskState } from '../tasks/LocalAgentTask/LocalAgentTask.js';
 import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue, registerLeaderSetToolPermissionContext, unregisterLeaderSetToolPermissionContext } from '../utils/swarm/leaderPermissionBridge.js';
-import { endInteractionSpan } from '../utils/telemetry/sessionTracing.js';
 import { useLogMessages } from '../hooks/useLogMessages.js';
 import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getCommandName, isCommandEnabled } from '../commands.js';
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
@@ -53,8 +52,6 @@ import { PromptDialog } from '../components/hooks/PromptDialog.js';
 import type { PromptRequest, PromptResponse } from '../types/hooks.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { PromptInputQueuedCommands } from '../components/PromptInput/PromptInputQueuedCommands.js';
-import { SkillImprovementSurvey } from '../components/SkillImprovementSurvey.js';
-import { useSkillImprovementSurvey } from '../hooks/useSkillImprovementSurvey.js';
 import { useMoreRight } from '../moreright/useMoreRight.js';
 import { SpinnerWithVerb, BriefIdleStatus, type SpinnerMode } from '../components/Spinner.js';
 import { getSystemPrompt } from '../constants/prompts.js';
@@ -86,13 +83,6 @@ import { logError } from '../utils/log.js';
 import { measureContextBaseline } from '../utils/analyzeContext.js';
 // Dead code elimination: conditional imports
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-// Frustration detection is ant-only (dogfooding). Conditional require so external
-// builds eliminate the module entirely (including its two O(n) useMemos that run
-// on every messages change, plus the GrowthBook fetch).
-const useFrustrationDetection: typeof import('../components/FeedbackSurvey/useFrustrationDetection.js').useFrustrationDetection = "external" === 'ant' ? require('../components/FeedbackSurvey/useFrustrationDetection.js').useFrustrationDetection : () => ({
-  state: 'closed',
-  handleTranscriptSelect: () => {}
-});
 // Ant-only org warning. Conditional require so the org UUID list is
 // eliminated from external builds (one UUID is on excluded-strings).
 const useAntOrgWarningNotification: typeof import('../hooks/notifs/useAntOrgWarningNotification.js').useAntOrgWarningNotification = "external" === 'ant' ? require('../hooks/notifs/useAntOrgWarningNotification.js').useAntOrgWarningNotification : () => {};
@@ -111,8 +101,7 @@ import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js';
 import { clearSpeculativeChecks } from '../tools/BashTool/bashPermissions.js';
 import { getGlobalConfig, saveGlobalConfig, getGlobalConfigWriteCount } from '../utils/config.js';
 import { hasConsoleBillingAccess } from '../utils/billing.js';
-import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
-import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
+
 import { textForResubmit, handleMessageFromStream, type StreamingToolUse, type StreamingThinking, isCompactBoundaryMessage, getMessagesAfterCompactBoundary, getContentText, createUserMessage, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createApiMetricsMessage, createSystemMessage, createCommandInputMessage, formatCommandInputTags } from '../utils/messages.js';
 import { generateSessionTitle } from '../utils/sessionTitle.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
@@ -193,12 +182,7 @@ const AntModelSwitchCallout = "external" === 'ant' ? require('../components/AntM
 const shouldShowAntModelSwitch = "external" === 'ant' ? require('../components/AntModelSwitchCallout.js').shouldShowModelSwitchCallout : (): boolean => false;
 const UndercoverAutoCallout = "external" === 'ant' ? require('../components/UndercoverAutoCallout.js').UndercoverAutoCallout : null;
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-import { activityManager } from '../utils/activityManager.js';
 import { createAbortController } from '../utils/abortController.js';
-import { useFeedbackSurvey } from 'src/components/FeedbackSurvey/useFeedbackSurvey.js';
-import { useMemorySurvey } from 'src/components/FeedbackSurvey/useMemorySurvey.js';
-import { usePostCompactSurvey } from 'src/components/FeedbackSurvey/usePostCompactSurvey.js';
-import { FeedbackSurvey } from 'src/components/FeedbackSurvey/FeedbackSurvey.js';
 import { useAwaySummary } from 'src/hooks/useAwaySummary.js';
 import { getTipToShowOnSpinner, recordShownTip } from 'src/services/tips/tipScheduler.js';
 import type { Theme } from 'src/utils/theme.js';
@@ -215,7 +199,6 @@ import { useDeprecationWarningNotification } from 'src/hooks/notifs/useDeprecati
 import { useCanSwitchToExistingSubscription } from 'src/hooks/notifs/useCanSwitchToExistingSubscription.js';
 import { useTeammateLifecycleNotification } from 'src/hooks/notifs/useTeammateShutdownNotification.js';
 import { useFastModeNotification } from 'src/hooks/notifs/useFastModeNotification.js';
-import { AutoRunIssueNotification, shouldAutoRunIssue, getAutoRunIssueReasonText, getAutoRunCommand, type AutoRunIssueReason } from '../utils/autoRunIssue.js';
 import type { HookProgress } from '../types/hooks.js';
 import { TungstenLiveMonitor } from '../tools/TungstenTool/TungstenLiveMonitor.js';
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -1018,7 +1001,7 @@ export function REPL({
   // Gated so we can roll back if the sidebar indicator conflicts with
   // the title spinner in terminals that render both. When the flag is
   // on, the user-facing config setting controls whether it's active.
-  const tabStatusGateEnabled = getFeatureValue_CACHED_MAY_BE_STALE('tengu_terminal_sidebar', false);
+  const tabStatusGateEnabled = false;
   const showStatusInTerminalTab = tabStatusGateEnabled && (getGlobalConfig().showStatusInTerminalTab ?? false);
   useTabStatus(titleDisabled || !showStatusInTerminalTab ? null : sessionStatus);
 
@@ -1369,7 +1352,6 @@ export function REPL({
     setSpinnerColor(null);
     setSpinnerShimmerColor(null);
     pickNewSpinnerTip();
-    endInteractionSpan();
     // Speculative bash classifier checks are only valid for the current
     // turn's commands — clear after each turn to avoid accumulating
     // Promise chains for unconsumed checks (denied/aborted paths).
@@ -1474,37 +1456,7 @@ export function REPL({
   // but keep it when isBriefOnly suppresses the streaming text display
   !visibleStreamingText || isBriefOnly);
 
-  // Check if any permission or ask question prompt is currently visible
-  // This is used to prevent the survey from opening while prompts are active
-  const hasActivePrompt = toolUseConfirmQueue.length > 0 || promptQueue.length > 0;
-  const feedbackSurveyOriginal = useFeedbackSurvey(messages, isLoading, submitCount, 'session', hasActivePrompt);
-  const skillImprovementSurvey = useSkillImprovementSurvey(setMessages);
   const showIssueFlagBanner = useIssueFlagBanner(messages, submitCount);
-
-  // Wrap feedback survey handler to trigger auto-run /issue
-  const feedbackSurvey = useMemo(() => ({
-    ...feedbackSurveyOriginal,
-    handleSelect: (selected: 'dismissed' | 'bad' | 'fine' | 'good') => {
-      // Reset the ref when a new survey response comes in
-      didAutoRunIssueRef.current = false;
-      const showedTranscriptPrompt = feedbackSurveyOriginal.handleSelect(selected);
-      // Auto-run /issue for "bad" if transcript prompt wasn't shown
-      if (selected === 'bad' && !showedTranscriptPrompt && shouldAutoRunIssue('feedback_survey_bad')) {
-        setAutoRunIssueReason('feedback_survey_bad');
-        didAutoRunIssueRef.current = true;
-      }
-    }
-  }), [feedbackSurveyOriginal]);
-
-  // Post-compact survey: shown after compaction if feature gate is enabled
-  const postCompactSurvey = usePostCompactSurvey(messages, isLoading, hasActivePrompt);
-
-  // Memory survey: shown when the assistant mentions memory and a memory file
-  // was read this conversation
-  const memorySurvey = useMemorySurvey(messages, isLoading, hasActivePrompt);
-
-  // Frustration detection: show transcript sharing prompt after detecting frustrated messages
-  const frustrationDetection = useFrustrationDetection(messages, isLoading, hasActivePrompt, feedbackSurvey.state !== 'closed' || postCompactSurvey.state !== 'closed' || memorySurvey.state !== 'closed');
 
   useFileHistorySnapshotInit(initialFileHistorySnapshots, fileHistory, fileHistoryState => setAppState(prev => ({
     ...prev,
@@ -1716,16 +1668,9 @@ export function REPL({
 
       // Clear input to ensure no residual state
       setInputValue('');
-      logEvent('tengu_session_resumed', {
-        entrypoint: entrypoint as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        success: true,
-        resume_duration_ms: Math.round(performance.now() - resumeStart)
-      });
+
     } catch (error) {
-      logEvent('tengu_session_resumed', {
-        entrypoint: entrypoint as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        success: false
-      });
+
       throw error;
     }
   }, [resetLoadingState, setAppState]);
@@ -1773,13 +1718,6 @@ export function REPL({
     status: apiKeyStatus,
     reverify
   } = useApiKeyVerification();
-
-  // Auto-run /issue state
-  const [autoRunIssueReason, setAutoRunIssueReason] = useState<AutoRunIssueReason | null>(null);
-  // Ref to track if autoRunIssue was triggered this survey cycle,
-  // so we can suppress the [1] follow-up prompt even after
-  // autoRunIssueReason is cleared.
-  const didAutoRunIssueRef = useRef(false);
 
   // State for exit feedback flow
   const [exitFlow, setExitFlow] = useState<React.ReactNode>(null);
@@ -1976,7 +1914,7 @@ export function REPL({
   useEffect(() => {
     const totalCost = getTotalCost();
     if (totalCost >= 5 /* $5 */ && !showCostDialog && !haveShownCostDialog) {
-      logEvent('tengu_cost_threshold_reached', {});
+
       // Mark as shown even if the dialog won't render (no console billing
       // access). Otherwise this effect re-fires on every message change for
       // the rest of the session — 200k+ spurious events observed.
@@ -2485,7 +2423,7 @@ export function REPL({
     // Returns null if already running — no separate check-then-set.
     const thisGeneration = queryGuard.tryStart();
     if (thisGeneration === null) {
-      logEvent('tengu_concurrent_onquery_detected', {});
+
 
       // Extract and enqueue user message text, skipping meta messages
       // (e.g. expanded skill content, tick prompts) that should not be
@@ -2496,7 +2434,7 @@ export function REPL({
           mode: 'prompt'
         });
         if (i === 0) {
-          logEvent('tengu_concurrent_onquery_enqueued', {});
+
         }
       });
       return;
@@ -2794,13 +2732,7 @@ export function REPL({
       // 2. Command was triggered via keybinding (fromKeybinding option)
       const matchingCommand = commands.find(cmd => isCommandEnabled(cmd) && (cmd.name === commandName || cmd.aliases?.includes(commandName) || getCommandName(cmd) === commandName));
       if (matchingCommand?.name === 'clear' && idleHintShownRef.current) {
-        logEvent('tengu_idle_return_action', {
-          action: 'hint_converted' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          variant: idleHintShownRef.current as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          idleMinutes: Math.round((Date.now() - lastQueryCompletionTimeRef.current) / 60_000),
-          messageCount: messagesRef.current.length,
-          totalInputTokens: getTotalInputTokens()
-        });
+
         idleHintShownRef.current = false;
       }
       const shouldTreatAsImmediate = queryGuard.isActive && (matchingCommand?.immediate || options?.fromKeybinding);
@@ -2817,14 +2749,8 @@ export function REPL({
         const pastedTextRefs = parseReferences(input).filter(r => pastedContents[r.id]?.type === 'text');
         const pastedTextCount = pastedTextRefs.length;
         const pastedTextBytes = pastedTextRefs.reduce((sum, r) => sum + (pastedContents[r.id]?.content.length ?? 0), 0);
-        logEvent('tengu_paste_text', {
-          pastedTextCount,
-          pastedTextBytes
-        });
-        logEvent('tengu_immediate_command_executed', {
-          commandName: matchingCommand.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          fromKeybinding: options?.fromKeybinding ?? false
-        });
+
+
 
         // Execute the command directly
         const executeImmediateCommand = async (): Promise<void> => {
@@ -2907,7 +2833,7 @@ export function REPL({
     // conversation is large and the cache is cold. tengu_willow_mode
     // controls treatment: "dialog" (blocking), "hint" (notification), "off".
     {
-      const willowMode = getFeatureValue_CACHED_MAY_BE_STALE('tengu_willow_mode', 'off');
+      const willowMode = 'off';
       const idleThresholdMin = Number(process.env.CLAUDE_CODE_IDLE_THRESHOLD_MINUTES ?? 75);
       const tokenThreshold = Number(process.env.CLAUDE_CODE_IDLE_TOKEN_THRESHOLD ?? 100_000);
       if (willowMode !== 'off' && !getGlobalConfig().idleReturnDismissed && !skipIdleCheckRef.current && !speculationAccept && !input.trim().startsWith('/') && lastQueryCompletionTimeRef.current > 0 && getTotalInputTokens() >= tokenThreshold) {
@@ -3071,7 +2997,7 @@ export function REPL({
   // keep onSubmit stable across message updates (see L2384/L2400/L2662).
   // Without this, each setMessages call (~30× per turn) recreates
   // onSubmit, pinning the REPL render scope (1776B) + that render's
-  // messages array in downstream closures (PromptInput, handleAutoRunIssue).
+  // messages array in downstream closures (PromptInput).
   // Heap analysis showed ~9 REPL scopes and ~15 messages array versions
   // accumulating after #20174/#20175, all traced to this dep.
   mainLoopModel, pastedContents, setUserInputOnProcessing, setAbortController, addNotification, onQuery, stashedPrompt, setStashedPrompt, setAppState, onBeforeQuery, canUseTool, setMessages, awaitPendingHooks, repinScroll]);
@@ -3108,34 +3034,6 @@ export function REPL({
     helpers.setCursorOffset(0);
     helpers.clearBuffer();
   }, [setAppState, setInputValue, getToolUseContext, canUseTool, mainLoopModel, addNotification]);
-
-  // Handlers for auto-run /issue or /good-tau (defined after onSubmit)
-  const handleAutoRunIssue = useCallback(() => {
-    const command = autoRunIssueReason ? getAutoRunCommand(autoRunIssueReason) : '/issue';
-    setAutoRunIssueReason(null); // Clear the state
-    onSubmit(command, {
-      setCursorOffset: () => {},
-      clearBuffer: () => {},
-      resetHistory: () => {}
-    }).catch(err => {
-      logForDebugging(`Auto-run ${command} failed: ${errorMessage(err)}`);
-    });
-  }, [onSubmit, autoRunIssueReason]);
-  const handleCancelAutoRunIssue = useCallback(() => {
-    setAutoRunIssueReason(null);
-  }, []);
-
-  // Handler for when user presses 1 on survey thanks screen to share details
-  const handleSurveyRequestFeedback = useCallback(() => {
-    const command = "external" === 'ant' ? '/issue' : '/feedback';
-    onSubmit(command, {
-      setCursorOffset: () => {},
-      clearBuffer: () => {},
-      resetHistory: () => {}
-    }).catch(err => {
-      logForDebugging(`Survey feedback request failed: ${err instanceof Error ? err.message : String(err)}`);
-    });
-  }, [onSubmit]);
 
   // onSubmit is unstable (deps include `messages` which changes every turn).
   // `handleOpenRateLimitOptions` is prop-drilled to every MessageRow, and each
@@ -3194,12 +3092,7 @@ export function REPL({
     const prev = messagesRef.current;
     const messageIndex = prev.lastIndexOf(message);
     if (messageIndex === -1) return;
-    logEvent('tengu_conversation_rewind', {
-      preRewindMessageCount: prev.length,
-      postRewindMessageCount: messageIndex,
-      messagesRemoved: prev.length - messageIndex,
-      rewindToMessageIndex: messageIndex
-    });
+
     setMessages(prev.slice(0, messageIndex));
     // Careful, this has to happen after setMessages
     setConversationId(randomUUID());
@@ -3419,7 +3312,6 @@ export function REPL({
   // Update last interaction time when input changes.
   // Must be immediate because useEffect runs after the Ink render cycle flush.
   useEffect(() => {
-    activityManager.recordUserActivity();
     updateLastInteractionTime(true);
   }, [inputValue, submitCount]);
   useEffect(() => {
@@ -3468,7 +3360,7 @@ export function REPL({
   useEffect(() => {
     if (lastQueryCompletionTime === 0) return;
     if (isLoading) return;
-    const willowMode: string = getFeatureValue_CACHED_MAY_BE_STALE('tengu_willow_mode', 'off');
+    const willowMode: string = 'off';
     if (willowMode !== 'hint' && willowMode !== 'hint_v2') return;
     if (getGlobalConfig().idleReturnDismissed) return;
     const tokenThreshold = Number(process.env.CLAUDE_CODE_IDLE_TOKEN_THRESHOLD ?? 100_000);
@@ -3498,13 +3390,7 @@ export function REPL({
         timeoutMs: 0x7fffffff
       });
       hintRef.current = mode;
-      logEvent('tengu_idle_return_action', {
-        action: 'hint_shown' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        variant: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        idleMinutes: Math.round(idleMinutes),
-        messageCount: msgsRef.current.length,
-        totalInputTokens: totalTokens
-      });
+
     }, Math.max(0, remaining), lastQueryCompletionTime, addNotification, messagesRef, willowMode, idleHintShownRef);
     return () => {
       clearTimeout(timer);
@@ -4148,17 +4034,12 @@ export function REPL({
               ...current,
               hasAcknowledgedCostThreshold: true
             }));
-            logEvent('tengu_cost_threshold_acknowledged', {});
+
           }} />}
                 {focusedInputDialog === 'idle-return' && idleReturnPending && <IdleReturnDialog idleMinutes={idleReturnPending.idleMinutes} totalInputTokens={getTotalInputTokens()} onDone={async action => {
             const pending = idleReturnPending;
             setIdleReturnPending(null);
-            logEvent('tengu_idle_return_action', {
-              action: action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              idleMinutes: Math.round(pending.idleMinutes),
-              messageCount: messagesRef.current.length,
-              totalInputTokens: getTotalInputTokens()
-            });
+
             if (action === 'dismiss') {
               setInputValue(pending.input);
               return;
@@ -4227,14 +4108,7 @@ export function REPL({
                 {mrRender()}
 
                 {!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor && <>
-                      {autoRunIssueReason && <AutoRunIssueNotification onRun={handleAutoRunIssue} onCancel={handleCancelAutoRunIssue} reason={getAutoRunIssueReasonText(autoRunIssueReason)} />}
-                      {postCompactSurvey.state !== 'closed' ? <FeedbackSurvey state={postCompactSurvey.state} lastResponse={postCompactSurvey.lastResponse} handleSelect={postCompactSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} /> : memorySurvey.state !== 'closed' ? <FeedbackSurvey state={memorySurvey.state} lastResponse={memorySurvey.lastResponse} handleSelect={memorySurvey.handleSelect} handleTranscriptSelect={memorySurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} message="How well did Tau use its memory? (optional)" /> : <FeedbackSurvey state={feedbackSurvey.state} lastResponse={feedbackSurvey.lastResponse} handleSelect={feedbackSurvey.handleSelect} handleTranscriptSelect={feedbackSurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={didAutoRunIssueRef.current ? undefined : handleSurveyRequestFeedback} />}
-                      {/* Frustration-triggered transcript sharing prompt */}
-                      {frustrationDetection.state !== 'closed' && <FeedbackSurvey state={frustrationDetection.state} lastResponse={null} handleSelect={() => {}} handleTranscriptSelect={frustrationDetection.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
-                      {/* Skill improvement survey - appears when improvements detected (ant-only) */}
-                      {"external" === 'ant' && skillImprovementSurvey.suggestion && <SkillImprovementSurvey isOpen={skillImprovementSurvey.isOpen} skillName={skillImprovementSurvey.suggestion.skillName} updates={skillImprovementSurvey.suggestion.updates} handleSelect={skillImprovementSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} />}
                       {showIssueFlagBanner && <IssueFlagBanner />}
-                      {}
                       <PromptInput debug={debug} hasSuppressedDialogs={!!hasSuppressedDialogs} isLocalJSXCommandActive={isShowingLocalJSXCommand} isCenteredPrompt={centerFreshPrompt} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={commands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
             // Works during isLoading — edit cancels first; uuid selection survives appends.
             feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} />

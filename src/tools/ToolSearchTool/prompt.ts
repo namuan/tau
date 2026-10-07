@@ -1,5 +1,5 @@
 import { feature } from 'bun:bundle'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
+
 import type { Tool } from '../../Tool.js'
 import { getAPIProvider } from '../../utils/model/providers.js'
 import { getPowerModeFromSettings } from '../../utils/powerMode.js'
@@ -30,7 +30,7 @@ const PROMPT_HEAD = `Loads callable schemas for deferred tools. `
 function getToolLocationHint(): string {
   const deltaEnabled =
     process.env.USER_TYPE === 'ant' ||
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_glacier_2xr', false)
+    false
   return deltaEnabled
     ? 'Their names and short intents appear in <system-reminder> messages.'
     : 'Their names and short intents appear in <available-deferred-tools> messages.'

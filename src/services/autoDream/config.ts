@@ -3,7 +3,7 @@
 // agent / task registry / message builder chain that autoDream.ts pulls in.
 
 import { getInitialSettings } from '../../utils/settings/settings.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
+
 
 /**
  * Whether background memory consolidation should run. User setting
@@ -16,9 +16,6 @@ export function isAutoDreamEnabled(): boolean {
   // NOT auto-enable the background dream — self-learning is interactive (no
   // silent memory writes); enable autoDream separately if you want it.
   if (settings.autoDreamEnabled !== undefined) return settings.autoDreamEnabled
-  const gb = getFeatureValue_CACHED_MAY_BE_STALE<{ enabled?: unknown } | null>(
-    'tengu_onyx_plover',
-    null,
-  )
+  const gb = null
   return gb?.enabled === true
 }

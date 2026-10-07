@@ -60,36 +60,6 @@ export class ShellError extends Error {
   }
 }
 
-/**
- * Error with a message that is safe to log to telemetry.
- * Use the long name to confirm you've verified the message contains no
- * sensitive data (file paths, URLs, code snippets).
- *
- * Single-arg: same message for user and telemetry
- * Two-arg: different messages (e.g., full message has file path, telemetry doesn't)
- *
- * @example
- * // Same message for both
- * throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
- *   'MCP server "slack" connection timed out'
- * )
- *
- * // Different messages
- * throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
- *   `MCP tool timed out after ${ms}ms`,  // Full message for logs/user
- *   'MCP tool timed out'                  // Telemetry message
- * )
- */
-export class TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends Error {
-  readonly telemetryMessage: string
-
-  constructor(message: string, telemetryMessage?: string) {
-    super(message)
-    this.name = 'TelemetrySafeError'
-    this.telemetryMessage = telemetryMessage ?? message
-  }
-}
-
 export function hasExactErrorMessage(error: unknown, message: string): boolean {
   return error instanceof Error && error.message === message
 }

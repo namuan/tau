@@ -1,9 +1,6 @@
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
+
 import { toError } from './errors.js'
 import { formatFileSize } from './format.js'
 import { logError } from './log.js'
@@ -164,12 +161,7 @@ export async function persistBinaryContent(
   }
 
   // mime type and extension are safe fixed-vocabulary strings (not paths/code)
-  logEvent('tengu_binary_content_persisted', {
-    mimeType: (mimeType ??
-      'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    sizeBytes: bytes.length,
-    ext: ext as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  })
+
 
   return { filepath, size: bytes.length, ext }
 }

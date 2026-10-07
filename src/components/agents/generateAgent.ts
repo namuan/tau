@@ -10,10 +10,7 @@ import {
 } from 'src/utils/messages.js'
 import type { ModelName } from 'src/utils/model/model.js'
 import { isAutoMemoryEnabled } from '../../memdir/paths.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
+
 import { jsonParse } from '../../utils/slowOperations.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 
@@ -72,7 +69,7 @@ When a user describes what they want an agent to do, you will:
       user: "Hello"
       assistant: "I'm going to use the ${AGENT_TOOL_NAME} tool to launch the greeting-responder agent to respond with a friendly joke"
       <commentary>
-      Since the user is greeting, use the greeting-responder agent to respond with a friendly joke. 
+      Since the user is greeting, use the greeting-responder agent to respond with a friendly joke.
       </commentary>
     </example>
   - If the user mentioned or implied that the agent should be used proactively, you should include examples of this.
@@ -183,10 +180,7 @@ export async function generateAgent(
     throw new Error('Invalid agent configuration generated')
   }
 
-  logEvent('tengu_agent_definition_generated', {
-    agent_identifier:
-      parsed.identifier as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  })
+
 
   return {
     identifier: parsed.identifier,

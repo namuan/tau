@@ -9,7 +9,7 @@ import { ProviderLoginFlow } from '../../components/ProviderLoginFlow.js'
 import TextInput from '../../components/TextInput.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
 import { Box, Text, useInput } from '../../ink.js'
-import { refreshGrowthBookAfterAuthChange } from '../../services/analytics/growthbook.js'
+
 import { refreshPolicyLimits } from '../../services/policyLimits/index.js'
 import { refreshRemoteManagedSettings } from '../../services/remoteManagedSettings/index.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
@@ -32,7 +32,6 @@ import {
   resetAutoModeGateCheck,
   resetBypassPermissionsCheck,
 } from '../../utils/permissions/bypassPermissionsKillswitch.js'
-import { resetUserCache } from '../../utils/user.js'
 import {
   hasStoredKey,
   saveProviderKey,
@@ -51,8 +50,6 @@ function runPostLoginRefresh(context: LocalJSXCommandContext) {
   resetCostState()
   void refreshRemoteManagedSettings()
   void refreshPolicyLimits()
-  resetUserCache()
-  refreshGrowthBookAfterAuthChange()
   resetBypassPermissionsCheck()
   const appState = context.getAppState()
   void checkAndDisableBypassPermissionsIfNeeded(

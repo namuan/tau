@@ -8,7 +8,7 @@ import type { AppState } from 'src/state/AppState.js';
 import { z } from 'zod/v4';
 import { clearSystemPromptSectionCacheEntry, getKairosActive, getOriginalCwd, getVisitedDirs, recordVisitedDir } from '../../bootstrap/state.js';
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../../services/analytics/index.js';
+
 import type { SetToolJSXFn, ToolCallProgress, ToolUseContext, ValidationResult } from '../../Tool.js';
 import { buildTool, type ToolDef } from '../../Tool.js';
 import { backgroundExistingForegroundTask, markTaskNotified, registerForeground, spawnShellTask, unregisterForeground } from '../../tasks/LocalShellTask/LocalShellTask.js';
@@ -16,7 +16,6 @@ import type { AgentId } from '../../types/ids.js';
 import type { AssistantMessage } from '../../types/message.js';
 import { parseForSecurity } from '../../utils/bash/ast.js';
 import { splitCommand_DEPRECATED, splitCommandWithOperators } from '../../utils/bash/commands.js';
-import { detectCodeIndexingFromCommand } from '../../utils/codeIndexing.js';
 import { isEnvTruthy, shouldMaintainProjectWorkingDir } from '../../utils/envUtils.js';
 import { isENOENT, ShellError } from '../../utils/errors.js';
 import { detectFileEncoding, detectLineEndings, getFileModificationTime, writeTextContent } from '../../utils/file.js';
@@ -321,20 +320,6 @@ type InputSchema = ReturnType<typeof inputSchema>;
 // Use fullInputSchema for the type to always include run_in_background
 // (even when it's omitted from the schema, the code needs to handle it)
 export type BashToolInput = z.infer<ReturnType<typeof fullInputSchema>>;
-const COMMON_BACKGROUND_COMMANDS = ['npm', 'yarn', 'pnpm', 'node', 'python', 'python3', 'go', 'cargo', 'make', 'docker', 'terraform', 'webpack', 'vite', 'jest', 'pytest', 'curl', 'wget', 'build', 'test', 'serve', 'watch', 'dev'] as const;
-function getCommandTypeForLogging(command: string): AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {
-  const parts = splitCommand_DEPRECATED(command);
-  if (parts.length === 0) return 'other' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS;
-
-  // Check each part of the command to see if any match common background commands
-  for (const part of parts) {
-    const baseCommand = part.split(' ')[0] || '';
-    if (COMMON_BACKGROUND_COMMANDS.includes(baseCommand as (typeof COMMON_BACKGROUND_COMMANDS)[number])) {
-      return baseCommand as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS;
-    }
-  }
-  return 'other' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS;
-}
 /** Bytes of persisted-output tail captured for the distilled preview. */
 const TAIL_SAMPLE_BYTES = 16_384;
 
@@ -951,7 +936,7 @@ export const BashTool = buildTool({
 
       // Check for git index.lock error (stderr is in commandOutput now)
       if (commandOutput.includes(".git/index.lock': File exists")) {
-        logEvent('tengu_git_index_lock_error', {});
+
       }
       if (interpretationResult.isError && !isInterrupt) {
         // Only add exit code if it's actually an error
@@ -1050,24 +1035,6 @@ export const BashTool = buildTool({
       } catch {
         // File may already be gone — stdout preview is sufficient
       }
-    }
-    const commandType = input.command.split(' ')[0];
-    logEvent('tengu_bash_tool_command_executed', {
-      command_type: commandType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      stdout_length: stdout.length,
-      stderr_length: 0,
-      exit_code: result.code,
-      interrupted: wasInterrupted
-    });
-
-    // Log code indexing tool usage
-    const codeIndexingTool = detectCodeIndexingFromCommand(input.command);
-    if (codeIndexingTool) {
-      logEvent('tengu_code_indexing_tool_used', {
-        tool: codeIndexingTool as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        source: 'cli' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        success: result.code === 0
-      });
     }
     let strippedStdout = stripEmptyLines(stdout);
 
@@ -1253,9 +1220,7 @@ async function* runShellCommand({
         return;
       }
       backgroundShellId = foregroundTaskId;
-      logEvent(eventName, {
-        command_type: getCommandTypeForLogging(command)
-      });
+
       backgroundFn?.(foregroundTaskId);
       return;
     }
@@ -1275,9 +1240,7 @@ async function* runShellCommand({
         resolveProgress = null;
         resolve();
       }
-      logEvent(eventName, {
-        command_type: getCommandTypeForLogging(command)
-      });
+
       if (backgroundFn) {
         backgroundFn(shellId);
       }
@@ -1328,9 +1291,7 @@ async function* runShellCommand({
       return result;
     }
     const shellId = await spawnBackgroundTask();
-    logEvent('tengu_bash_command_explicitly_backgrounded', {
-      command_type: getCommandTypeForLogging(command)
-    });
+
     return {
       stdout: '',
       stderr: '',

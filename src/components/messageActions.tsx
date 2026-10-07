@@ -4,7 +4,7 @@ import type { RefObject } from 'react';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Box, Text } from '../ink.js';
 import { useKeybindings } from '../keybindings/useKeybinding.js';
-import { logEvent } from '../services/analytics/index.js';
+
 import type { NormalizedUserMessage, RenderableMessage } from '../types/message.js';
 import { isHiddenBashMessage } from '../utils/hiddenBashMessage.js';
 import { isEmptyMessageText, SYNTHETIC_MESSAGES } from '../utils/messages.js';
@@ -264,7 +264,7 @@ export function useMessageActions(cursor: MessageActionsState | null, setCursor:
     return h;
   }, [setCursor, navRef]);
   const enter = useCallback(() => {
-    logEvent('tengu_message_actions_enter', {});
+
     navRef.current?.enterCursor();
   }, [navRef]);
   return {

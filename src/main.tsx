@@ -14,23 +14,23 @@ import mapValues from 'lodash-es/mapValues.js';
 import pickBy from 'lodash-es/pickBy.js';
 import uniqBy from 'lodash-es/uniqBy.js';
 import { relative, resolve } from 'path';
-import { isAnalyticsDisabled } from 'src/services/analytics/config.js';
-import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
-import { initializeAnalyticsGates } from 'src/services/analytics/sink.js';
+
+
+
+
 import { getOriginalCwd, setAdditionalDirectoriesForClaudeMd, setMainLoopModelOverride, setMainThreadAgentType } from './bootstrap/state.js';
 import { getCommands } from './commands.js';
 import { PRODUCT_COMMAND } from './constants/product.js';
 import { getSystemContext, getUserContext } from './context.js';
 import type { StatsStore } from './context/stats.js';
 import { launchInvalidSettingsDialog, launchResumeChooser, launchSnapshotUpdateDialog } from './dialogLaunchers.js';
-import { init, initializeTelemetryAfterTrust } from './entrypoints/init.js';
+import { init } from './entrypoints/init.js';
 import { addToHistory } from './history.js';
 import type { Root } from './ink.js';
 import { SHOW_CURSOR } from './ink/termio/dec.js';
 import { exitWithError, exitWithMessage, getRenderContext, renderAndRun, showSetupScreens } from './interactiveHelpers.js';
 import { launchRepl } from './replLauncher.js';
-import { hasGrowthBookEnvOverride, initializeGrowthBook, refreshGrowthBookAfterAuthChange } from './services/analytics/growthbook.js';
+
 import { prefetchPassesEligibility } from './services/api/referral.js';
 import { loadPolicyLimits, refreshPolicyLimits } from './services/policyLimits/index.js';
 import { loadRemoteManagedSettings, refreshRemoteManagedSettings } from './services/remoteManagedSettings/index.js';
@@ -56,7 +56,6 @@ import { skillChangeDetector } from './utils/skills/skillChangeDetector.js';
 import { jsonParse, writeFileSync_DEPRECATED } from './utils/slowOperations.js';
 import { profileCheckpoint, profileReport } from './utils/startupProfiler.js';
 import { computeInitialTeamContext } from './utils/swarm/reconnection.js';
-import { initializeWarningHandler } from './utils/warningHandler.js';
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js';
 
 const trace = (m: string) => {
@@ -114,7 +113,6 @@ import { ensureModelStringsInitialized } from './utils/model/modelStrings.js';
 import { ensureCloudModelsPrimed } from './utils/model/ollamaCatalog.js';
 import { PERMISSION_MODES } from './utils/permissions/PermissionMode.js';
 import { checkAndDisableBypassPermissions, getAutoModeEnabledStateIfCached, initializeToolPermissionContext, initialPermissionModeFromCLI, isDefaultPermissionModeAuto, parseToolListFromCLI, removeDangerousPermissions, stripDangerousPermissionsForAutoMode, verifyAutoModeGateAccess } from './utils/permissions/permissionSetup.js';
-import { countFilesRoundedRg } from './utils/ripgrep.js';
 import { processSessionStartHooks, processSetupHooks } from './utils/sessionStart.js';
 import { cacheSessionTitle, getSessionIdFromLog, loadTranscriptFromFile, saveAgentSetting, saveMode, searchSessionsByCustomTitle, sessionIdExists } from './utils/sessionStorage.js';
 import { ensureMdmSettingsLoaded } from './utils/settings/mdm/settings.js';
@@ -123,13 +121,13 @@ import { getInitialSettings, getManagedSettingsKeysForLogging, getSettingsForSou
 import { resetSettingsCache } from './utils/settings/settingsCache.js';
 import type { ValidationError } from './utils/settings/validation.js';
 import { DEFAULT_TASKS_MODE_TASK_LIST_ID, TASK_STATUSES } from './utils/tasks.js';
-import { logSkillsLoaded } from './utils/telemetry/skillLoadedEvent.js';
+
 import { generateTempFilePath } from './utils/tempfile.js';
 import { validateUuid } from './utils/uuid.js';
 
 import { logPermissionContextForAnts } from 'src/services/internalLogging.js';
 import { getRelevantTips } from 'src/services/tips/tipRegistry.js';
-import { logContextMetrics } from 'src/utils/api.js';
+
 import { registerCleanup } from 'src/utils/cleanupRegistry.js';
 import { eagerParseCliFlag } from 'src/utils/cliArgs.js';
 import { createEmptyAttributionState } from 'src/utils/commitAttribution.js';
@@ -165,31 +163,10 @@ import { isInBundledMode, isRunningWithBun } from './utils/bundledMode.js';
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js';
 import { migrateChangelogFromConfig } from './utils/releaseNotes.js';
 import { shouldEnableThinkingByDefault, type ThinkingConfig } from './utils/thinking.js';
-import { initUser, resetUserCache } from './utils/user.js';
 import { getTmuxInstallInstructions, isTmuxAvailable, parsePRReference } from './utils/worktree.js';
 
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
 profileCheckpoint('main_tsx_imports_loaded');
-
-/**
- * Log managed settings keys to Statsig for analytics.
- * This is called after init() completes to ensure settings are loaded
- * and environment variables are applied before model resolution.
- */
-function logManagedSettings(): void {
-  try {
-    const policySettings = getSettingsForSource('policySettings');
-    if (policySettings) {
-      const allKeys = getManagedSettingsKeysForLogging(policySettings);
-      logEvent('tengu_managed_settings_loaded', {
-        keyCount: allKeys.length,
-        keys: allKeys.join(',') as unknown as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
-    }
-  } catch {
-    // Silently ignore errors - this is just for analytics
-  }
-}
 
 // Check if running in debug/inspection mode
 function isBeingDebugged() {
@@ -239,37 +216,9 @@ if ("external" !== 'ant' && isBeingDebugged()) {
  * main.tsx but branch before the interactive startup path, so it needs two
  * call sites here rather than one here + one in QueryEngine.
  */
-function logSessionTelemetry(): void {
-  const model = parseUserSpecifiedModel(getInitialMainLoopModel() ?? getDefaultMainLoopModel());
-  void logSkillsLoaded(getCwd(), getContextWindowForModel(model, getSdkBetas()));
-}
-function getCertEnvVarTelemetry(): Record<string, boolean> {
-  const result: Record<string, boolean> = {};
-  if (process.env.NODE_EXTRA_CA_CERTS) {
-    result.has_node_extra_ca_certs = true;
-  }
-  if (process.env.CLAUDE_CODE_CLIENT_CERT) {
-    result.has_client_cert = true;
-  }
-  if (hasNodeOption('--use-system-ca')) {
-    result.has_use_system_ca = true;
-  }
-  if (hasNodeOption('--use-openssl-ca')) {
-    result.has_use_openssl_ca = true;
-  }
-  return result;
-}
-async function logStartupTelemetry(): Promise<void> {
-  if (isAnalyticsDisabled()) return;
-  const [isGit, worktreeCount, ghAuthStatus] = await Promise.all([getIsGit(), getWorktreeCount(), getGhAuthStatus()]);
-  logEvent('tengu_startup_telemetry', {
-    is_git: isGit,
-    worktree_count: worktreeCount,
-    gh_auth_status: ghAuthStatus as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    prefers_reduced_motion: getInitialSettings().prefersReducedMotion ?? false,
-    ...getCertEnvVarTelemetry()
-  });
-}
+
+
+
 
 // @[MODEL LAUNCH]: Consider any migrations you may need for model strings. See migrateSonnet1mToSonnet45.ts for an example.
 // Bump this when adding a new sync migration so existing users re-run the set.
@@ -345,14 +294,13 @@ export function startDeferredPrefetches(): void {
   }
 
   // Process-spawning prefetches (consumed at first API call, user is still typing)
-  void initUser();
+
   void getUserContext();
   prefetchSystemContextIfSafe();
   void getRelevantTips();
-  void countFilesRoundedRg(getCwd(), AbortSignal.timeout(3000), []);
 
   // Analytics and feature flag initialization
-  void initializeAnalyticsGates();
+
   // Fills the persistent context-window store for the active provider so a
   // fresh session sizes its window from the provider's own catalogue instead
   // of falling through to MODEL_CONTEXT_WINDOW_DEFAULT. No-ops on a warm store.
@@ -487,7 +435,6 @@ export async function main() {
   process.env.NoDefaultCurrentDirectoryInExePath = '1';
 
   // Initialize warning handler early to catch warnings
-  initializeWarningHandler();
   process.on('exit', () => {
     resetCursor();
   });
@@ -641,11 +588,7 @@ async function run(): Promise<CommanderCommand> {
       process.title = PRODUCT_COMMAND;
     }
 
-    // Attach logging sinks so subcommand handlers can use logEvent/logError.
-    // Before PR #11106 logEvent dispatched directly; after, events queue until
-    // a sink attaches. setup() attaches sinks for the default command, but
-    // subcommands (doctor, auth) never call setup() and would
-    // silently drop events on process.exit(). Both inits are idempotent.
+    // Attach local error logging for subcommands that do not call setup().
     const {
       initSinks
     } = await import('./utils/sinks.js');
@@ -702,7 +645,7 @@ async function run(): Promise<CommanderCommand> {
 
     // Ignore "code" as a prompt - treat it the same as no prompt
     if (prompt === 'code') {
-      logEvent('tengu_code_prompt_ignored', {});
+
       // biome-ignore lint/suspicious/noConsole:: intentional console output
       console.warn(chalk.yellow('Tip: You can launch Tau with just `tau`'));
       prompt = undefined;
@@ -710,9 +653,7 @@ async function run(): Promise<CommanderCommand> {
 
     // Log event for any single-word prompt
     if (prompt && typeof prompt === 'string' && !/\s/.test(prompt) && prompt.length > 0) {
-      logEvent('tengu_single_word_prompt', {
-        length: prompt.length
-      });
+
     }
 
     // Assistant mode: when .claude/settings.json has assistant: true AND
@@ -1130,14 +1071,9 @@ async function run(): Promise<CommanderCommand> {
         // This tool is excluded from normal filtering (see tools.ts) because it's
         // an implementation detail for structured output, not a user-controlled tool.
         tools = [...tools, syntheticOutputResult.tool];
-        logEvent('tengu_structured_output_enabled', {
-          schema_property_count: Object.keys(jsonSchema.properties as Record<string, unknown> || {}).length as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          has_required_fields: Boolean(jsonSchema.required) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
+
       } else {
-        logEvent('tengu_structured_output_failure', {
-          error: 'Invalid JSON schema' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
+
       }
     }
 
@@ -1248,9 +1184,7 @@ async function run(): Promise<CommanderCommand> {
     //  - no env override (which short-circuits _CACHED_MAY_BE_STALE before disk)
     //  - flag absent from disk (== null also catches pre-#22279 poisoned null)
     const explicitModel = options.model || process.env.ANTHROPIC_MODEL;
-    if ("external" === 'ant' && explicitModel && explicitModel !== 'default' && !hasGrowthBookEnvOverride('tengu_ant_model_override') && getGlobalConfig().cachedGrowthBookFeatures?.['tengu_ant_model_override'] == null) {
-      await initializeGrowthBook();
-    }
+
 
     // Special case the default model with the null keyword
     // NOTE: Model resolution happens after setup() to ensure trust is established before AWS auth
@@ -1304,12 +1238,7 @@ async function run(): Promise<CommanderCommand> {
 
     // Log agent flag usage — only log agent name for built-in agents to avoid leaking custom agent names
     if (mainThreadAgentDefinition) {
-      logEvent('tengu_agent_flag', {
-        agentType: isBuiltInAgent(mainThreadAgentDefinition) ? mainThreadAgentDefinition.agentType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS : 'custom' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        ...(agentCli && {
-          source: 'cli' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        })
-      });
+
     }
 
     // Persist agent setting to session transcript for resume view display and restoration
@@ -1381,13 +1310,7 @@ async function run(): Promise<CommanderCommand> {
 
         // Log agent memory loaded event for tmux teammates
         if (customAgent.memory) {
-          logEvent('tengu_agent_memory_loaded', {
-            ...("external" === 'ant' && {
-              agent_type: customAgent.agentType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-            }),
-            scope: customAgent.memory as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-            source: 'teammate' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-          });
+
         }
         if (customPrompt) {
           const customInstructions = `\n# Custom Agent Instructions\n${customPrompt}`;
@@ -1466,10 +1389,7 @@ async function run(): Promise<CommanderCommand> {
       // from REPL's first render (the old location) included however long
       // the user sat on trust/OAuth/onboarding/resume-picker — p99 was ~70s
       // dominated by dialog-wait time, not code-path startup.
-      logEvent('tengu_timer', {
-        event: 'startup' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        durationMs: Math.round(process.uptime() * 1000)
-      });
+
       trace('Calling showSetupScreens()...');
       logForDebugging('[STARTUP] Running showSetupScreens()...');
       const setupScreensStart = Date.now();
@@ -1505,9 +1425,8 @@ async function run(): Promise<CommanderCommand> {
         void refreshRemoteManagedSettings();
         void refreshPolicyLimits();
         // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
-        resetUserCache();
         // Refresh GrowthBook after login to get updated feature flags
-        refreshGrowthBookAfterAuthChange();
+
       }
 
       // Validate that the active token's org matches forceLoginOrgUUID (if set
@@ -1544,7 +1463,7 @@ async function run(): Promise<CommanderCommand> {
     // --bare / SIMPLE: skip — these are cache-warms for the REPL's
     // first-turn responsiveness (quota, passes, fastMode, bootstrap data). Fast
     // mode doesn't apply to the Agent SDK anyway (see getFastModeUnavailableReason).
-    const bgRefreshThrottleMs = getFeatureValue_CACHED_MAY_BE_STALE('tengu_cicada_nap_ms', 0);
+    const bgRefreshThrottleMs = 0;
     const lastPrefetched = getGlobalConfig().startupPrefetchedAt ?? 0;
     const skipStartupPrefetches = isBareMode() || bgRefreshThrottleMs > 0 && Date.now() - lastPrefetched < bgRefreshThrottleMs;
     if (!skipStartupPrefetches) {
@@ -1556,7 +1475,7 @@ async function run(): Promise<CommanderCommand> {
 
       // TODO: Consolidate other prefetches into a single bootstrap request.
       void prefetchPassesEligibility();
-      if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_miraculo_the_bard', false)) {
+      if (!false) {
         void prefetchFastModeStatus();
       } else {
         // Kill switch skips the network call, not org-policy enforcement.
@@ -1655,9 +1574,9 @@ async function run(): Promise<CommanderCommand> {
     });
 
     // Log context metrics once at initialization
-    void logContextMetrics(toolPermissionContext);
+
     void logPermissionContextForAnts(null, 'initialization');
-    logManagedSettings();
+
 
     // Register PID file for concurrent-session detection (~/.claude/sessions/)
     // and fire multi-clauding telemetry. Lives here (not init.ts) so only the
@@ -1670,9 +1589,7 @@ async function run(): Promise<CommanderCommand> {
       }
       void countConcurrentSessions().then(count => {
         if (count >= 2) {
-          logEvent('tengu_concurrent_sessions', {
-            num_sessions: count
-          });
+
         }
       });
     });
@@ -1701,9 +1618,6 @@ async function run(): Promise<CommanderCommand> {
       // but print mode is considered trusted (as documented in help text)
       applyConfigEnvironmentVariables();
 
-      // Initialize telemetry after env vars are applied so OTEL endpoint env vars and
-      // otelHeadersHelper (which requires trust to execute) are available.
-      initializeTelemetryAfterTrust();
 
       // Kick SessionStart hooks now so the subprocess spawn overlaps with
       // print.ts import below. loadInitialMessages
@@ -1796,7 +1710,7 @@ async function run(): Promise<CommanderCommand> {
           void import('./utils/sdkHeapDumpMonitor.js').then(m => m.startSdkMemoryMonitor());
         }
       }
-      logSessionTelemetry();
+
       profileCheckpoint('before_print_import');
       const {
         runHeadless
@@ -1831,13 +1745,7 @@ async function run(): Promise<CommanderCommand> {
     }
 
     // Log model config at startup
-    logEvent('tengu_startup_manual_model_config', {
-      cli_flag: options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      env_var: process.env.ANTHROPIC_MODEL as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      settings_file: (getInitialSettings() || {}).model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      subscriptionType: getSubscriptionType() as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      agent: agentSetting as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
+
 
     // Get deprecation warning for the initial model (resolvedInitialModel computed earlier for hooks parallelization)
     const deprecationWarning = getModelDeprecationWarning(resolvedInitialModel);
@@ -1970,8 +1878,8 @@ async function run(): Promise<CommanderCommand> {
       numStartups: (current.numStartups ?? 0) + 1
     }));
     setImmediate(() => {
-      void logStartupTelemetry();
-      logSessionTelemetry();
+
+
     });
 
     // Set up per-turn session environment data uploader (ant-only build).
@@ -2028,9 +1936,7 @@ async function run(): Promise<CommanderCommand> {
         clearSessionCaches();
         const result = await loadConversationForResume(undefined /* sessionId */, undefined /* sourceFile */);
         if (!result) {
-          logEvent('tengu_continue', {
-            success: false
-          });
+
           return await exitWithError(root, 'No conversation found to continue');
         }
         const loaded = await processResumedConversation(result, {
@@ -2043,10 +1949,7 @@ async function run(): Promise<CommanderCommand> {
         }
         maybeActivateProactive(options);
         maybeActivateBrief(options);
-        logEvent('tengu_continue', {
-          success: true,
-          resume_duration_ms: Math.round(performance.now() - resumeStart)
-        });
+
         resumeSucceeded = true;
         await launchRepl(root, {
           getFpsMetrics,
@@ -2063,9 +1966,7 @@ async function run(): Promise<CommanderCommand> {
         }, renderAndRun);
       } catch (error) {
         if (!resumeSucceeded) {
-          logEvent('tengu_continue', {
-            success: false
-          });
+
         }
         logError(error);
         process.exit(1);
@@ -2136,22 +2037,12 @@ async function run(): Promise<CommanderCommand> {
                 if (processedResume.restoredAgentDef) {
                   mainThreadAgentDefinition = processedResume.restoredAgentDef;
                 }
-                logEvent('tengu_session_resumed', {
-                  entrypoint: 'ccshare' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                  success: true,
-                  resume_duration_ms: Math.round(performance.now() - resumeStart)
-                });
+
               } else {
-                logEvent('tengu_session_resumed', {
-                  entrypoint: 'ccshare' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                  success: false
-                });
+
               }
             } catch (error) {
-              logEvent('tengu_session_resumed', {
-                entrypoint: 'ccshare' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                success: false
-              });
+
               logError(error);
               await exitWithError(root, `Unable to resume from ccshare: ${errorMessage(error)}`, () => gracefulShutdown(1));
             }
@@ -2177,23 +2068,13 @@ async function run(): Promise<CommanderCommand> {
                   if (processedResume.restoredAgentDef) {
                     mainThreadAgentDefinition = processedResume.restoredAgentDef;
                   }
-                  logEvent('tengu_session_resumed', {
-                    entrypoint: 'file' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                    success: true,
-                    resume_duration_ms: Math.round(performance.now() - resumeStart)
-                  });
+
                 } else {
-                  logEvent('tengu_session_resumed', {
-                    entrypoint: 'file' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                    success: false
-                  });
+
                 }
               }
             } catch (error) {
-              logEvent('tengu_session_resumed', {
-                entrypoint: 'file' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                success: false
-              });
+
               logError(error);
               await exitWithError(root, `Unable to load transcript from file: ${options.resume}`, () => gracefulShutdown(1));
             }
@@ -2211,10 +2092,7 @@ async function run(): Promise<CommanderCommand> {
           // Otherwise fall back to sessionId string (for direct UUID resume)
           const result = await loadConversationForResume(matchedLog ?? sessionId, undefined);
           if (!result) {
-            logEvent('tengu_session_resumed', {
-              entrypoint: 'cli_flag' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              success: false
-            });
+
             return await exitWithError(root, `No conversation found with session ID: ${sessionId}`);
           }
           const fullPath = matchedLog?.fullPath ?? result.fullPath;
@@ -2226,16 +2104,9 @@ async function run(): Promise<CommanderCommand> {
           if (processedResume.restoredAgentDef) {
             mainThreadAgentDefinition = processedResume.restoredAgentDef;
           }
-          logEvent('tengu_session_resumed', {
-            entrypoint: 'cli_flag' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-            success: true,
-            resume_duration_ms: Math.round(performance.now() - resumeStart)
-          });
+
         } catch (error) {
-          logEvent('tengu_session_resumed', {
-            entrypoint: 'cli_flag' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-            success: false
-          });
+
           logError(error);
           await exitWithError(root, `Failed to resume session ${sessionId}`);
         }
@@ -2588,7 +2459,7 @@ Examples:
   // Record final checkpoint for total_time calculation
   profileCheckpoint('main_after_run');
 
-  // Log startup perf to Statsig (sampled) and output detailed report if enabled
+  // Output detailed startup profiling when enabled
   profileReport();
   return program;
 }
@@ -2638,49 +2509,7 @@ async function logTenguInit({
   assistantActivationPath: string | undefined;
 }): Promise<void> {
   try {
-    logEvent('tengu_init', {
-      entrypoint: 'claude' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      hasInitialPrompt,
-      hasStdin,
-      verbose,
-      debug,
-      debugToStderr,
-      print,
-      outputFormat: outputFormat as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      inputFormat: inputFormat as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      numAllowedTools,
-      numDisallowedTools,
-      worktree: worktreeEnabled,
-      skipWebFetchPreflight,
-      ...(githubActionInputs && {
-        githubActionInputs: githubActionInputs as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      }),
-      dangerouslySkipPermissionsPassed,
-      permissionMode: permissionMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      modeIsBypass,
-      inProtectedNamespace: isInProtectedNamespace(),
-      allowDangerouslySkipPermissionsPassed,
-      thinkingType: thinkingConfig.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...(systemPromptFlag && {
-        systemPromptFlag: systemPromptFlag as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      }),
-      ...(appendSystemPromptFlag && {
-        appendSystemPromptFlag: appendSystemPromptFlag as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      }),
-      is_simple: isBareMode() || undefined,
-      is_coordinator: feature('COORDINATOR_MODE') && coordinatorModeModule?.isCoordinatorMode() ? true : undefined,
-      ...(assistantActivationPath && {
-        assistantActivationPath: assistantActivationPath as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      }),
-      ...("external" === 'ant' ? (() => {
-        const cwd = getCwd();
-        const gitRoot = findGitRoot(cwd);
-        const rp = gitRoot ? relative(gitRoot, cwd) || '.' : undefined;
-        return rp ? {
-          relativeProjectPath: rp as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        } : {};
-      })() : {})
-    });
+
   } catch (error) {
     logError(error);
   }
@@ -2721,11 +2550,7 @@ function maybeActivateBrief(options: unknown): void {
   }
   // Fire unconditionally once intent is seen: enabled=false captures the
   // "user tried but was gated" failure mode in Datadog.
-  logEvent('tengu_brief_mode_enabled', {
-    enabled: entitled,
-    gated: !entitled,
-    source: (briefEnv ? 'env' : 'flag') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-  });
+
 }
 function resetCursor() {
   const terminal = process.stderr.isTTY ? process.stderr : process.stdout.isTTY ? process.stdout : undefined;

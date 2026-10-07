@@ -8,18 +8,17 @@ const trace = (m: string) => {
     appendFileSync(process.env.CLAUDEX_BOOT_LOG, `[${new Date().toISOString()}] [interactiveHelpers] ${m}\n`);
   } catch {}
 };
-import { logEvent } from 'src/services/analytics/index.js';
+
 import { gracefulShutdown, gracefulShutdownSync } from 'src/utils/gracefulShutdown.js';
 import { setSessionTrustAccepted, setStatsStore } from './bootstrap/state.js';
 import type { Command } from './commands.js';
 import { getSystemContext } from './context.js';
 import { createStatsStore, type StatsStore } from './context/stats.js';
-import { initializeTelemetryAfterTrust } from './entrypoints/init.js';
 import type { RenderOptions, Root, TextProps } from './ink.js';
 import { isSynchronizedOutputSupported } from './ink/terminal.js';
 import { KeybindingSetup } from './keybindings/KeybindingProviderSetup.js';
 import { startDeferredPrefetches } from './main.js';
-import { initializeGrowthBook, resetGrowthBook } from './services/analytics/growthbook.js';
+
 import { AppStateProvider } from './state/AppState.js';
 import { onChangeAppState } from './state/onChangeAppState.js';
 import { normalizeApiKeyForConfig } from './utils/authPortable.js';
@@ -204,15 +203,7 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
       await showSetupDialog(root, done => <TrustDialog commands={commands} onDone={done} />);
     }
 
-    // Signal that trust has been verified for this session.
-    // GrowthBook checks this to decide whether to include auth headers.
     setSessionTrustAccepted(true);
-
-    // Reset and reinitialize GrowthBook after trust is established.
-    // Defense for login/logout: clears any prior client so the next init
-    // picks up fresh auth headers.
-    resetGrowthBook();
-    void initializeGrowthBook();
 
     // Now that trust is established, prefetch system context if it wasn't already
     void getSystemContext();
@@ -234,11 +225,6 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
   // This includes potentially dangerous environment variables from untrusted sources
   applyConfigEnvironmentVariables();
 
-  // Initialize telemetry after env vars are applied so OTEL endpoint env vars and
-  // otelHeadersHelper (which requires trust to execute) are available.
-  // Defer to next tick so the OTel dynamic import resolves after first render
-  // instead of during the pre-render microtask queue.
-  setImmediate(() => initializeTelemetryAfterTrust());
   trace('skipping grove check (disabled in Tau)');
 
   trace('after grove check');
@@ -287,10 +273,6 @@ export function getRenderContext(exitOnCtrlC: boolean): {
   let lastFlickerTime = 0;
   const baseOptions = getBaseRenderOptions(exitOnCtrlC);
 
-  // Log analytics event when stdin override is active
-  if (baseOptions.stdin) {
-    logEvent('tengu_stdin_interactive', {});
-  }
   const fpsTracker = new FpsTracker();
   const stats = createStatsStore();
   setStatsStore(stats);
@@ -334,11 +316,7 @@ export function getRenderContext(exitOnCtrlC: boolean): {
           }
           const now = Date.now();
           if (now - lastFlickerTime < 1000) {
-            logEvent('tengu_flicker', {
-              desiredHeight: flicker.desiredHeight,
-              actualHeight: flicker.availableHeight,
-              reason: flicker.reason
-            } as unknown as Record<string, boolean | number | undefined>);
+
           }
           lastFlickerTime = now;
         }
