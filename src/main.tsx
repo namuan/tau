@@ -15,9 +15,6 @@ import pickBy from 'lodash-es/pickBy.js';
 import uniqBy from 'lodash-es/uniqBy.js';
 import { relative, resolve } from 'path';
 
-
-
-
 import { getOriginalCwd, setAdditionalDirectoriesForClaudeMd, setMainLoopModelOverride, setMainThreadAgentType } from './bootstrap/state.js';
 import { getCommands } from './commands.js';
 import { PRODUCT_COMMAND } from './constants/product.js';
@@ -99,7 +96,7 @@ import type { LogOption } from './types/logs.js';
 import type { Message as MessageType } from './types/message.js';
 import { getContextWindowForModel } from './utils/context.js';
 import { loadConversationForResume } from './utils/conversationRecovery.js';
-import { hasNodeOption, isBareMode, isEnvTruthy, isInProtectedNamespace } from './utils/envUtils.js';
+import { isBareMode, isEnvTruthy, isInProtectedNamespace } from './utils/envUtils.js';
 import { refreshExampleCommands } from './utils/exampleCommands.js';
 import type { FpsMetrics } from './utils/fpsTracker.js';
 import { getWorktreePaths } from './utils/getWorktreePaths.js';
@@ -117,7 +114,7 @@ import { processSessionStartHooks, processSetupHooks } from './utils/sessionStar
 import { cacheSessionTitle, getSessionIdFromLog, loadTranscriptFromFile, saveAgentSetting, saveMode, searchSessionsByCustomTitle, sessionIdExists } from './utils/sessionStorage.js';
 import { ensureMdmSettingsLoaded } from './utils/settings/mdm/settings.js';
 import { getPowerModeFromSettings, seedSessionPowerMode } from './utils/powerMode.js';
-import { getInitialSettings, getManagedSettingsKeysForLogging, getSettingsForSource, getSettingsWithErrors } from './utils/settings/settings.js';
+import { getInitialSettings, getSettingsWithErrors } from './utils/settings/settings.js';
 import { resetSettingsCache } from './utils/settings/settingsCache.js';
 import type { ValidationError } from './utils/settings/validation.js';
 import { DEFAULT_TASKS_MODE_TASK_LIST_ID, TASK_STATUSES } from './utils/tasks.js';
@@ -131,7 +128,7 @@ import { getRelevantTips } from 'src/services/tips/tipRegistry.js';
 import { registerCleanup } from 'src/utils/cleanupRegistry.js';
 import { eagerParseCliFlag } from 'src/utils/cliArgs.js';
 import { createEmptyAttributionState } from 'src/utils/commitAttribution.js';
-import { countConcurrentSessions, registerSession, updateSessionName } from 'src/utils/concurrentSessions.js';
+import { registerSession, updateSessionName } from 'src/utils/concurrentSessions.js';
 import { getCwd } from 'src/utils/cwd.js';
 import { logForDebugging, setHasFormattedOutput } from 'src/utils/debug.js';
 import { errorMessage, getErrnoCode, isENOENT, toError } from 'src/utils/errors.js';
@@ -209,16 +206,6 @@ if ("external" !== 'ant' && isBeingDebugged()) {
   // eslint-disable-next-line custom-rules/no-top-level-side-effects
   process.exit(1);
 }
-
-/**
- * Per-session skill telemetry. Called from both the interactive path
- * and the headless -p path (before runHeadless) — both go through
- * main.tsx but branch before the interactive startup path, so it needs two
- * call sites here rather than one here + one in QueryEngine.
- */
-
-
-
 
 // @[MODEL LAUNCH]: Consider any migrations you may need for model strings. See migrateSonnet1mToSonnet45.ts for an example.
 // Bump this when adding a new sync migration so existing users re-run the set.
@@ -449,7 +436,6 @@ export async function main() {
   });
   profileCheckpoint('main_warning_handler_initialized');
 
-
   // Check for -p/--print and --init-only flags early to set isInteractiveSession before init()
   // This is needed because telemetry initialization calls auth functions that need this flag
   const cliArgs = process.argv.slice(2);
@@ -651,13 +637,8 @@ async function run(): Promise<CommanderCommand> {
       prompt = undefined;
     }
 
-    // Log event for any single-word prompt
-    if (prompt && typeof prompt === 'string' && !/\s/.test(prompt) && prompt.length > 0) {
-
-    }
-
-    // Assistant mode: when .claude/settings.json has assistant: true AND
-    // the tengu_kairos GrowthBook gate is on, force brief on. Permission
+    // Assistant mode: when .claude/settings.json has assistant: true and
+    // local entitlement is granted, force brief on. Permission
     // mode is left to the user — settings defaultMode or --permission-mode
     // apply as normal. REPL-typed messages already default to 'next'
     // priority (messageQueueManager.enqueue) so they drain mid-turn between
@@ -694,9 +675,8 @@ async function run(): Promise<CommanderCommand> {
         // biome-ignore lint/suspicious/noConsole:: intentional console output
         console.warn(chalk.yellow('Assistant mode disabled: directory is not trusted. Accept the trust dialog and restart.'));
       } else {
-        // Blocking gate check — returns cached `true` instantly; if disk
-        // cache is false/missing, lazily inits GrowthBook and fetches fresh
-        // (max ~5s). --assistant skips the gate entirely (daemon is
+        // Blocking gate check — may read local cached entitlement state.
+        // --assistant skips the gate entirely (daemon is
         // pre-entitled).
         kairosEnabled = assistantModule.isAssistantForced() || (await kairosGate.isKairosEnabled());
         if (kairosEnabled) {
@@ -1071,9 +1051,6 @@ async function run(): Promise<CommanderCommand> {
         // This tool is excluded from normal filtering (see tools.ts) because it's
         // an implementation detail for structured output, not a user-controlled tool.
         tools = [...tools, syntheticOutputResult.tool];
-
-      } else {
-
       }
     }
 
@@ -1172,20 +1149,6 @@ async function run(): Promise<CommanderCommand> {
       cacheSessionTitle(sessionNameArg);
     }
 
-    // Ant model aliases (capybara-fast etc.) resolve via the
-    // tengu_ant_model_override GrowthBook flag. _CACHED_MAY_BE_STALE reads
-    // disk synchronously; disk is populated by a fire-and-forget write. On a
-    // cold cache, parseUserSpecifiedModel returns the unresolved alias, the
-    // API 404s, and -p exits before the async write lands — crashloop on
-    // fresh pods. Awaiting init here populates the in-memory payload map that
-    // _CACHED_MAY_BE_STALE now checks first. Gated so the warm path stays
-    // non-blocking:
-    //  - explicit model via --model or ANTHROPIC_MODEL (both feed alias resolution)
-    //  - no env override (which short-circuits _CACHED_MAY_BE_STALE before disk)
-    //  - flag absent from disk (== null also catches pre-#22279 poisoned null)
-    const explicitModel = options.model || process.env.ANTHROPIC_MODEL;
-
-
     // Special case the default model with the null keyword
     // NOTE: Model resolution happens after setup() to ensure trust is established before AWS auth
     const userSpecifiedModel = options.model === 'default' ? getDefaultMainLoopModel() : options.model;
@@ -1237,9 +1200,6 @@ async function run(): Promise<CommanderCommand> {
     setMainThreadAgentType(mainThreadAgentDefinition?.agentType);
 
     // Log agent flag usage — only log agent name for built-in agents to avoid leaking custom agent names
-    if (mainThreadAgentDefinition) {
-
-    }
 
     // Persist agent setting to session transcript for resume view display and restoration
     if (mainThreadAgentDefinition?.agentType) {
@@ -1309,9 +1269,7 @@ async function run(): Promise<CommanderCommand> {
         }
 
         // Log agent memory loaded event for tmux teammates
-        if (customAgent.memory) {
 
-        }
         if (customPrompt) {
           const customInstructions = `\n# Custom Agent Instructions\n${customPrompt}`;
           appendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${customInstructions}` : customInstructions;
@@ -1424,9 +1382,6 @@ async function run(): Promise<CommanderCommand> {
         // Keep in sync with the post-login logic in src/commands/login.tsx
         void refreshRemoteManagedSettings();
         void refreshPolicyLimits();
-        // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
-        // Refresh GrowthBook after login to get updated feature flags
-
       }
 
       // Validate that the active token's org matches forceLoginOrgUUID (if set
@@ -1463,34 +1418,18 @@ async function run(): Promise<CommanderCommand> {
     // --bare / SIMPLE: skip — these are cache-warms for the REPL's
     // first-turn responsiveness (quota, passes, fastMode, bootstrap data). Fast
     // mode doesn't apply to the Agent SDK anyway (see getFastModeUnavailableReason).
-    const bgRefreshThrottleMs = 0;
-    const lastPrefetched = getGlobalConfig().startupPrefetchedAt ?? 0;
-    const skipStartupPrefetches = isBareMode() || bgRefreshThrottleMs > 0 && Date.now() - lastPrefetched < bgRefreshThrottleMs;
+    const skipStartupPrefetches = isBareMode();
     if (!skipStartupPrefetches) {
-      const lastPrefetchedInfo = lastPrefetched > 0 ? ` last ran ${Math.round((Date.now() - lastPrefetched) / 1000)}s ago` : '';
-      logForDebugging(`Starting background startup prefetches${lastPrefetchedInfo}`);
+      logForDebugging('Starting background startup prefetches');
       checkQuotaStatus().catch(error => logError(error));
 
       // Fetch bootstrap data from the server and update all cache values.
 
       // TODO: Consolidate other prefetches into a single bootstrap request.
       void prefetchPassesEligibility();
-      if (!false) {
-        void prefetchFastModeStatus();
-      } else {
-        // Kill switch skips the network call, not org-policy enforcement.
-        // Resolve from cache so orgStatus doesn't stay 'pending' (which
-        // getFastModeUnavailableReason treats as permissive).
-        resolveFastModeStatusFromCache();
-      }
-      if (bgRefreshThrottleMs > 0) {
-        saveGlobalConfig(current => ({
-          ...current,
-          startupPrefetchedAt: Date.now()
-        }));
-      }
+      void prefetchFastModeStatus();
     } else {
-      logForDebugging(`Skipping startup prefetches, last ran ${Math.round((Date.now() - lastPrefetched) / 1000)}s ago`);
+      logForDebugging('Skipping startup prefetches in bare mode');
       // Resolve fast mode org status from cache (no network)
       resolveFastModeStatusFromCache();
     }
@@ -1549,49 +1488,14 @@ async function run(): Promise<CommanderCommand> {
     registerCleanup(async () => {
       logForDiagnosticsNoPII('info', 'exited');
     });
-    void logTenguInit({
-      hasInitialPrompt: Boolean(prompt),
-      hasStdin: Boolean(inputPrompt),
-      verbose,
-      debug,
-      debugToStderr,
-      print: print ?? false,
-      outputFormat: outputFormat ?? 'text',
-      inputFormat: inputFormat ?? 'text',
-      numAllowedTools: allowedTools.length,
-      numDisallowedTools: disallowedTools.length,
-      worktreeEnabled,
-      skipWebFetchPreflight: getInitialSettings().skipWebFetchPreflight,
-      githubActionInputs: process.env.GITHUB_ACTION_INPUTS,
-      dangerouslySkipPermissionsPassed: dangerouslySkipPermissions ?? false,
-      permissionMode,
-      modeIsBypass: permissionMode === 'bypassPermissions',
-      allowDangerouslySkipPermissionsPassed: allowDangerouslySkipPermissions,
-      systemPromptFlag: systemPrompt ? options.systemPromptFile ? 'file' : 'flag' : undefined,
-      appendSystemPromptFlag: appendSystemPrompt ? options.appendSystemPromptFile ? 'file' : 'flag' : undefined,
-      thinkingConfig,
-      assistantActivationPath: feature('KAIROS') && kairosEnabled ? assistantModule?.getAssistantActivationPath() : undefined
-    });
-
-    // Log context metrics once at initialization
-
     void logPermissionContextForAnts(null, 'initialization');
 
-
-    // Register PID file for concurrent-session detection (~/.claude/sessions/)
-    // and fire multi-clauding telemetry. Lives here (not init.ts) so only the
-    // REPL path registers — not subcommands like `tau doctor`. Chained:
-    // count must run after register's write completes or it misses our own file.
+    // Register this session for local concurrency tracking only on the REPL path.
     void registerSession().then(registered => {
       if (!registered) return;
       if (sessionNameArg) {
         void updateSessionName(sessionNameArg);
       }
-      void countConcurrentSessions().then(count => {
-        if (count >= 2) {
-
-        }
-      });
     });
 
     const setupTrigger = initOnly || init ? 'init' : maintenance ? 'maintenance' : null;
@@ -1617,7 +1521,6 @@ async function run(): Promise<CommanderCommand> {
       // This includes potentially dangerous environment variables from untrusted sources
       // but print mode is considered trusted (as documented in help text)
       applyConfigEnvironmentVariables();
-
 
       // Kick SessionStart hooks now so the subprocess spawn overlaps with
       // print.ts import below. loadInitialMessages
@@ -1746,7 +1649,6 @@ async function run(): Promise<CommanderCommand> {
 
     // Log model config at startup
 
-
     // Get deprecation warning for the initial model (resolvedInitialModel computed earlier for hooks parallelization)
     const deprecationWarning = getModelDeprecationWarning(resolvedInitialModel);
 
@@ -1870,18 +1772,11 @@ async function run(): Promise<CommanderCommand> {
     }
     const initialTools = tools;
 
-    // Increment numStartups synchronously — first-render readers like
-    // shouldShowEffortCallout (via useState initializer) need the updated
-    // value before setImmediate fires. Defer only telemetry.
+    // Increment numStartups synchronously so first-render readers see the updated value.
     saveGlobalConfig(current => ({
       ...current,
       numStartups: (current.numStartups ?? 0) + 1
     }));
-    setImmediate(() => {
-
-
-    });
-
     // Set up per-turn session environment data uploader (ant-only build).
     // Default-enabled for all ant users when working in an Anthropic-owned
     // repo. Captures git/filesystem state (NOT transcripts) at each turn so
@@ -1925,7 +1820,6 @@ async function run(): Promise<CommanderCommand> {
     };
     if (options.continue) {
       // Continue the most recent conversation directly
-      let resumeSucceeded = false;
       try {
         const resumeStart = performance.now();
 
@@ -1950,7 +1844,6 @@ async function run(): Promise<CommanderCommand> {
         maybeActivateProactive(options);
         maybeActivateBrief(options);
 
-        resumeSucceeded = true;
         await launchRepl(root, {
           getFpsMetrics,
           stats,
@@ -1965,9 +1858,7 @@ async function run(): Promise<CommanderCommand> {
           initialAgentColor: loaded.agentColor
         }, renderAndRun);
       } catch (error) {
-        if (!resumeSucceeded) {
 
-        }
         logError(error);
         process.exit(1);
       }
@@ -2037,9 +1928,6 @@ async function run(): Promise<CommanderCommand> {
                 if (processedResume.restoredAgentDef) {
                   mainThreadAgentDefinition = processedResume.restoredAgentDef;
                 }
-
-              } else {
-
               }
             } catch (error) {
 
@@ -2068,9 +1956,6 @@ async function run(): Promise<CommanderCommand> {
                   if (processedResume.restoredAgentDef) {
                     mainThreadAgentDefinition = processedResume.restoredAgentDef;
                   }
-
-                } else {
-
                 }
               }
             } catch (error) {
@@ -2268,8 +2153,6 @@ async function run(): Promise<CommanderCommand> {
     await authLogout();
   });
 
-
-
   // Setup token command
   program.command('setup-token').description('Set up a long-lived authentication token (requires Tau subscription)').action(async () => {
     const [{
@@ -2463,57 +2346,6 @@ Examples:
   profileReport();
   return program;
 }
-async function logTenguInit({
-  hasInitialPrompt,
-  hasStdin,
-  verbose,
-  debug,
-  debugToStderr,
-  print,
-  outputFormat,
-  inputFormat,
-  numAllowedTools,
-  numDisallowedTools,
-  worktreeEnabled,
-  skipWebFetchPreflight,
-  githubActionInputs,
-  dangerouslySkipPermissionsPassed,
-  permissionMode,
-  modeIsBypass,
-  allowDangerouslySkipPermissionsPassed,
-  systemPromptFlag,
-  appendSystemPromptFlag,
-  thinkingConfig,
-  assistantActivationPath
-}: {
-  hasInitialPrompt: boolean;
-  hasStdin: boolean;
-  verbose: boolean;
-  debug: boolean;
-  debugToStderr: boolean;
-  print: boolean;
-  outputFormat: string;
-  inputFormat: string;
-  numAllowedTools: number;
-  numDisallowedTools: number;
-  worktreeEnabled: boolean;
-  skipWebFetchPreflight: boolean | undefined;
-  githubActionInputs: string | undefined;
-  dangerouslySkipPermissionsPassed: boolean;
-  permissionMode: string;
-  modeIsBypass: boolean;
-  allowDangerouslySkipPermissionsPassed: boolean;
-  systemPromptFlag: 'file' | 'flag' | undefined;
-  appendSystemPromptFlag: 'file' | 'flag' | undefined;
-  thinkingConfig: ThinkingConfig;
-  assistantActivationPath: string | undefined;
-}): Promise<void> {
-  try {
-
-  } catch (error) {
-    logError(error);
-  }
-}
 function maybeActivateProactive(options: unknown): void {
   if ((feature('PROACTIVE') || feature('KAIROS')) && ((options as {
     proactive?: boolean;
@@ -2548,9 +2380,6 @@ function maybeActivateBrief(options: unknown): void {
   if (entitled) {
     setUserMsgOptIn(true);
   }
-  // Fire unconditionally once intent is seen: enabled=false captures the
-  // "user tried but was gated" failure mode in Datadog.
-
 }
 function resetCursor() {
   const terminal = process.stderr.isTTY ? process.stderr : process.stdout.isTTY ? process.stdout : undefined;

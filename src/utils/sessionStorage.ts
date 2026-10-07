@@ -1339,7 +1339,6 @@ export async function recordInheritedContentReplacementsForFork(
 
 /** False only for legacy v1 remote workers that cannot upload metadata. */
 
-
 /**
  * Reset the session file pointer after switchSession/regenerateSessionId.
  * The new file is created lazily on the first user/assistant message.
@@ -1747,7 +1746,6 @@ function applySnipRemovals(messages: Map<UUID, TranscriptMessage>): void {
     relinkedCount++
   }
 
-
 }
 
 /**
@@ -1904,7 +1902,6 @@ function recoverOrphanedParallelToolResults(
   }
 
   if (recoveredCount === 0) return chain
-
 
   const result: TranscriptMessage[] = []
   for (const m of chain) {
@@ -2227,38 +2224,9 @@ function convertToLogOption(
   }
 }
 
-async function trackSessionBranchingAnalytics(
-  logs: LogOption[],
-): Promise<void> {
-  const sessionIdCounts = new Map<string, number>()
-  let maxCount = 0
-  for (const log of logs) {
-    const sessionId = getSessionIdFromLog(log)
-    if (sessionId) {
-      const newCount = (sessionIdCounts.get(sessionId) || 0) + 1
-      sessionIdCounts.set(sessionId, newCount)
-      maxCount = Math.max(newCount, maxCount)
-    }
-  }
-
-  // Early exit if no duplicates detected
-  if (maxCount <= 1) {
-    return
-  }
-
-  // Count sessions with branches and calculate stats using functional approach
-  const branchCounts = Array.from(sessionIdCounts.values()).filter(c => c > 1)
-  const sessionsWithBranches = branchCounts.length
-  const totalBranches = branchCounts.reduce((sum, count) => sum + count, 0)
-
-
-}
-
 export async function fetchLogs(limit?: number): Promise<LogOption[]> {
   const projectDir = getProjectDir(getOriginalCwd())
   const logs = await getSessionFilesLite(projectDir, limit, getOriginalCwd())
-
-  await trackSessionBranchingAnalytics(logs)
 
   return logs
 }

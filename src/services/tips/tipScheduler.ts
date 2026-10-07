@@ -43,9 +43,5 @@ export async function getTipToShowOnSpinner(
 }
 
 export function recordShownTip(tip: Tip): void {
-  // Record in history
   recordTipShown(tip.id)
-
-  // Log event for analytics
-
 }
