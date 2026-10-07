@@ -3,13 +3,9 @@
 // exception for a list of preapproved domains that are code-related.
 //
 // SECURITY WARNING: These preapproved domains are ONLY for WebFetch (GET requests only).
-// The sandbox system deliberately does NOT inherit this list for network restrictions,
-// as arbitrary network access (POST, uploads, etc.) to these domains could enable
+// Arbitrary network access (POST, uploads, etc.) to these domains could enable
 // data exfiltration. Some domains like huggingface.co, kaggle.com, and nuget.org
-// allow file uploads and would be dangerous for unrestricted network access.
-//
-// See test/utils/sandbox/webfetch-preapproved-separation.test.ts for verification
-// that sandbox network restrictions require explicit user permission rules.
+// allow file uploads and require explicit user permission for other tools.
 
 export const PREAPPROVED_HOSTS = new Set([
   // Anthropic

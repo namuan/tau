@@ -15,7 +15,9 @@ This cleanup includes four distinct feature groups:
 
 Trace shared code before removal. Remove remote APIs, settings, or transport code when it exists only to support these features; retain unrelated provider infrastructure and user configuration.
 
-## Phase 1 Inventory Findings
+## Phase 1 Inventory Findings (Pre-Removal Baseline)
+
+The findings below describe the code as it existed before this cleanup. They are historical inventory, not a description of the current architecture; current status is recorded under Phase Progress.
 
 ### Local Bash sandbox
 
@@ -56,13 +58,13 @@ In particular, local sandbox settings such as filesystem read/write restrictions
 
 ## Compatibility Decision
 
-Recommended behavior for existing Tau config:
+Applied behavior for existing Tau config:
 
 - Accept legacy `sandbox.*` configuration without applying it.
 - Emit a clear warning that local Bash sandboxing has been removed and these settings are ignored.
 - Do not read, migrate, or write Claude-owned configuration paths.
 
-This avoids making existing Tau config prevent startup while avoiding a silent impression that the old restrictions are still enforced. Remove sandbox fields from new settings and SDK schemas after the compatibility behavior is defined.
+This keeps existing Tau config from preventing startup without implying that the old restrictions are still enforced. Sandbox fields have been removed from active settings and SDK schemas.
 
 ## Implementation Stages
 
@@ -114,7 +116,7 @@ Update Bash system prompts, settings help, command help, README/docs, and diagno
 - [x] Phase 4 — Removed hosted remote-agent execution and CCR remote-session infrastructure: the Agent tool's `isolation: "remote"` mode, `RemoteTriggerTool`, `/ultraplan` and `/ultrareview` launch surfaces, hosted task registration/UI/result handling, resume-time hosted-task restoration, the `--remote` REPL/WebSocket viewer, print-mode CCR session transport and remote replay plumbing, teleport/resume UI and APIs, remote environment setup surfaces, session-ingress transcript persistence, CCR's subprocess upstream proxy, remote file persistence/downloads, settings sync, remote-only authentication/retry behavior, keepalive activity, and dead remote-mode state/UI guards. Reusable OAuth API helpers were moved out of the deleted teleport module. Existing remote-agent metadata files and conversation history are left untouched. The `CLAUDE_CODE_REMOTE` session environment variables, `isRemoteMode` state, and active session-ingress/settings-sync paths are absent. Remaining references are preserved external SDK/API compatibility or unrelated remote-managed settings, remote skill discovery, and homespace insights; none provide hosted session execution or transport.
 - [x] Phase 5 — Removed the SSH CLI parser/startup path, REPL hook integration, and `useSSHSession`. The `src/ssh/*` implementation files were already absent; generic SSH-terminal environment checks remain because they describe the terminal Tau is running inside, not a Tau-managed SSH session.
 - [x] Phase 6 — Removed `/safetest`, the E2B login/provider UI and helper modules, and the `e2b` package from the manifest and lockfiles. Existing credentials and E2B-owned paths are untouched.
-- [x] Phase 7 — Audited local sandbox adapter and dependency references; no execution path, package dependency, or build shim references the removed adapter/runtime. Removed obsolete sandbox stubs from both build scripts and updated stale Bash contract fixtures.
+- [x] Phase 7 — Audited local sandbox adapter and dependency references; removed the unreferenced `src/lanes/shared/sandbox.ts` implementation, obsolete build shims, and stale Bash contract fixtures. No active execution path or package dependency references the removed adapter/runtime.
 - [x] Phase 8 — Audited user-facing docs and prompts; no stale hosted-agent, CCR-session, safetest, or local sandbox claims remain outside this removal plan. Bash guidance continues to distinguish Tau permissions from OS isolation.
 - [x] Phase 9 — Final validation and diff review completed. Build, CLI version smoke test, focused resume/config tests, Bash argument-placeholder assertions, and diff checks passed. The terminal-dependent contract tests cannot terminate on non-TTY stdin; this environment issue is recorded below.
 
@@ -122,7 +124,9 @@ Phase 2 validation: `npm run build`, CLI `--version`, Bash prompt/planner/prefli
 
 Phase 3 validation: `npm run build`, CLI `--version`, legacy settings compatibility test, Eval tool tests, and focused Bash prompt/planner/preflight tests passed. `src/utils/toolSearchSafety.test.ts` still cannot run under Bun because `src/ink/components/Box.tsx` imports missing `src/global.d.ts`.
 
-Phase 4/7/8 validation: `npm run build`, `git diff --check`, the resume-command and Tau config-storage tests, and the optional-argument-placeholder assertions passed. The latter test's subprocess reaches the known Ink raw-mode error on non-TTY stdin and does not exit cleanly. The same raw-terminal issue prevents `test/core-tool-contracts.test.mjs` from terminating after its assertions. `getIsRemoteMode`, `CLAUDE_CODE_REMOTE` session variables, remote-mode state, sandbox adapter/runtime references, and removed settings/file-persistence paths no longer occur in active source or manifests.
+Phase 4/7/8 validation: `npm run build`, `git diff --check`, the resume-command and Tau config-storage tests, and the optional-argument-placeholder assertions passed. The latter test's subprocess reaches the known Ink raw-mode error on non-TTY stdin and does not exit cleanly. The same raw-terminal issue prevents `test/core-tool-contracts.test.mjs` from terminating after its assertions. `getIsRemoteMode`, `CLAUDE_CODE_REMOTE` session variables, remote-mode state, sandbox adapter/runtime references, and removed settings/file-persistence paths no longer occur in active source or manifests. The unreferenced cross-lane sandbox implementation and stale sandbox claims in lane/WebFetch comments were also removed.
+
+Build follow-up: `npm run build` succeeds after the final source cleanup and `node dist/cli.mjs --version` reports `0.92.38 (Tau)`. `npx tsc --noEmit --pretty false` still fails across the project on missing internal modules/types and generated `MACRO` definitions, missing dependency declarations, and unrelated provider/test type mismatches. These errors are outside this removal and do not prevent the supported build script from producing the CLI.
 
 ## Acceptance Criteria
 

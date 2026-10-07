@@ -180,7 +180,7 @@ export interface LaneRunContext {
 
   /**
    * Execute a tool by its shared implementation ID.
-   * The shared layer handles permissions, sandboxing, audit logging.
+   * The shared layer handles permissions and audit logging.
    * The lane calls this when the model invokes a tool — the lane
    * maps the native tool name back to the shared impl ID first.
    */
