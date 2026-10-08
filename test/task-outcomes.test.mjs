@@ -19,7 +19,7 @@ const tempRoot = mkdtempSync(join(tmpdir(), 'tau-task-outcomes-'))
 process.env.CLAUDE_CODE_TMPDIR = tempRoot
 
 const distPath = resolve('dist/tau.mjs')
-let bundle = readFileSync(distPath, 'utf8').replace(/\nvoid main\d*\(\);\r?\n/, '\n')
+let bundle = readFileSync(distPath, 'utf8').replace(/\n(?:if \(!unsupportedPlatformMessage\) )?void main\d*\(\);\r?\n/, '\n')
 bundle += `
 export function __taskOutcomes() {
   init_state(); init_store(); init_framework(); init_diskOutput();

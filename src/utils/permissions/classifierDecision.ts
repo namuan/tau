@@ -1,4 +1,3 @@
-import { feature } from 'bun:bundle'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
 import { ENTER_PLAN_MODE_TOOL_NAME } from '../../tools/EnterPlanModeTool/constants.js'
 import { EXIT_PLAN_MODE_TOOL_NAME } from '../../tools/ExitPlanModeTool/constants.js'
@@ -26,11 +25,6 @@ const VERIFY_PLAN_EXECUTION_TOOL_NAME =
         require('../../tools/VerifyPlanExecutionTool/constants.js') as typeof import('../../tools/VerifyPlanExecutionTool/constants.js')
       ).VERIFY_PLAN_EXECUTION_TOOL_NAME
     : null
-const WORKFLOW_TOOL_NAME = feature('WORKFLOW_SCRIPTS')
-  ? (
-      require('../../tools/WorkflowTool/constants.js') as typeof import('../../tools/WorkflowTool/constants.js')
-    ).WORKFLOW_TOOL_NAME
-  : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 /**
@@ -59,8 +53,6 @@ const SAFE_YOLO_ALLOWLISTED_TOOLS = new Set([
   ENTER_PLAN_MODE_TOOL_NAME,
   EXIT_PLAN_MODE_TOOL_NAME,
   SEND_MESSAGE_TOOL_NAME,
-  // Workflow orchestration — subagents go through canUseTool individually
-  ...(WORKFLOW_TOOL_NAME ? [WORKFLOW_TOOL_NAME] : []),
   // Misc safe
   SLEEP_TOOL_NAME,
   ...(VERIFY_PLAN_EXECUTION_TOOL_NAME ? [VERIFY_PLAN_EXECUTION_TOOL_NAME] : []),

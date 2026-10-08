@@ -179,7 +179,6 @@ export type CommandBase = {
     | 'skills'
     | 'managed'
     | 'bundled'
-  kind?: 'workflow' // Distinguishes workflow-backed commands (badged in autocomplete)
   immediate?: boolean // If true, command executes immediately without waiting for a stop point (bypasses queue)
   isSensitive?: boolean // If true, args are redacted from the conversation history
   /** Defaults to `name`. Only override when the displayed name differs. */

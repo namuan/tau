@@ -49,8 +49,6 @@ export const SuggestBackgroundPRTool = null;
 export const VerifyPlanExecutionTool = null;
 export const isConnectorTextBlock = () => false;
 export const AgentTool = null;
-export const initBundledWorkflows = () => {};
-export const WorkflowTool = null;
 export const run = () => {};
 export const DESCRIPTION = '';
 export const PROMPT = '';
@@ -65,7 +63,6 @@ export const OUTPUTS_SUBDIR = 'outputs';
 export const isCoordinatorMode = () => false;
 // Additional exports imported by stripped-out features. esbuild requires
 // named exports be statically present; Bun's bundler was more forgiving.
-export const WORKFLOW_TOOL_NAME = '';
 const proxy = new Proxy({}, { get: () => () => {} });
 export default proxy;
 `,

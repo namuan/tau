@@ -155,49 +155,6 @@ export function BackgroundTask(t0) {
         }
         return t6;
       }
-    case "local_workflow":
-      {
-        const t1 = task.workflowName ?? task.summary ?? task.description;
-        let t2;
-        if ($[54] !== activityLimit || $[55] !== t1) {
-          t2 = truncate(t1, activityLimit, true);
-          $[54] = activityLimit;
-          $[55] = t1;
-          $[56] = t2;
-        } else {
-          t2 = $[56];
-        }
-        let t3;
-        if ($[57] !== task.agentCount || $[58] !== task.status) {
-          t3 = task.status === "running" ? `${task.agentCount} ${plural(task.agentCount, "agent")}` : task.status === "completed" ? "done" : undefined;
-          $[57] = task.agentCount;
-          $[58] = task.status;
-          $[59] = t3;
-        } else {
-          t3 = $[59];
-        }
-        const t4 = task.status === "completed" && !task.notified ? ", unread" : undefined;
-        let t5;
-        if ($[60] !== t3 || $[61] !== t4 || $[62] !== task.status) {
-          t5 = <TaskStatusText status={task.status} label={t3} suffix={t4} />;
-          $[60] = t3;
-          $[61] = t4;
-          $[62] = task.status;
-          $[63] = t5;
-        } else {
-          t5 = $[63];
-        }
-        let t6;
-        if ($[64] !== t2 || $[65] !== t5) {
-          t6 = <Text>{t2}{" "}{t5}</Text>;
-          $[64] = t2;
-          $[65] = t5;
-          $[66] = t6;
-        } else {
-          t6 = $[66];
-        }
-        return t6;
-      }
     case "dream":
       {
         const n = task.filesTouched.length;

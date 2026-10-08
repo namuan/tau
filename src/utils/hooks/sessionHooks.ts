@@ -51,13 +51,10 @@ export type SessionStore = {
  * store.ts's Object.is(next, prev) check short-circuit and skip listener
  * notification. Session hooks are ephemeral per-agent runtime callbacks,
  * never reactively read (only getAppState() snapshots in the query loop).
- * Same pattern as agentControllers on LocalWorkflowTaskState.
- *
- * This matters under high-concurrency workflows: parallel() with N
- * schema-mode agents fires N addFunctionHook calls in one synchronous
- * tick. With a Record + spread, each call cost O(N) to copy the growing
- * map (O(N²) total) plus fired all ~30 store listeners. With Map: .set()
- * is O(1), return prev means zero listener fires.
+ * This matters under high-concurrency agents: parallel agent calls can
+ * fire many addFunctionHook calls in one synchronous tick. With a Record +
+ * spread, each call costs O(N) to copy the growing map plus firing store
+ * listeners. With Map: .set() is O(1), return prev means zero listener fires.
  */
 export type SessionHooksState = Map<string, SessionStore>
 

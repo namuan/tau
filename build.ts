@@ -25,8 +25,6 @@ export const SuggestBackgroundPRTool = null;
 export const VerifyPlanExecutionTool = null;
 export const isConnectorTextBlock = () => false;
 export const AgentTool = null;
-export const initBundledWorkflows = () => {};
-export const WorkflowTool = null;
 export const run = () => {};
 export const DESCRIPTION = '';
 export const PROMPT = '';

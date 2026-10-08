@@ -15,7 +15,7 @@ delete process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS
 delete process.env.CLAUDE_AUTO_BACKGROUND_TASKS
 
 const distPath = resolve('dist/tau.mjs')
-let bundle = readFileSync(distPath, 'utf8').replace(/\nvoid main\d*\(\);\r?\n/, '\n')
+let bundle = readFileSync(distPath, 'utf8').replace(/\n(?:if \(!unsupportedPlatformMessage\) )?void main\d*\(\);\r?\n/, '\n')
 const agentToolName = bundle.match(/(AgentTool\d*) = buildTool\(/)?.[1]
 assert.ok(agentToolName, 'AgentTool must be present in the built runtime')
 bundle += `

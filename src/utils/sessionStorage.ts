@@ -222,33 +222,13 @@ export function getTranscriptPathForSession(sessionId: string): string {
 // read the raw transcript must bail out above this threshold to avoid OOM.
 export const MAX_TRANSCRIPT_READ_BYTES = 50 * 1024 * 1024
 
-// In-memory map of agentId → subdirectory for grouping related subagent
-// transcripts (e.g. workflow runs write to subagents/workflows/<runId>/).
-// Populated before the agent runs; consulted by getAgentTranscriptPath.
-const agentTranscriptSubdirs = new Map<string, string>()
-
-export function setAgentTranscriptSubdir(
-  agentId: string,
-  subdir: string,
-): void {
-  agentTranscriptSubdirs.set(agentId, subdir)
-}
-
-export function clearAgentTranscriptSubdir(agentId: string): void {
-  agentTranscriptSubdirs.delete(agentId)
-}
-
 export function getAgentTranscriptPath(agentId: AgentId): string {
   // Same sessionProjectDir consistency as getTranscriptPathForSession —
   // subagent transcripts live under the session dir, so if the session
   // transcript is at sessionProjectDir, subagent transcripts are too.
   const projectDir = getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
   const sessionId = getSessionId()
-  const subdir = agentTranscriptSubdirs.get(agentId)
-  const base = subdir
-    ? join(projectDir, sessionId, 'subagents', subdir)
-    : join(projectDir, sessionId, 'subagents')
-  return join(base, `agent-${agentId}.jsonl`)
+  return join(projectDir, sessionId, 'subagents', `agent-${agentId}.jsonl`)
 }
 
 function getAgentMetadataPath(agentId: AgentId): string {

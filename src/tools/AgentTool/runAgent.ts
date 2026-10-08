@@ -56,9 +56,7 @@ import {
 import { getAgentModel } from '../../utils/model/agent.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import {
-  clearAgentTranscriptSubdir,
   recordSidechainTranscript,
-  setAgentTranscriptSubdir,
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
 import {
@@ -181,7 +179,6 @@ async function* runAgentWithoutProviderOverride({
   useExactTools,
   worktreePath,
   description,
-  transcriptSubdir,
   onQueryProgress,
 }: {
   agentDefinition: AgentDefinition
@@ -245,9 +242,6 @@ async function* runAgentWithoutProviderOverride({
   /** Original task description from AgentTool input. Persisted to metadata
    * so a resumed agent's notification can show the original description. */
   description?: string
-  /** Optional subdirectory under subagents/ to group this agent's transcript
-   * with related ones (e.g. workflows/<runId> for workflow subagents). */
-  transcriptSubdir?: string
   /** Optional callback fired on every message yielded by query() — including
    * stream_event deltas that runAgent otherwise drops. Use to detect liveness
    * during long single-block streams (e.g. thinking) where no assistant
@@ -290,12 +284,6 @@ async function* runAgentWithoutProviderOverride({
       )
 
   const agentId = override?.agentId ? override.agentId : createAgentId()
-
-  // Route this agent's transcript into a grouping subdirectory if requested
-  // (e.g. workflow subagents write to subagents/workflows/<runId>/).
-  if (transcriptSubdir) {
-    setAgentTranscriptSubdir(agentId, transcriptSubdir)
-  }
 
   // Log API calls path for subagents (ant-only)
   if (process.env.USER_TYPE === 'ant') {
@@ -812,7 +800,6 @@ async function* runAgentWithoutProviderOverride({
     initialMessages.length = 0
     // Release perfetto agent registry entry
     // Release transcript subdir mapping
-    clearAgentTranscriptSubdir(agentId)
     // Release this agent's todos entry. Without this, every subagent that
     // called TodoWrite leaves a key in AppState.todos forever (even after all
     // items complete, the value is [] but the key stays). Whale sessions

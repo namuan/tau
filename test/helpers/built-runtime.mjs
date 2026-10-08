@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 export async function loadBuiltRuntime({ paths: extraPaths = [], exports: extraExports = [] } = {}) {
   const distPath = resolve(process.env.TAU_TEST_BUNDLE ?? 'dist/tau.mjs')
   const auditPath = join(dirname(distPath), `.built-runtime-${process.pid}-${Date.now()}.mjs`)
-  let source = readFileSync(distPath, 'utf8').replace(/\nvoid main\d*\(\);\r?\n/, '\n')
+  let source = readFileSync(distPath, 'utf8').replace(/\n(?:if \(!unsupportedPlatformMessage\) )?void main\d*\(\);\r?\n/, '\n')
   const paths = [
     'src/services/tools/toolExecution.ts',
     'src/utils/messages.ts',

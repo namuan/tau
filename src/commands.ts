@@ -50,11 +50,6 @@ const briefCommand =
   feature('KAIROS') || feature('KAIROS_BRIEF')
     ? require('./commands/brief.js').default
     : null
-const workflowsCmd = feature('WORKFLOW_SCRIPTS')
-  ? (
-      require('./commands/workflows/index.js') as typeof import('./commands/workflows/index.js')
-    ).default
-  : null
 const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (
       require('./services/skillSearch/localSearch.js') as typeof import('./services/skillSearch/localSearch.js')
@@ -246,7 +241,6 @@ const COMMANDS = memoize((): Command[] => [
   tasks,
   toolsCommand,
   powerModeCommand,
-  ...(workflowsCmd ? [workflowsCmd] : []),
   ...(torch ? [torch] : []),
 ])
 
@@ -283,14 +277,6 @@ async function getSkills(cwd: string): Promise<{
   }
 }
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-const getWorkflowCommands = feature('WORKFLOW_SCRIPTS')
-  ? (
-      require('./tools/WorkflowTool/createWorkflowCommand.js') as typeof import('./tools/WorkflowTool/createWorkflowCommand.js')
-    ).getWorkflowCommands
-  : null
-/* eslint-enable @typescript-eslint/no-require-imports */
-
 /**
  * Filters commands by their declared `availability` (auth/provider requirement).
  * Commands without `availability` are treated as universal.
@@ -326,22 +312,12 @@ export function meetsAvailabilityRequirement(cmd: Command): boolean {
 }
 
 /**
- * Loads all command sources (skills and workflows). Memoized by cwd because
- * loading is expensive (disk I/O, dynamic imports).
+ * Loads skill commands. Memoized by cwd because loading is expensive.
  */
 const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
-  const [{ skillDirCommands, bundledSkills }, workflowCommands] =
-    await Promise.all([
-      getSkills(cwd),
-      getWorkflowCommands ? getWorkflowCommands(cwd) : Promise.resolve([]),
-    ])
+  const { skillDirCommands, bundledSkills } = await getSkills(cwd)
 
-  return [
-    ...bundledSkills,
-    ...skillDirCommands,
-    ...workflowCommands,
-    ...COMMANDS(),
-  ]
+  return [...bundledSkills, ...skillDirCommands, ...COMMANDS()]
 })
 
 /**
