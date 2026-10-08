@@ -1485,7 +1485,7 @@ export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
           continue
         } else {
           // Otherwise, for custom commands, then keep it only if it has
-          // arguments (e.g. `/review reticulate splines`)
+          // arguments (e.g. `/commit this change`)
           const commandArgs = extractTag(textContent, 'command-args')?.trim()
           if (!commandArgs) {
             continue
@@ -2357,36 +2357,6 @@ export async function saveTag(sessionId: UUID, tag: string, fullPath?: string) {
   // Cache for current session only (for immediate visibility)
   if (sessionId === getSessionId()) {
     getProject().currentSessionTag = tag
-  }
-
-}
-
-/**
- * Link a session to a GitHub pull request.
- * This stores the PR number, URL, and repository for tracking and navigation.
- */
-export async function linkSessionToPR(
-  sessionId: UUID,
-  prNumber: number,
-  prUrl: string,
-  prRepository: string,
-  fullPath?: string,
-): Promise<void> {
-  const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  appendEntryToFile(resolvedPath, {
-    type: 'pr-link',
-    sessionId,
-    prNumber,
-    prUrl,
-    prRepository,
-    timestamp: new Date().toISOString(),
-  })
-  // Cache for current session so reAppendSessionMetadata can re-write after compaction
-  if (sessionId === getSessionId()) {
-    const project = getProject()
-    project.currentSessionPrNumber = prNumber
-    project.currentSessionPrUrl = prUrl
-    project.currentSessionPrRepository = prRepository
   }
 
 }

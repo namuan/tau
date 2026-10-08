@@ -198,7 +198,7 @@ export function formatRelativeTimeAgo(
 }
 
 /**
- * Formats log metadata for display (time, size or message count, branch, tag, PR)
+ * Formats log metadata for display (time, size or message count, branch, tag)
  */
 export function formatLogMetadata(log: {
   modified: Date
@@ -207,8 +207,6 @@ export function formatLogMetadata(log: {
   gitBranch?: string
   tag?: string
   agentSetting?: string
-  prNumber?: number
-  prRepository?: string
 }): string {
   const sizeOrCount =
     log.fileSize !== undefined
@@ -224,13 +222,6 @@ export function formatLogMetadata(log: {
   }
   if (log.agentSetting) {
     parts.push(`@${log.agentSetting}`)
-  }
-  if (log.prNumber) {
-    parts.push(
-      log.prRepository
-        ? `${log.prRepository}#${log.prNumber}`
-        : `#${log.prNumber}`,
-    )
   }
   return parts.join(' · ')
 }

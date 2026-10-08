@@ -358,9 +358,6 @@ export type GlobalConfig = {
 
   messageIdleNotifThresholdMs: number // How long the user has to have been idle to get a notification that Claude is done generating
 
-  githubActionSetupCount?: number // Number of times the user has set up the GitHub Action
-  slackAppInstallCount?: number // Number of times the user has clicked to install the Slack app
-
   // File checkpointing configuration
   fileCheckpointingEnabled: boolean
 
@@ -425,9 +422,6 @@ export type GlobalConfig = {
   // Model for new teammates when the tool call doesn't pass one.
   // undefined = hardcoded Opus (backward-compat); null = leader's model; string = model alias/ID.
   teammateDefaultModel?: string | null
-
-  // PR status footer configuration
-  prStatusFooterEnabled?: boolean // Show PR review status in footer (default: true)
 
   // Tmux live panel visibility (ant-only, toggled via Enter on tmux pill)
   tungstenPanelVisible?: boolean
@@ -573,7 +567,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'copyFullResponse',
   'copyOnSelect',
   'permissionExplainerEnabled',
-  'prStatusFooterEnabled',
   'surfPhaseTargets',
   'favoriteModels',
   'fallbackEnabled',

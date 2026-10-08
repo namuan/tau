@@ -11,7 +11,6 @@ import {
   type BranchAction,
   type CommitKind,
   detectGitOperation,
-  type PrAction,
 } from '../tools/shared/gitOperationTracking.js'
 import { TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
 import type {
@@ -567,12 +566,11 @@ function scanBashResultForGitOps(
     if (c.type !== 'tool_result') continue
     const command = group.bashCommands?.get(c.tool_use_id)
     if (!command) continue
-    const { commit, push, branch, pr } = detectGitOperation(command, combined)
+    const { commit, push, branch } = detectGitOperation(command, combined)
     if (commit) group.commits?.push(commit)
     if (push) group.pushes?.push(push)
     if (branch) group.branches?.push(branch)
-    if (pr) group.prs?.push(pr)
-    if (commit || push || branch || pr) {
+    if (commit || push || branch) {
       group.gitOpBashCount = (group.gitOpBashCount ?? 0) + 1
     }
   }
@@ -604,13 +602,11 @@ type GroupAccumulator = {
   mcpServerNames?: Set<string>
   // Bash commands that aren't search/read (tracked separately for "Ran N bash commands")
   bashCount?: number
-  // Bash tool_use_id → command string, so tool results can be scanned for
-  // commit SHAs / PR URLs (surfaced as "committed abc123, created PR #42")
+  // Bash tool_use_id → command string, so tool results can be scanned for commit SHAs
   bashCommands?: Map<string, string>
   commits?: { sha: string; kind: CommitKind }[]
   pushes?: { branch: string }[]
   branches?: { ref: string; action: BranchAction }[]
-  prs?: { number: number; url?: string; action: PrAction }[]
   gitOpBashCount?: number
   // PreToolUse hook timing absorbed from hook summary messages
   hookTotalMs: number
@@ -652,7 +648,6 @@ function createEmptyGroup(): GroupAccumulator {
     group.commits = []
     group.pushes = []
     group.branches = []
-    group.prs = []
     group.gitOpBashCount = 0
   }
   return group
@@ -738,7 +733,6 @@ function createCollapsedGroup(
     if ((group.commits?.length ?? 0) > 0) result.commits = group.commits
     if ((group.pushes?.length ?? 0) > 0) result.pushes = group.pushes
     if ((group.branches?.length ?? 0) > 0) result.branches = group.branches
-    if ((group.prs?.length ?? 0) > 0) result.prs = group.prs
   }
   if (group.hookCount > 0) {
     result.hookTotalMs = group.hookTotalMs

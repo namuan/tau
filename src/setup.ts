@@ -57,7 +57,6 @@ export async function setup(
   worktreeName: string | undefined,
   tmuxEnabled: boolean,
   customSessionId?: string | null,
-  worktreePRNumber?: number,
   messagingSocketPath?: string,
 ): Promise<void> {
   logForDiagnosticsNoPII('info', 'setup_started')
@@ -184,9 +183,7 @@ export async function setup(
       process.exit(1)
     }
 
-    const slug = worktreePRNumber
-      ? `pr-${worktreePRNumber}`
-      : (worktreeName ?? getPlanSlug())
+    const slug = worktreeName ?? getPlanSlug()
 
     // Git preamble runs whenever we're in a git repo — even if a hook is
     // configured — so --tmux keeps working for git users who also have a
@@ -230,7 +227,6 @@ export async function setup(
         getSessionId(),
         slug,
         tmuxSessionName,
-        worktreePRNumber ? { prNumber: worktreePRNumber } : undefined,
       )
     } catch (error) {
       process.stderr.write(

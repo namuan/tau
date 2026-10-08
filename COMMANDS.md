@@ -135,16 +135,6 @@ tau --dangerously-skip-permissions
 **`/whatsapp` - Remote control Tau from WhatsApp**
 Link WhatsApp and control Tau from your phone.
 
-**`/github` - GitHub automation (gh required)**
-GitHub workflows inside Tau, powered by the GitHub CLI.
-
-- `issue` - Inspect issues for the current repo, or pass an issue URL to inspect that issue.
-- `pr` - Inspect pull requests (repo-local or via PR URL) and generate gh-backed actions.
-- `wrap` - Stage -> commit -> (optional changelog) -> push, with one permission gate before network writes.
-- `changelog` - Generate/update changelog notes from commit history in a consistent style.
-- `triage` - Classify issues (labels/status) with explicit confirmation before visible changes.
-- `release` - Release flow: inspect dirty working tree, check CI/CD workflow status, then tag/publish and list runs.
-
 **`/pin` - Pin a constraint to every prompt**
 Save a sentence (or two) and Tau quietly appends it to the end of every message you send - a persistent reminder the model carries through the whole session without you retyping it. Use it for style rules ("reply in French"), guardrails ("never edit files outside `src/`"), or task focus ("stay on the auth refactor"). Cache-safe by design: only the dynamic tail of the user message changes, so your provider's prompt cache stays warm and the cost is a few extra tokens per turn.
 

@@ -378,7 +378,6 @@ async function createSnapshotAgentWorktree(
 async function getOrCreateWorktree(
   repoRoot: string,
   slug: string,
-  options?: { prNumber?: number },
 ): Promise<WorktreeCreateResult> {
   const worktreePath = worktreePathFor(repoRoot, slug)
   const worktreeBranch = worktreeBranchName(slug)
@@ -404,49 +403,31 @@ async function getOrCreateWorktree(
 
   let baseBranch: string
   let baseSha: string | null = null
-  if (options?.prNumber) {
-    const { code: prFetchCode, stderr: prFetchStderr } =
-      await execFileNoThrowWithCwd(
-        gitExe(),
-        ['fetch', 'origin', `pull/${options.prNumber}/head`],
-        { cwd: repoRoot, stdin: 'ignore', env: fetchEnv },
-      )
-    if (prFetchCode !== 0) {
-      throw new Error(
-        `Failed to fetch PR #${options.prNumber}: ${prFetchStderr.trim() || 'PR may not exist or the repository may not have a remote named "origin"'}`,
-      )
-    }
-    baseBranch = 'FETCH_HEAD'
+  // If origin/<branch> already exists locally, skip fetch. In large repos
+  // (210k files, 16M objects) fetch burns ~6-8s on a local commit-graph
+  // scan before even hitting the network. A slightly stale base is fine —
+  // the user can pull in the worktree if they want latest.
+  // resolveRef reads the loose/packed ref directly; when it succeeds we
+  // already have the SHA, so the later rev-parse is skipped entirely.
+  const [defaultBranch, gitDir] = await Promise.all([
+    getDefaultBranch(),
+    resolveGitDir(repoRoot),
+  ])
+  const originRef = `origin/${defaultBranch}`
+  const originSha = gitDir
+    ? await resolveRef(gitDir, `refs/remotes/origin/${defaultBranch}`)
+    : null
+  if (originSha) {
+    baseBranch = originRef
+    baseSha = originSha
   } else {
-    // If origin/<branch> already exists locally, skip fetch. In large repos
-    // (210k files, 16M objects) fetch burns ~6-8s on a local commit-graph
-    // scan before even hitting the network. A slightly stale base is fine —
-    // the user can pull in the worktree if they want latest.
-    // resolveRef reads the loose/packed ref directly; when it succeeds we
-    // already have the SHA, so the later rev-parse is skipped entirely.
-    const [defaultBranch, gitDir] = await Promise.all([
-      getDefaultBranch(),
-      resolveGitDir(repoRoot),
-    ])
-    const originRef = `origin/${defaultBranch}`
-    const originSha = gitDir
-      ? await resolveRef(gitDir, `refs/remotes/origin/${defaultBranch}`)
-      : null
-    if (originSha) {
-      baseBranch = originRef
-      baseSha = originSha
-    } else {
-      const { code: fetchCode } = await execFileNoThrowWithCwd(
-        gitExe(),
-        ['fetch', 'origin', defaultBranch],
-        { cwd: repoRoot, stdin: 'ignore', env: fetchEnv },
-      )
-      baseBranch = fetchCode === 0 ? originRef : 'HEAD'
-    }
+    const { code: fetchCode } = await execFileNoThrowWithCwd(
+      gitExe(),
+      ['fetch', 'origin', defaultBranch],
+      { cwd: repoRoot, stdin: 'ignore', env: fetchEnv },
+    )
+    baseBranch = fetchCode === 0 ? originRef : 'HEAD'
   }
-
-  // For the fetch/PR-fetch paths we still need the SHA — the fs-only resolveRef
-  // above only covers the "origin/<branch> already exists locally" case.
   if (!baseSha) {
     const { stdout, code: shaCode } = await execFileNoThrowWithCwd(
       gitExe(),
@@ -745,33 +726,6 @@ async function performPostCreationSetup(
   }
 }
 
-/**
- * Parses a PR reference from a string.
- * Accepts GitHub-style PR URLs (e.g., https://github.com/owner/repo/pull/123,
- * or GHE equivalents like https://ghe.example.com/owner/repo/pull/123)
- * or `#N` format (e.g., #123).
- * Returns the PR number or null if the string is not a recognized PR reference.
- */
-export function parsePRReference(input: string): number | null {
-  // GitHub-style PR URL: https://<host>/owner/repo/pull/123 (with optional trailing slash, query, hash)
-  // The /pull/N path shape is specific to GitHub — GitLab uses /-/merge_requests/N,
-  // Bitbucket uses /pull-requests/N — so matching any host here is safe.
-  const urlMatch = input.match(
-    /^https?:\/\/[^/]+\/[^/]+\/[^/]+\/pull\/(\d+)\/?(?:[?#].*)?$/i,
-  )
-  if (urlMatch?.[1]) {
-    return parseInt(urlMatch[1], 10)
-  }
-
-  // #N format
-  const hashMatch = input.match(/^#(\d+)$/)
-  if (hashMatch?.[1]) {
-    return parseInt(hashMatch[1], 10)
-  }
-
-  return null
-}
-
 export async function isTmuxAvailable(): Promise<boolean> {
   const { code } = await execFileNoThrow('tmux', ['-V'])
   return code === 0
@@ -825,7 +779,6 @@ export async function createWorktreeForSession(
   sessionId: string,
   slug: string,
   tmuxSessionName?: string,
-  options?: { prNumber?: number },
 ): Promise<WorktreeSession> {
   // Must run before the hook branch below — hooks receive the raw slug as an
   // argument, and the git branch builds a path from it via path.join.
@@ -862,7 +815,7 @@ export async function createWorktreeForSession(
 
     const createStart = Date.now()
     const { worktreePath, worktreeBranch, headCommit, existed } =
-      await getOrCreateWorktree(gitRoot, slug, options)
+      await getOrCreateWorktree(gitRoot, slug)
 
     let creationDurationMs: number | undefined
     if (existed) {
@@ -1394,15 +1347,6 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{
     }
   }
 
-  // Check if worktree name is a PR reference
-  let prNumber: number | null = null
-  if (worktreeName) {
-    prNumber = parsePRReference(worktreeName)
-    if (prNumber !== null) {
-      worktreeName = `pr-${prNumber}`
-    }
-  }
-
   // Generate a slug if no name provided
   if (!worktreeName) {
     const adjectives = ['swift', 'bright', 'calm', 'keen', 'bold']
@@ -1458,11 +1402,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{
 
     // Create or resume worktree
     try {
-      const result = await getOrCreateWorktree(
-        repoRoot,
-        worktreeName,
-        prNumber !== null ? { prNumber } : undefined,
-      )
+      const result = await getOrCreateWorktree(repoRoot, worktreeName)
       if (!result.existed) {
         // biome-ignore lint/suspicious/noConsole: intentional console output
         console.log(

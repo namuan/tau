@@ -1,10 +1,7 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import addDir from './commands/add-dir/index.js'
-import autofixPr from './commands/autofix-pr/index.js'
 import backfillSessions from './commands/backfill-sessions/index.js'
 import btw from './commands/btw/index.js'
-import github from './commands/github/index.js'
-import githubRun from './commands/github/github-run.js'
 import goodClaude from './commands/good-claude/index.js'
 import goal from './commands/goal/index.js'
 import issue from './commands/issue/index.js'
@@ -14,7 +11,6 @@ import color from './commands/color/index.js'
 import commit from './commands/commit.js'
 import copy from './commands/copy/index.js'
 import desktop from './commands/desktop/index.js'
-import commitPushPr from './commands/commit-push-pr.js'
 import compact from './commands/compact/index.js'
 import config from './commands/config/index.js'
 import { context, contextNonInteractive } from './commands/context/index.js'
@@ -34,8 +30,6 @@ import learnedRun from './commands/learned/learned-run.js'
 import login from './commands/login/index.js'
 import logout from './commands/logout/index.js'
 import provider from './commands/provider/index.js'
-import installGitHubApp from './commands/install-github-app/index.js'
-import installSlackApp from './commands/install-slack-app/index.js'
 import breakCache from './commands/break-cache/index.js'
 import mobile from './commands/mobile/index.js'
 import onboarding from './commands/onboarding/index.js'
@@ -43,7 +37,6 @@ import releaseNotes from './commands/release-notes/index.js'
 import rename from './commands/rename/index.js'
 import report from './commands/report/index.js'
 import resume from './commands/resume/index.js'
-import review from './commands/review.js'
 import share from './commands/share/index.js'
 import skills from './commands/skills/index.js'
 import status from './commands/status/index.js'
@@ -84,9 +77,6 @@ const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (
       require('./services/skillSearch/localSearch.js') as typeof import('./services/skillSearch/localSearch.js')
     ).clearSkillIndexCache
-  : null
-const subscribePr = feature('KAIROS_GITHUB_WEBHOOKS')
-  ? require('./commands/subscribe-pr.js').default
   : null
 const torch = feature('TORCH') ? require('./commands/torch.js').default : null
 const peersCmd = feature('UDS_INBOX')
@@ -209,7 +199,6 @@ export const INTERNAL_ONLY_COMMANDS = [
   breakCache,
   bughunter,
   commit,
-  commitPushPr,
   ctx_viz,
   goodClaude,
   issue,
@@ -217,7 +206,6 @@ export const INTERNAL_ONLY_COMMANDS = [
   ...(forceSnip ? [forceSnip] : []),
   mockLimits,
   version,
-  ...(subscribePr ? [subscribePr] : []),
   resetLimits,
   resetLimitsNonInteractive,
   onboarding,
@@ -229,7 +217,6 @@ export const INTERNAL_ONLY_COMMANDS = [
   oauthRefresh,
   debugToolCall,
   agentsPlatform,
-  autofixPr,
 ].filter(Boolean)
 
 // Declared as a function so that we don't run this until getCommands is called,
@@ -258,8 +245,6 @@ const COMMANDS = memoize((): Command[] => [
   exit,
   fast,
   files,
-  github,
-  githubRun,
   goal,
   heapDump,
   help,
@@ -267,8 +252,6 @@ const COMMANDS = memoize((): Command[] => [
   keybindings,
   learned,
   learnedRun,
-  installGitHubApp,
-  installSlackApp,
   memory,
   mobile,
   model,
@@ -291,7 +274,6 @@ const COMMANDS = memoize((): Command[] => [
   tag,
   theme,
   feedback,
-  review,
   rewind,
   tree,
   terminalSetup,

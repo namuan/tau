@@ -1,6 +1,6 @@
 export const WEB_FETCH_TOOL_NAME = 'WebFetch'
 
-export const DESCRIPTION = `Fetch a public URL, convert it to Markdown, and answer the supplied extraction prompt. Read-only; large pages may be summarized. Use gh for GitHub URLs. HTTP upgrades to HTTPS. A cross-host redirect returns its new URL without fetching it; call WebFetch again with that URL.`
+export const DESCRIPTION = `Fetch a public URL, convert it to Markdown, and answer the supplied extraction prompt. Read-only; large pages may be summarized. HTTP upgrades to HTTPS. A cross-host redirect returns its new URL without fetching it; call WebFetch again with that URL.`
 
 export function makeSecondaryModelPrompt(
   markdownContent: string,

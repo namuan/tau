@@ -20,7 +20,7 @@ npm link
 
 `npm link` creates a machine-local symlink to this checkout, exposing the `tau` command from any directory. It does not publish or install Tau from a registry. To remove the link, run `npm unlink -g tau-local`.
 
-**Requirements:** macOS, Node.js 20.19+ or 22.12+ (require(esm) support), Git, Bash, ripgrep (`rg`) on `PATH`, `gh` for GitHub automation, and Go 1.25.8+ to build the optional native Tau helpers from source.
+**Requirements:** macOS, Node.js 20.19+ or 22.12+ (require(esm) support), Git, Bash, ripgrep (`rg`) on `PATH`, and Go 1.25.8+ to build the optional native Tau helpers from source.
 
 ---
 
@@ -163,10 +163,6 @@ Tau thinks about your money and your preferences before anything else. A normal 
 <p align="center">
   <img src="docs/Capture.PNG" alt="Tau start screen in cheap mode" width="720">
 </p>
-
-### GitHub automation and repo management
-
-The `/github` command brings common GitHub work into Tau through `gh`: inspect issues and pull requests, review repo state, triage labels/status, generate changelog notes, run wrap-up flows for stage/commit/push, and inspect workflow or release status before publishing changes.
 
 ### Scalable context across providers
 

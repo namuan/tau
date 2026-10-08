@@ -425,8 +425,7 @@ export function LogSelector(t0) {
         const displayedTitle = getLogDisplayTitle(log_5).toLowerCase();
         const branch_0 = (log_5.gitBranch || "").toLowerCase();
         const tag = (log_5.tag || "").toLowerCase();
-        const prInfo = log_5.prNumber ? `pr #${log_5.prNumber} ${log_5.prRepository || ""}`.toLowerCase() : "";
-        return displayedTitle.includes(query) || branch_0.includes(query) || tag.includes(query) || prInfo.includes(query);
+        return displayedTitle.includes(query) || branch_0.includes(query) || tag.includes(query);
       });
       $[39] = baseFilteredLogs;
       $[40] = searchQuery;
@@ -1507,7 +1506,7 @@ function extractSearchableText(message: SerializedMessage): string {
 function buildSearchableText(log: LogOption): string {
   const searchableMessages = log.messages.length <= DEEP_SEARCH_MAX_MESSAGES ? log.messages : [...log.messages.slice(0, DEEP_SEARCH_CROP_SIZE), ...log.messages.slice(-DEEP_SEARCH_CROP_SIZE)];
   const messageText = searchableMessages.map(extractSearchableText).filter(Boolean).join(' ');
-  const metadata = [log.customTitle, log.summary, log.firstPrompt, log.gitBranch, log.tag, log.prNumber ? `PR #${log.prNumber}` : undefined, log.prRepository].filter(Boolean).join(' ');
+  const metadata = [log.customTitle, log.summary, log.firstPrompt, log.gitBranch, log.tag].filter(Boolean).join(' ');
   const fullText = `${metadata} ${messageText}`.trim();
   return fullText.length > DEEP_SEARCH_MAX_TEXT_LENGTH ? fullText.slice(0, DEEP_SEARCH_MAX_TEXT_LENGTH) : fullText;
 }

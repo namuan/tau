@@ -1,11 +1,4 @@
 /**
- * Detects pull request creation in shell commands and links the current
- * session to the created pull request.
- */
-
-
-
-/**
  * Build a regex that matches `git <subcmd>` while tolerating git's global
  * options between `git` and the subcommand (e.g. `-c key=val`, `-C path`,
  * `--git-dir=path`). Common when the model retries with
@@ -25,48 +18,6 @@ const GIT_REBASE_RE = gitCmdRe('rebase')
 
 export type CommitKind = 'committed' | 'amended' | 'cherry-picked'
 export type BranchAction = 'merged' | 'rebased'
-export type PrAction =
-  | 'created'
-  | 'edited'
-  | 'merged'
-  | 'commented'
-  | 'closed'
-  | 'ready'
-
-const GH_PR_ACTIONS: readonly { re: RegExp; action: PrAction; op: string }[] = [
-  { re: /\bgh\s+pr\s+create\b/, action: 'created', op: 'pr_create' },
-  { re: /\bgh\s+pr\s+edit\b/, action: 'edited', op: 'pr_edit' },
-  { re: /\bgh\s+pr\s+merge\b/, action: 'merged', op: 'pr_merge' },
-  { re: /\bgh\s+pr\s+comment\b/, action: 'commented', op: 'pr_comment' },
-  { re: /\bgh\s+pr\s+close\b/, action: 'closed', op: 'pr_close' },
-  { re: /\bgh\s+pr\s+ready\b/, action: 'ready', op: 'pr_ready' },
-]
-
-/**
- * Parse PR info from a GitHub PR URL.
- * Returns { prNumber, prUrl, prRepository } or null if not a valid PR URL.
- */
-function parsePrUrl(
-  url: string,
-): { prNumber: number; prUrl: string; prRepository: string } | null {
-  const match = url.match(/https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/)
-  if (match?.[1] && match?.[2]) {
-    return {
-      prNumber: parseInt(match[2], 10),
-      prUrl: url,
-      prRepository: match[1],
-    }
-  }
-  return null
-}
-
-/** Find a GitHub PR URL embedded anywhere in stdout and parse it. */
-function findPrInStdout(stdout: string): ReturnType<typeof parsePrUrl> {
-  const m = stdout.match(/https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/\d+/)
-  return m ? parsePrUrl(m[0]) : null
-}
-
-// Exported for testing purposes
 export function parseGitCommitId(stdout: string): string | undefined {
   // git commit output: [branch abc1234] message
   // or for root commit: [branch (root-commit) abc1234] message
@@ -89,15 +40,6 @@ function parseGitPushBranch(output: string): string | undefined {
 }
 
 /**
- * gh pr merge/close/ready print "✓ <Verb> pull request owner/repo#1234" with
- * no URL. Extract the PR number from the text.
- */
-function parsePrNumberFromText(stdout: string): number | undefined {
-  const match = stdout.match(/[Pp]ull request (?:\S+#)?#?(\d+)/)
-  return match?.[1] ? parseInt(match[1], 10) : undefined
-}
-
-/**
  * Extract target ref from `git merge <ref>` / `git rebase <ref>` command.
  * Skips flags and keywords — first non-flag argument is the ref.
  */
@@ -117,9 +59,8 @@ function parseRefFromCommand(
 
 /**
  * Scan bash command + output for git operations worth surfacing in the
- * collapsed tool-use summary ("committed a1b2c3, created PR #42, ran 3 bash
- * commands"). Checks the command to avoid matching SHAs/URLs that merely
- * appear in unrelated output (e.g. `git log`).
+ * collapsed tool-use summary. Checks the command to avoid matching output
+ * that merely appears in unrelated commands (e.g. `git log`).
  *
  * Pass stdout+stderr concatenated — git push writes the ref update to stderr.
  */
@@ -130,7 +71,6 @@ export function detectGitOperation(
   commit?: { sha: string; kind: CommitKind }
   push?: { branch: string }
   branch?: { ref: string; action: BranchAction }
-  pr?: { number: number; url?: string; action: PrAction }
 } {
   const result: ReturnType<typeof detectGitOperation> = {}
   // commit and cherry-pick both produce "[branch sha] msg" output
@@ -163,53 +103,5 @@ export function detectGitOperation(
     const ref = parseRefFromCommand(command, 'rebase')
     if (ref) result.branch = { ref, action: 'rebased' }
   }
-  const prAction = GH_PR_ACTIONS.find(a => a.re.test(command))?.action
-  if (prAction) {
-    const pr = findPrInStdout(output)
-    if (pr) {
-      result.pr = { number: pr.prNumber, url: pr.prUrl, action: prAction }
-    } else {
-      const num = parsePrNumberFromText(output)
-      if (num) result.pr = { number: num, action: prAction }
-    }
-  }
   return result
-}
-
-// Exported for testing purposes
-export function trackGitOperations(
-  command: string,
-  exitCode: number,
-  stdout?: string,
-): void {
-  const success = exitCode === 0
-  if (!success) {
-    return
-  }
-
-  const prHit = GH_PR_ACTIONS.find(a => a.re.test(command))
-  if (prHit?.action === 'created') {
-    // Auto-link session to PR if we can extract PR URL from stdout
-    if (stdout) {
-      const prInfo = findPrInStdout(stdout)
-      if (prInfo) {
-        // Import is done dynamically to avoid circular dependency
-        void import('../../utils/sessionStorage.js').then(
-          ({ linkSessionToPR }) => {
-            void import('../../bootstrap/state.js').then(({ getSessionId }) => {
-              const sessionId = getSessionId()
-              if (sessionId) {
-                void linkSessionToPR(
-                  sessionId as `${string}-${string}-${string}-${string}-${string}`,
-                  prInfo.prNumber,
-                  prInfo.prUrl,
-                  prInfo.prRepository,
-                )
-              }
-            })
-          },
-        )
-      }
-    }
-  }
 }

@@ -1388,7 +1388,7 @@ Include 3 friction categories with 2 examples each.`,
 
 2. **Custom Skills**: Reusable prompts you define as markdown files that run with a single /command.
    - How to use: Create \`.claude/skills/commit/SKILL.md\` with instructions. Then type \`/commit\` to run it.
-   - Good for: repetitive workflows - /commit, /review, /test, /deploy, /pr, or complex multi-step workflows
+   - Good for: repetitive workflows - /commit, /test, /deploy, or complex multi-step workflows
 
 3. **Hooks**: Shell commands that auto-run at specific lifecycle events.
    - How to use: Add to \`.claude/settings.json\` under "hooks" key.

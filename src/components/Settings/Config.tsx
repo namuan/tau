@@ -749,25 +749,6 @@ export function Config({
 
     }
   }, {
-    id: 'prStatusFooterEnabled',
-    label: 'Show PR status footer',
-    value: globalConfig.prStatusFooterEnabled ?? true,
-    type: 'boolean' as const,
-    onChange(enabled_4: boolean) {
-      saveGlobalConfig(current_14 => {
-        if (current_14.prStatusFooterEnabled === enabled_4) return current_14;
-        return {
-          ...current_14,
-          prStatusFooterEnabled: enabled_4
-        };
-      });
-      setGlobalConfig({
-        ...getGlobalConfig(),
-        prStatusFooterEnabled: enabled_4
-      });
-
-    }
-  }, {
     id: 'model',
     label: 'Model',
     value: mainLoopModel === null ? 'Default (recommended)' : mainLoopModel,

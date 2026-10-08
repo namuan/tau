@@ -38,7 +38,7 @@ function getBackgroundUsageNote(): string | null {
   return 'For servers, watchers, tunnels, port-forwards, and other long-lived foreground work, set `run_in_background: true`. Do not detach inside `command` with `&`, `nohup`, `disown`, `echo $!`, `docker compose up -d`, or `docker run -d`; Tau tracks the task and reports completion.'
 }
 
-function getCommitAndPRInstructions(): string {
+function getGitInstructions(): string {
   // Defense-in-depth: undercover instructions must survive even if the user
   // has disabled git instructions entirely. Attribution stripping and model-ID
   // hiding are mechanical and work regardless, but the explicit "don't blow
@@ -54,34 +54,25 @@ function getCommitAndPRInstructions(): string {
   // For ant users, use the short version pointing to skills
   if (process.env.USER_TYPE === 'ant') {
     const skillsSection = !isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)
-      ? `For git commits and pull requests, use the \`/commit\` and \`/commit-push-pr\` skills:
-- \`/commit\` - Create a git commit with staged changes
-- \`/commit-push-pr\` - Commit, push, and create a pull request
-
-These skills handle git safety protocols, proper commit message formatting, and PR creation.
-
-Before creating a pull request, run \`/simplify\` to review your changes, then test end-to-end (e.g. via \`/tmux\` for interactive features).
+      ? `For git commits, use the \`/commit\` skill to create a commit with staged changes. It follows git safety protocols and formats the commit message.
 
 `
       : ''
-    return `${undercoverSection}# Git/GitHub
+    return `${undercoverSection}# Git
 
-${skillsSection}IMPORTANT: NEVER skip hooks (--no-verify, --no-gpg-sign, etc) unless the user explicitly requests it.
-
-Use \`gh\` for GitHub issues, pull requests, checks, and releases.`
+${skillsSection}IMPORTANT: NEVER skip hooks (--no-verify, --no-gpg-sign, etc) unless the user explicitly requests it.`
   }
 
   // Keep the model-visible contract compact. Permission checks, destructive
   // command checks, hook failures, and command diagnostics are enforced by the
   // execution path and return actionable errors at the point of use.
-  const { commit: commitAttribution, pr: prAttribution } = getAttributionTexts()
+  const { commit: commitAttribution } = getAttributionTexts()
 
-  return `# Git/GitHub
+  return `# Git
 
-- Commit, push, amend, or create a PR only when requested. Never change git config, skip hooks/signing, force-push main/master, or use destructive git commands without explicit authorization.
+- Commit or push only when requested. Never change git config, skip hooks/signing, force-push main/master, or use destructive git commands without explicit authorization.
 - Before committing, inspect status, staged/unstaged diff, and recent log; stage named files, exclude secrets, and do not create empty commits. Prefer a new commit. If a hook fails, fix it and create a new commit rather than amending.${commitAttribution ? ` End the commit message with:\n${commitAttribution}` : ''}
-- Push only when requested. Use \`gh\` for GitHub work.
-- Before a PR, inspect the complete branch diff/history against its base. Keep the title under 70 characters; include a concise summary and test plan${prAttribution ? `, then append:\n${prAttribution}` : ''}. Return the PR URL.`
+- Push only when requested.`
 }
 
 
@@ -170,6 +161,6 @@ export function getSimplePrompt(): string {
     '',
     '# Instructions',
     ...prependBullets(instructionItems),
-    ...(getCommitAndPRInstructions() ? ['', getCommitAndPRInstructions()] : []),
+    ...(getGitInstructions() ? ['', getGitInstructions()] : []),
   ].join('\n')
 }
