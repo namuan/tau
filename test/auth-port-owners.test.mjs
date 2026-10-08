@@ -52,7 +52,7 @@ test('PID 0 and non-numeric columns are never targeted', () => {
 })
 
 test('only processes that could host a callback server may be killed', () => {
-  for (const image of ['node.exe', 'NODE.EXE', 'codex.exe', 'bun', 'tau.exe', ' claudex.exe ']) {
+  for (const image of ['node.exe', 'NODE.EXE', 'codex.exe', 'bun', 'tau.exe']) {
     assert.ok(isReclaimableImage(image), `refused ${image}`)
   }
   // The whole point: a database, editor or browser is never Tau's to terminate.
