@@ -77,6 +77,9 @@ Creates a clean content report for the session in Markdown, PDF, or HTML. This i
 
 ## Shell commands
 
+**`/commit` - Create a git commit**
+Review and commit staged changes using Tau's shared Git safety rules. Stage the intended files first; `/commit` does not push or create a pull request.
+
 **`!command` - Run a shell command yourself**
 Start your message with `!` to run a command directly, without asking the model. The command and its output are added to the conversation, so the model can see them on its next turn.
 

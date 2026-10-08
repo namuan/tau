@@ -63,11 +63,6 @@ export const DEFAULT_UPLOAD_CONCURRENCY = 1;
 export const FILE_COUNT_LIMIT = 100;
 export const OUTPUTS_SUBDIR = 'outputs';
 export const isCoordinatorMode = () => false;
-export const runDaemonWorker = () => {};
-export const daemonMain = () => {};
-export const templatesMain = () => {};
-export const environmentRunnerMain = () => {};
-export const selfHostedRunnerMain = () => {};
 // Additional exports imported by stripped-out features. esbuild requires
 // named exports be statically present; Bun's bundler was more forgiving.
 export const WORKFLOW_TOOL_NAME = '';

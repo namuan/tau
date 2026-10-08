@@ -1,5 +1,4 @@
 import { c as _c } from "react/compiler-runtime";
-import { feature } from 'bun:bundle';
 import * as React from 'react';
 import { Box, Text } from 'src/ink.js';
 import { getPlatform } from 'src/utils/platform.js';
@@ -107,16 +106,6 @@ export function PromptInputHelpMenu(props) {
     t15 = $[15];
   }
   const externalEditorShortcut = t15;
-  const t16 = useShortcutDisplay("app:toggleTerminal", "Global", "meta+j");
-  let t17;
-  if ($[16] !== t16) {
-    t17 = formatShortcut(t16);
-    $[16] = t16;
-    $[17] = t17;
-  } else {
-    t17 = $[17];
-  }
-  const terminalShortcut = t17;
   const t18 = useShortcutDisplay("chat:imagePaste", "Chat", "ctrl+v");
   let t19;
   if ($[18] !== t18) {
@@ -136,16 +125,6 @@ export function PromptInputHelpMenu(props) {
   } else {
     historySearchShortcut = $[103];
   }
-  let t20;
-  if ($[20] !== dimColor || $[21] !== terminalShortcut) {
-    t20 = feature("TERMINAL_PANEL") ? false ? <Box><Text dimColor={dimColor}>{terminalShortcut} for terminal</Text></Box> : null : null;
-    $[20] = dimColor;
-    $[21] = terminalShortcut;
-    $[22] = t20;
-  } else {
-    t20 = $[22];
-  }
-  const terminalShortcutElement = t20;
   const t21 = fixedWidth ? 24 : undefined;
   let t22;
   if ($[23] !== dimColor) {
@@ -270,8 +249,8 @@ export function PromptInputHelpMenu(props) {
     historySearchHint = $[106];
   }
   let t35;
-  if ($[54] !== t28 || $[55] !== t29 || $[107] !== historySearchHint || $[56] !== t30 || $[57] !== t31 || $[58] !== t32 || $[59] !== t34 || $[60] !== terminalShortcutElement) {
-    t35 = <Box flexDirection="column" width={t28}>{t29}{historySearchHint}{t30}{t31}{t32}{terminalShortcutElement}{t34}</Box>;
+  if ($[54] !== t28 || $[55] !== t29 || $[107] !== historySearchHint || $[56] !== t30 || $[57] !== t31 || $[58] !== t32 || $[59] !== t34) {
+    t35 = <Box flexDirection="column" width={t28}>{t29}{historySearchHint}{t30}{t31}{t32}{t34}</Box>;
     $[54] = t28;
     $[55] = t29;
     $[107] = historySearchHint;
@@ -279,7 +258,6 @@ export function PromptInputHelpMenu(props) {
     $[57] = t31;
     $[58] = t32;
     $[59] = t34;
-    $[60] = terminalShortcutElement;
     $[61] = t35;
   } else {
     t35 = $[61];
