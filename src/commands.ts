@@ -56,11 +56,6 @@ const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
     ).clearSkillIndexCache
   : null
 const torch = feature('TORCH') ? require('./commands/torch.js').default : null
-const forkCmd = feature('FORK_SUBAGENT')
-  ? (
-      require('./commands/fork/index.js') as typeof import('./commands/fork/index.js')
-    ).default
-  : null
 const buddy = feature('BUDDY')
   ? (
       require('./commands/buddy/index.js') as typeof import('./commands/buddy/index.js')
@@ -219,7 +214,6 @@ const COMMANDS = memoize((): Command[] => [
   usage,
   usageReport,
   vim,
-  ...(forkCmd ? [forkCmd] : []),
   ...(buddy ? [buddy] : []),
   ...(proactive ? [proactive] : []),
   ...(briefCommand ? [briefCommand] : []),
