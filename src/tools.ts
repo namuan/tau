@@ -106,9 +106,6 @@ const coordinatorModeModule = feature('COORDINATOR_MODE')
 const SnipTool = feature('HISTORY_SNIP')
   ? require('./tools/SnipTool/SnipTool.js').SnipTool
   : null
-const ListPeersTool = feature('UDS_INBOX')
-  ? require('./tools/ListPeersTool/ListPeersTool.js').ListPeersTool
-  : null
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import type { ToolPermissionContext } from './Tool.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
@@ -207,7 +204,6 @@ export function getAllBaseTools(): Tools {
     ...NATIVE_READ_ONLY_TOOLS,
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     getSendMessageTool(),
-    ...(ListPeersTool ? [ListPeersTool] : []),
     ...(VerifyPlanExecutionTool ? [VerifyPlanExecutionTool] : []),
     ...(process.env.USER_TYPE === 'ant' && REPLTool ? [REPLTool] : []),
     ...(SleepTool ? [SleepTool] : []),

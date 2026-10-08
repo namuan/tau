@@ -1,4 +1,3 @@
-import { feature } from 'bun:bundle'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 
 export const DESCRIPTION = 'Send a message to a running agent, or continue one you already spawned'
@@ -7,10 +6,7 @@ export const DESCRIPTION = 'Send a message to a running agent, or continue one y
  * Only document the recipient kinds this build can route to.
  *
  * Subagent continuation is always available. Teammate names, broadcast, and
- * the shutdown / plan-approval protocol exist only when swarms are enabled;
- * cross-session peers only when the UDS inbox is compiled in. Describing an
- * unreachable address costs cached prompt bytes on every session and teaches
- * the model a call that cannot succeed.
+ * the shutdown / plan-approval protocol exist only when swarms are enabled.
  */
 export function getPrompt(): string {
   const swarms = isAgentSwarmsEnabled()
@@ -43,20 +39,6 @@ Prefer continuing an existing agent over spawning a fresh one for follow-up work
 Messages from teammates are delivered automatically; you don't check an inbox. Refer to teammates by name, never by UUID. When relaying, don't quote the original — it's already rendered to the user.`
     : ''
 
-  const udsSection = feature('UDS_INBOX')
-    ? `
-
-## Cross-session
-
-Use \`ListPeers\` to discover targets, then:
-
-\`\`\`json
-{"to": "uds:/tmp/cc-socks/1234.sock", "message": "check if tests pass over there"}
-\`\`\`
-
-A listed peer is alive and will process your message — no "busy" state; messages enqueue and drain at the receiver's next tool round. Your message arrives wrapped as \`<cross-session-message from="...">\`. **To reply to an incoming message, copy its \`from\` attribute as your \`to\`.**`
-    : ''
-
   const protocolSection = swarms
     ? `
 
@@ -76,6 +58,6 @@ Approving shutdown terminates your process. Rejecting plan sends the teammate ba
 # SendMessage
 
 Your plain text output is NOT visible to other agents — to reach one, you MUST call this tool.
-${subagentSection}${teammateSection}${udsSection}${protocolSection}
+${subagentSection}${teammateSection}${protocolSection}
 `.trim()
 }

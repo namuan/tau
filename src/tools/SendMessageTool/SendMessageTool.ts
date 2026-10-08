@@ -1,4 +1,3 @@
-import { feature } from 'bun:bundle'
 import { z } from 'zod/v4'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
@@ -13,10 +12,8 @@ import { generateRequestId } from '../../utils/agentId.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
-import { truncate } from '../../utils/format.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { parseAddress } from '../../utils/peerAddress.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import type { BackendType } from '../../utils/swarm/backends/types.js'
@@ -65,8 +62,7 @@ const StructuredMessage = lazySchema(() =>
 /**
  * Describe only the recipient kinds this build can actually route to, so the
  * model is never told about an address it cannot use. Subagent continuation is
- * always reachable; teammate names and broadcast exist only with swarms on;
- * cross-session peers only with the UDS inbox compiled in.
+ * always reachable; teammate names and broadcast exist only with swarms on.
  */
 function describeRecipient(): string {
   const kinds = [
@@ -74,11 +70,6 @@ function describeRecipient(): string {
   ]
   if (isAgentSwarmsEnabled()) {
     kinds.push('a teammate name', '"*" to broadcast to all teammates')
-  }
-  if (feature('UDS_INBOX')) {
-    kinds.push(
-      '"uds:<socket-path>" for a local peer',
-    )
   }
   return `Recipient: ${kinds.join(', or ')}`
 }
@@ -615,13 +606,11 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
           errorCode: 9,
         }
       }
-      const addr = parseAddress(input.to)
-      if (
-        addr.scheme === 'uds' && addr.target.trim().length === 0
-      ) {
+      if (input.to.startsWith('uds:') || input.to.startsWith('/')) {
         return {
           result: false,
-          message: 'address target must not be empty',
+          message:
+            'Cross-session peer messaging is unavailable; address an agent or teammate in this session.',
           errorCode: 9,
         }
       }
@@ -632,16 +621,6 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
             'to must be a bare teammate name or "*" — there is only one team per session',
           errorCode: 9,
         }
-      }
-      if (
-        feature('UDS_INBOX') &&
-        parseAddress(input.to).scheme === 'uds' &&
-        typeof input.message === 'string'
-      ) {
-        // UDS cross-session send: summary isn't rendered (UI.tsx returns null
-        // for string messages), so don't require it. Structured messages fall
-        // through to the rejection below.
-        return { result: true }
       }
       if (typeof input.message === 'string') {
         if (!input.summary || input.summary.trim().length === 0) {
@@ -661,15 +640,6 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
           errorCode: 9,
         }
       }
-      if (feature('UDS_INBOX') && parseAddress(input.to).scheme !== 'other') {
-        return {
-          result: false,
-          message:
-            'structured messages cannot be sent cross-session — only plain text',
-          errorCode: 9,
-        }
-      }
-
       if (
         input.message.type === 'shutdown_response' &&
         input.to !== TEAM_LEAD_NAME
@@ -718,33 +688,6 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
     },
 
     async call(input, context, canUseTool, assistantMessage) {
-      if (feature('UDS_INBOX') && typeof input.message === 'string') {
-        const addr = parseAddress(input.to)
-        if (addr.scheme === 'uds') {
-          /* eslint-disable @typescript-eslint/no-require-imports */
-          const { sendToUdsSocket } =
-            require('../../utils/udsClient.js') as typeof import('../../utils/udsClient.js')
-          /* eslint-enable @typescript-eslint/no-require-imports */
-          try {
-            await sendToUdsSocket(addr.target, input.message)
-            const preview = input.summary || truncate(input.message, 50)
-            return {
-              data: {
-                success: true,
-                message: `“${preview}” → ${input.to}`,
-              },
-            }
-          } catch (e) {
-            return {
-              data: {
-                success: false,
-                message: `Failed to send to ${input.to}: ${errorMessage(e)}`,
-              },
-            }
-          }
-        }
-      }
-
       // Route to in-process subagent by name or raw agentId before falling
       // through to ambient-team resolution. Stopped agents are auto-resumed.
       if (typeof input.message === 'string' && input.to !== '*') {
